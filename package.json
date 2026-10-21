@@ -1,0 +1,70 @@
+{
+  "name": "dozzo-browser",
+  "productName": "Dozzo Browser",
+  "version": "1.0.0",
+  "description": "Ultra-fast, 100% private browser with built-in adblocker, Binance crypto widget, and customizable themes",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev:vite": "vite --port 5173",
+    "dev": "concurrently -k -s first \"npm run dev:vite\" \"cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "build": "vite build",
+    "start": "electron .",
+    "dist": "vite build && electron-builder --win -c.publish=null",
+    "dist:portable": "vite build && electron-builder --win portable -c.publish=null",
+    "dist:publish": "vite build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.dozzo.browser",
+    "productName": "Dozzo Browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Dozzo Browser"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "DevJuanRM",
+        "repo": "Dozzo-Browser"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevJuanRM/Dozzo-Browser.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3",
+    "vite": "^8.3.5"
+  }
+}
