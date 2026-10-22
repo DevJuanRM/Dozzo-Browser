@@ -24,7 +24,8 @@ import {
   RotateCcw,
   Grid,
   Moon,
-  Sun
+  Sun,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export default function DevInspectorDrawer({
@@ -117,15 +118,96 @@ export default function DevInspectorDrawer({
   const activeElement = layers[selectedLayerIdx] || layers[0] || elementData;
   const s = activeElement.styles || {};
 
-  const handleCopy = (text, type = 'code') => {
+  const handleCopy = async (text, type = 'code') => {
     if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setCopiedType(type);
-    setTimeout(() => {
-      setCopied(false);
-      setCopiedType('');
-    }, 1800);
+    try {
+      if (type === 'figma') {
+        const textBlob = new Blob([text], { type: 'text/plain' });
+        const svgBlob = new Blob([text], { type: 'image/svg+xml' });
+        const htmlBlob = new Blob([text], { type: 'text/html' });
+
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/plain': textBlob,
+              'image/svg+xml': svgBlob,
+              'text/html': htmlBlob
+            })
+          ]);
+        } catch (clipErr) {
+          await navigator.clipboard.writeText(text);
+        }
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopied(true);
+      setCopiedType(type);
+      setTimeout(() => {
+        setCopied(false);
+        setCopiedType('');
+      }, 1800);
+    } catch (e) {
+      try {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setCopiedType(type);
+        setTimeout(() => {
+          setCopied(false);
+          setCopiedType('');
+        }, 1800);
+      } catch (err2) {}
+    }
+  };
+
+  const handleCopyAsPng = () => {
+    const svgCode = activeElement.figmaSvg || activeElement.svg;
+    if (!svgCode) return;
+    try {
+      const img = new Image();
+      const svgBlob = new Blob([svgCode], { type: 'image/svg+xml;charset=utf-8' });
+      const URLObj = window.URL || window.webkitURL || window;
+      const blobURL = URLObj.createObjectURL(svgBlob);
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const scale = 2; // High-DPI 2x
+          const w = Math.max(40, (activeElement.rect?.width || 300)) * scale;
+          const h = Math.max(30, (activeElement.rect?.height || 200)) * scale;
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          URLObj.revokeObjectURL(blobURL);
+
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              try {
+                await navigator.clipboard.write([
+                  new ClipboardItem({ 'image/png': blob })
+                ]);
+                setCopied(true);
+                setCopiedType('png');
+                setTimeout(() => {
+                  setCopied(false);
+                  setCopiedType('');
+                }, 1800);
+              } catch (clipErr) {
+                console.error('Clipboard image write failed:', clipErr);
+              }
+            }
+          }, 'image/png');
+        } catch (err) {
+          console.error('Error drawing SVG to canvas for PNG copy:', err);
+        }
+      };
+      img.onerror = (e) => {
+        console.error('Failed to load SVG for PNG conversion:', e);
+      };
+      img.src = blobURL;
+    } catch (err) {
+      console.error('Error in handleCopyAsPng:', err);
+    }
   };
 
   // Convert CSS object to formatted CSS string
@@ -645,10 +727,19 @@ Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
                 <button
                   style={{ ...styles.quickBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}
                   onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
-                  title="Copiar vector listo para pegar con Ctrl+V en Figma"
+                  title="Copiar vector SVG listo para pegar con Ctrl+V en Figma"
                 >
                   {copied && copiedType === 'figma' ? <Check size={12} color="#10B981" /> : <Sparkles size={12} />}
                   <span>{copied && copiedType === 'figma' ? 'Vector Copiado' : 'Pegar a Figma'}</span>
+                </button>
+
+                <button
+                  style={{ ...styles.quickBtn, borderColor: 'rgba(56, 189, 248, 0.4)', color: '#38BDF8' }}
+                  onClick={handleCopyAsPng}
+                  title="Copiar imagen PNG en alta resolución (2x) para pegar en Figma o cualquier app"
+                >
+                  {copied && copiedType === 'png' ? <Check size={12} color="#10B981" /> : <ImageIcon size={12} />}
+                  <span>{copied && copiedType === 'png' ? 'PNG Copiado' : 'Copiar PNG'}</span>
                 </button>
               </div>
             </div>
@@ -1050,13 +1141,31 @@ Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
                 </div>
               </div>
 
-              <button
-                style={styles.figmaCopyBtn}
-                onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
-              >
-                {copied && copiedType === 'figma' ? <Check size={15} /> : <Copy size={15} />}
-                <span>{copied && copiedType === 'figma' ? '¡Componente Copiado!' : 'Copiar Capas Vectoriales (Ctrl+V)'}</span>
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  style={{ ...styles.figmaCopyBtn, flex: 1 }}
+                  onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
+                >
+                  {copied && copiedType === 'figma' ? <Check size={15} /> : <Copy size={15} />}
+                  <span>{copied && copiedType === 'figma' ? '¡Vector Copiado!' : 'Copiar Capas Vectoriales (Ctrl+V)'}</span>
+                </button>
+
+                <button
+                  style={{
+                    ...styles.figmaCopyBtn,
+                    flex: 1,
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    borderColor: 'rgba(56, 189, 248, 0.35)',
+                    color: '#38BDF8',
+                    boxShadow: 'none'
+                  }}
+                  onClick={handleCopyAsPng}
+                  title="Copiar imagen PNG a 2x de resolución"
+                >
+                  {copied && copiedType === 'png' ? <Check size={15} color="#10B981" /> : <ImageIcon size={15} />}
+                  <span>{copied && copiedType === 'png' ? '¡PNG Copiado!' : 'Copiar Imagen PNG (2x)'}</span>
+                </button>
+              </div>
             </div>
 
             {/* Design Tokens & Specs */}

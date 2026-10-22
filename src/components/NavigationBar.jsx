@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
@@ -73,8 +73,25 @@ export default function NavigationBar({
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [isOmniFocused, setIsOmniFocused] = useState(false);
 
+  const themeMenuRef = useRef(null);
+  const toolsMenuRef = useRef(null);
+
   const currentThemeObj = getTheme(theme);
 
+  // Close menus on click outside
+  useEffect(() => {
+    if (!showThemeMenu && !showToolsMenu) return;
+    const handleOutsideClick = (e) => {
+      if (showThemeMenu && themeMenuRef.current && !themeMenuRef.current.contains(e.target)) {
+        setShowThemeMenu(false);
+      }
+      if (showToolsMenu && toolsMenuRef.current && !toolsMenuRef.current.contains(e.target)) {
+        setShowToolsMenu(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleOutsideClick, true);
+    return () => window.removeEventListener('pointerdown', handleOutsideClick, true);
+  }, [showThemeMenu, showToolsMenu]);
 
   // Sync input value with current URL
   useEffect(() => {
@@ -242,13 +259,14 @@ export default function NavigationBar({
             {inputValue.trim() && (
               <div
                 style={styles.suggestionRow}
+                className="dozzo-suggestion-row"
                 onMouseDown={() => {
                   handleKeyDown({ key: 'Enter' });
                   setIsOmniFocused(false);
                 }}
               >
                 <Search size={14} color="var(--accent)" />
-                <span style={{ flex: 1, color: 'var(--text-primary)', fontWeight: '600' }}>
+                <span style={{ flex: 1, color: 'var(--text-primary)', fontWeight: '600', fontSize: '12.5px' }}>
                   Buscar "{inputValue}" en {getEngine(searchEngine).name}
                 </span>
                 <span style={styles.suggestionBadge}>Buscar</span>
@@ -260,6 +278,7 @@ export default function NavigationBar({
               <div
                 key={h.id}
                 style={styles.suggestionRow}
+                className="dozzo-suggestion-row"
                 onMouseDown={() => {
                   onNavigate(h.url);
                   setIsOmniFocused(false);
@@ -291,7 +310,7 @@ export default function NavigationBar({
       </button>
 
       {/* Theme Quick Selector: Pure Palette Icon matching navigation controls (No text, no extra cycle button) */}
-      <div style={{ position: 'relative' }}>
+      <div ref={themeMenuRef} style={{ position: 'relative' }}>
         <button
           style={{
             ...styles.iconBtn,
@@ -379,7 +398,7 @@ export default function NavigationBar({
       {/* Utilities Group (Unified Tools Menu) */}
       <div style={styles.navGroup}>
         {/* Unified Tools Hub Button */}
-        <div style={{ position: 'relative' }}>
+        <div ref={toolsMenuRef} style={{ position: 'relative' }}>
           <button
             style={{
               ...styles.iconBtn,
@@ -430,6 +449,7 @@ export default function NavigationBar({
               <div style={styles.toolsList}>
                 {/* Sidebar Apps */}
                 <button
+                  className="dozzo-tool-item"
                   style={{
                     ...styles.toolItem,
                     background: isSidebarOpen ? 'var(--bg-tertiary)' : 'transparent'
@@ -450,6 +470,7 @@ export default function NavigationBar({
 
                 {/* Downloads */}
                 <button
+                  className="dozzo-tool-item"
                   style={styles.toolItem}
                   onClick={() => {
                     onToggleDownloads();
@@ -469,6 +490,7 @@ export default function NavigationBar({
 
                 {/* History */}
                 <button
+                  className="dozzo-tool-item"
                   style={styles.toolItem}
                   onClick={() => {
                     onOpenHistory();
@@ -488,6 +510,7 @@ export default function NavigationBar({
 
                 {/* Settings & Privacy */}
                 <button
+                  className="dozzo-tool-item"
                   style={styles.toolItem}
                   onClick={() => {
                     onOpenSettings();
@@ -505,6 +528,7 @@ export default function NavigationBar({
 
                 {/* Updates Checker */}
                 <button
+                  className="dozzo-tool-item"
                   style={styles.toolItem}
                   onClick={() => {
                     if (onCheckUpdates) {
@@ -675,11 +699,12 @@ const styles = {
   themesDropdown: {
     position: 'absolute',
     top: '38px',
-    left: '0',
+    right: '0',
+    left: 'auto',
     width: '230px',
     padding: '8px',
     borderRadius: '14px',
-    zIndex: 110,
+    zIndex: 150,
     background: 'var(--glass-bg)',
     border: '1px solid var(--border-hover)',
     backdropFilter: 'blur(20px)',
@@ -726,6 +751,144 @@ const styles = {
     cursor: 'pointer',
     width: '100%',
     transition: 'all 0.12s ease'
+  },
+  // Suggestions Autocomplete Dropdown
+  suggestionsDropdown: {
+    position: 'absolute',
+    top: 'calc(100% + 6px)',
+    left: '0',
+    right: '0',
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '12px',
+    padding: '6px',
+    zIndex: 250,
+    backdropFilter: 'blur(24px)',
+    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.75)',
+    maxHeight: '340px',
+    overflowY: 'auto'
+  },
+  suggestionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+    border: '1px solid transparent'
+  },
+  suggestionBadge: {
+    fontSize: '9.5px',
+    fontWeight: '700',
+    padding: '2px 7px',
+    borderRadius: '4px',
+    background: 'var(--bg-hover)',
+    color: 'var(--text-secondary)',
+    flexShrink: 0
+  },
+  suggTitle: {
+    fontSize: '12.5px',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  suggUrl: {
+    fontSize: '11px',
+    color: 'var(--accent)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  // Unified Tools Menu Popover
+  toolsMenuPopover: {
+    position: 'absolute',
+    top: '38px',
+    right: '0',
+    left: 'auto',
+    width: '280px',
+    padding: '10px',
+    borderRadius: '14px',
+    zIndex: 150,
+    background: 'var(--glass-bg)',
+    border: '1px solid var(--border-hover)',
+    backdropFilter: 'blur(24px)',
+    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.75)'
+  },
+  toolsMenuHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '2px 4px 8px 4px',
+    borderBottom: '1px solid var(--border-subtle)',
+    marginBottom: '8px'
+  },
+  toolsMenuTitle: {
+    fontSize: '12px',
+    fontWeight: '800',
+    letterSpacing: '0.4px',
+    color: 'var(--text-primary)'
+  },
+  closePopoverBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--text-muted)',
+    fontSize: '18px',
+    lineHeight: '1',
+    cursor: 'pointer',
+    padding: '0 4px',
+    borderRadius: '4px'
+  },
+  toolsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  toolItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 10px',
+    borderRadius: '10px',
+    background: 'transparent',
+    border: '1px solid transparent',
+    cursor: 'pointer',
+    width: '100%',
+    textAlign: 'left',
+    transition: 'all 0.15s ease'
+  },
+  toolIconBox: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  toolTexts: {
+    flex: 1,
+    minWidth: 0
+  },
+  toolName: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    marginBottom: '2px'
+  },
+  toolDesc: {
+    fontSize: '10.5px',
+    color: 'var(--text-muted)',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  menuDivider: {
+    height: '1px',
+    background: 'var(--border-subtle)',
+    margin: '4px 0'
   }
 };
 

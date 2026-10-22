@@ -916,3 +916,11 @@ button:active {
   }
 }
 
+.dozzo-suggestion-row:hover {
+  background: var(--bg-hover) !important;
+}
+
+.dozzo-tool-item:hover {
+  background: var(--bg-hover) !important;
+}
+

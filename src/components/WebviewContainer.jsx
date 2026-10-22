@@ -74,6 +74,7 @@ const getPaneAreaStyle = (mode, index) => {
 export default function WebviewContainer({
   tabs,
   activeTabId,
+  isViewingHome = false,
   onSelectTab,
   onCloseTab,
   onNewTab,
@@ -332,8 +333,8 @@ export default function WebviewContainer({
                   <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#0a192f', border: '1px solid #1e293b' }} />
                 </div>
               )}
-              {/* If tab is in New Tab state, show NewTabPage speed dial directly over webview */}
-              {tab.isNewTab && (
+              {/* If tab is in New Tab state or Home view is active on current tab, show NewTabPage speed dial */}
+              {(tab.isNewTab || (isCurrentActive && isViewingHome && !isSplit)) && (
                 <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'var(--bg-primary)' }}>
                   <NewTabPage
                     onNavigate={(url) => {
@@ -356,7 +357,7 @@ export default function WebviewContainer({
 
               <WebviewItem
                 tab={tab}
-                isActive={isSplit ? isVisibleInSplit : isCurrentActive}
+                isActive={isSplit ? isVisibleInSplit : (isCurrentActive && !isViewingHome)}
                 isSplit={isSplit}
                 onUpdateTab={onUpdateTab}
                 onNewTabWithUrl={onNewTabWithUrl}
@@ -562,68 +563,6 @@ function WebviewItem({
     const handleDomReady = () => {
       isDomReadyRef.current = true;
 
-      if (isPip) {
-        wasPipRef.current = true;
-        safeExecuteJs(`
-          (function() {
-            let st = document.getElementById('__dozzo_pip_css');
-            if (!st) {
-              st = document.createElement('style');
-              st.id = '__dozzo_pip_css';
-              document.documentElement.appendChild(st);
-            }
-            st.textContent = \`
-              html, body {
-                overflow: hidden !important;
-                background: #000000 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-              }
-              #masthead-container, ytd-masthead, #masthead,
-              #secondary, #below, #comments, #guide, tp-yt-app-drawer,
-              #chips-wrapper, #header, #related, .ytp-chrome-top,
-              header, nav, aside, footer, #chat-container {
-                display: none !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-              }
-              ytd-app, #page-manager, ytd-watch-flexy, #columns, #primary, #primary-inner,
-              #player, #player-container-outer, #player-container, #movie_player, .html5-video-player {
-                transform: none !important;
-                contain: none !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                position: static !important;
-              }
-              video {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                max-width: 100vw !important;
-                max-height: 100vh !important;
-                min-width: 100vw !important;
-                min-height: 100vh !important;
-                z-index: 2147483647 !important;
-                background: #000000 !important;
-                object-fit: contain !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-            \`;
-            document.body.classList.add('dozzo-pip-active');
-            const v = document.querySelector('video');
-            if (v && v.paused) v.play().catch(() => {});
-            window.dispatchEvent(new Event('resize'));
-          })();
-        `);
-      }
-
       // Inject universal adblock and YouTube auto-skipper ONLY for YouTube
       try {
         const curUrl = typeof webview.getURL === 'function' ? webview.getURL() : tab.url;
@@ -765,7 +704,7 @@ function WebviewItem({
       src={initialUrlRef.current}
       partition="persist:dozzo-browser"
       preload={webviewPreload || undefined}
-      webpreferences="contextIsolation=no, nodeIntegration=no, plugins=yes"
+      webpreferences="contextIsolation=no, nodeIntegration=no, plugins=yes, webSecurity=no"
       allowpopups="true"
       plugins="true"
       useragent={window.browserAPI?.getUserAgent?.() || defaultUserAgent}

@@ -255,8 +255,15 @@
         .ytp-ad-overlay-slot,
         .ytp-ad-message-container,
         .ytp-ad-preview-container,
-        .ytp-ad-text,
         yt-mealbar-promo-renderer,
+        ytd-thumbnail-overlay-toggle-button-renderer,
+        ytd-thumbnail-overlay-toggle-button-shape,
+        .ytp-cards-button,
+        .ytp-cards-teaser,
+        .ytp-suggested-action-badge,
+        .ytp-pause-overlay,
+        .ytp-ce-element,
+        .ytp-ce-covering-overlay,
         tp-yt-paper-dialog:has(#feedback) {
           display: none !important;
           visibility: hidden !important;

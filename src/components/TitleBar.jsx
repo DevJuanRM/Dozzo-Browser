@@ -343,18 +343,15 @@ export default function TitleBar({
           </button>
 
           <button
-            className={`high-gloss-circle ${isBookmarked ? 'active-star' : showBookmarksBar ? 'active' : ''}`}
-            onClick={() => {
-              if (onToggleBookmark) onToggleBookmark();
-              else if (onToggleBookmarksBar) onToggleBookmarksBar();
-            }}
-            title={isBookmarked ? 'Página en Marcadores (Favorito)' : 'Guardar en Marcadores / Favoritos'}
+            className={`high-gloss-circle ${showBookmarksBar ? 'active-star' : ''}`}
+            onClick={onToggleBookmarksBar}
+            title={showBookmarksBar ? 'Ocultar barra de favoritos' : 'Mostrar barra de favoritos'}
             style={{ width: '36px', height: '36px' }}
           >
             <Star
               size={15}
-              fill={isBookmarked ? '#F59E0B' : showBookmarksBar ? 'currentColor' : 'none'}
-              color={isBookmarked ? '#F59E0B' : 'currentColor'}
+              fill={showBookmarksBar ? '#F59E0B' : 'none'}
+              color={showBookmarksBar ? '#F59E0B' : 'currentColor'}
             />
           </button>
         </div>

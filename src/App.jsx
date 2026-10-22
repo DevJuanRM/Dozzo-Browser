@@ -53,6 +53,7 @@ export default function App() {
     }
   ]);
   const [activeTabId, setActiveTabId] = useState('tab-1');
+  const [isViewingHome, setIsViewingHome] = useState(() => !initialTabUrl);
 
   // Appearance & Curated 10 Themes System (Default: 'obsidian-aurora')
   const [theme, setTheme] = useState(() => {
@@ -395,6 +396,16 @@ export default function App() {
   };
 
   // Tab Operations
+  const handleSelectTab = (tabId) => {
+    setActiveTabId(tabId);
+    const targetTab = tabs.find((t) => t.id === tabId);
+    if (targetTab && targetTab.url && !targetTab.isNewTab) {
+      setIsViewingHome(false);
+    } else {
+      setIsViewingHome(true);
+    }
+  };
+
   const handleNewTab = (url = '') => {
     const newId = `tab-${Date.now()}`;
     const newTab = {
@@ -410,6 +421,7 @@ export default function App() {
     };
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newId);
+    setIsViewingHome(!url);
   };
 
   const handleCloseTab = (tabIdToClose) => {
@@ -428,6 +440,7 @@ export default function App() {
           isNewTab: true
         }
       ]);
+      setIsViewingHome(true);
       return;
     }
 
@@ -436,7 +449,9 @@ export default function App() {
 
     if (activeTabId === tabIdToClose) {
       const nextIndex = Math.max(0, currentIndex - 1);
-      setActiveTabId(newTabs[nextIndex].id);
+      const nextTab = newTabs[nextIndex];
+      setActiveTabId(nextTab.id);
+      setIsViewingHome(Boolean(!nextTab.url || nextTab.isNewTab));
     }
     setTabs(newTabs);
   };
@@ -457,6 +472,7 @@ export default function App() {
       }
     ]);
     setActiveTabId(newId);
+    setIsViewingHome(true);
   };
 
   const handlePopOutTab = async (tabIdToPop) => {
@@ -520,6 +536,7 @@ export default function App() {
   };
 
   const handleNavigate = (url) => {
+    setIsViewingHome(false);
     setTabs((prev) =>
       prev.map((t) => {
         if (t.id === activeTabId) {
@@ -563,12 +580,12 @@ export default function App() {
   };
 
   const handleGoHome = () => {
-    handleUpdateTab(activeTabId, {
-      isNewTab: true,
-      url: '',
-      title: 'Nueva Pestaña',
-      isLoading: false
-    });
+    if (isViewingHome && activeTab && activeTab.url && !activeTab.isNewTab) {
+      // Toggle back to active website tab
+      setIsViewingHome(false);
+    } else {
+      setIsViewingHome(true);
+    }
   };
 
   // Shield actions
@@ -693,7 +710,7 @@ export default function App() {
             <TitleBar
               tabs={tabs}
               activeTabId={activeTabId}
-              onSelectTab={(id) => setActiveTabId(id)}
+              onSelectTab={handleSelectTab}
               onCloseTab={handleCloseTab}
               onNewTab={() => handleNewTab()}
               isMaximized={isMaximized}
@@ -716,14 +733,14 @@ export default function App() {
               }}
               showBookmarksBar={showBookmarksBar}
               onReorderTabs={(newTabs) => setTabs(newTabs)}
-              isHomeActive={Boolean(activeTab?.isNewTab || !activeTab?.url)}
+              isHomeActive={Boolean(isViewingHome || !activeTab?.url || activeTab?.isNewTab)}
               isBookmarked={isCurrentBookmarked}
               onToggleBookmark={handleToggleBookmark}
             />
 
             {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, 10 Themes Selector, Sidebar) */}
             <NavigationBar
-              currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
+              currentUrl={isViewingHome || activeTab?.isNewTab ? '' : activeTab?.url}
               isLoading={activeTab?.isLoading}
               canGoBack={activeTab?.canGoBack}
               canGoForward={activeTab?.canGoForward}
@@ -954,7 +971,8 @@ export default function App() {
           isMobile={isMobile}
           tabs={tabs}
           activeTabId={activeTabId}
-          onSelectTab={(id) => setActiveTabId(id)}
+          isViewingHome={isViewingHome}
+          onSelectTab={handleSelectTab}
           onCloseTab={handleCloseTab}
           onNewTab={() => handleNewTab()}
           onUpdateTab={handleUpdateTab}

@@ -126,6 +126,7 @@ function createWindow(initialUrl = '') {
   win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     webPreferences.plugins = true;
     webPreferences.contextIsolation = false;
+    webPreferences.webSecurity = false;
   });
 
   // Set user agent

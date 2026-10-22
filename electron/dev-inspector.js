@@ -128,19 +128,126 @@
       .replace(/'/g, '&apos;');
   }
 
+  function imageToDataUrl(imgEl) {
+    if (!imgEl) return '';
+    try {
+      const src = imgEl.currentSrc || imgEl.src;
+      if (src && src.startsWith('data:')) {
+        return src;
+      }
+      window.__DEV_INSPECTOR_IMG_CACHE__ = window.__DEV_INSPECTOR_IMG_CACHE__ || {};
+      if (src && window.__DEV_INSPECTOR_IMG_CACHE__[src]) {
+        return window.__DEV_INSPECTOR_IMG_CACHE__[src];
+      }
+      const w = imgEl.naturalWidth || imgEl.width || imgEl.clientWidth;
+      const h = imgEl.naturalHeight || imgEl.height || imgEl.clientHeight;
+      if (w > 0 && h > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(w, 2400);
+        canvas.height = Math.min(h, 2400);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/png');
+        if (dataUrl && dataUrl.startsWith('data:image')) {
+          if (src) window.__DEV_INSPECTOR_IMG_CACHE__[src] = dataUrl;
+          return dataUrl;
+        }
+      }
+    } catch (e) {}
+    return imgEl.currentSrc || imgEl.src || '';
+  }
+
+  function getBackgroundImageData(comp, el) {
+    try {
+      const bgImg = comp.backgroundImage;
+      if (!bgImg || bgImg === 'none' || !bgImg.includes('url(')) return null;
+      const match = bgImg.match(/url\(["']?([^"']+)["']?\)/);
+      if (!match || !match[1]) return null;
+      const rawUrl = match[1];
+      if (rawUrl.startsWith('data:')) return rawUrl;
+
+      window.__DEV_INSPECTOR_IMG_CACHE__ = window.__DEV_INSPECTOR_IMG_CACHE__ || {};
+      if (window.__DEV_INSPECTOR_IMG_CACHE__[rawUrl]) {
+        return window.__DEV_INSPECTOR_IMG_CACHE__[rawUrl];
+      }
+
+      try {
+        const pageImg = document.querySelector(`img[src="${rawUrl}"]`);
+        if (pageImg) {
+          const d = imageToDataUrl(pageImg);
+          if (d && d.startsWith('data:image')) {
+            window.__DEV_INSPECTOR_IMG_CACHE__[rawUrl] = d;
+            return d;
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const tempImg = new Image();
+        tempImg.crossOrigin = 'anonymous';
+        tempImg.src = rawUrl;
+        if (tempImg.complete && tempImg.naturalWidth > 0) {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.min(tempImg.naturalWidth, 2400);
+          canvas.height = Math.min(tempImg.naturalHeight, 2400);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/png');
+          if (dataUrl && dataUrl.startsWith('data:image')) {
+            window.__DEV_INSPECTOR_IMG_CACHE__[rawUrl] = dataUrl;
+            return dataUrl;
+          }
+        }
+      } catch (e) {}
+      return rawUrl;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function serializeToFigmaComponentSvg(rootEl) {
     if (rootEl.tagName.toLowerCase() === 'svg') {
-      return rootEl.outerHTML;
+      let outer = rootEl.outerHTML;
+      if (!outer.includes('xmlns:xlink=')) {
+        outer = outer.replace('<svg', '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      }
+      return outer;
     }
     const closestSvg = rootEl.closest('svg');
     if (closestSvg && rootEl.parentElement === closestSvg) {
-      return closestSvg.outerHTML;
+      let outer = closestSvg.outerHTML;
+      if (!outer.includes('xmlns:xlink=')) {
+        outer = outer.replace('<svg', '<svg xmlns:xlink="http://www.w3.org/1999/xlink"');
+      }
+      return outer;
     }
 
     const rootRect = rootEl.getBoundingClientRect();
     const rootW = Math.max(20, Math.round(rootRect.width));
     const rootH = Math.max(16, Math.round(rootRect.height));
     const rootStyles = window.getComputedStyle(rootEl);
+
+    // If rootEl itself is an <img>
+    if (rootEl.tagName.toLowerCase() === 'img') {
+      const dataUrl = imageToDataUrl(rootEl);
+      if (dataUrl) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${rootW}" height="${rootH}" viewBox="0 0 ${rootW} ${rootH}">
+  <image width="${rootW}" height="${rootH}" href="${escapeXml(dataUrl)}" xlink:href="${escapeXml(dataUrl)}" preserveAspectRatio="xMidYMid slice" />
+</svg>`;
+      }
+    }
+
+    // If rootEl is a <canvas>
+    if (rootEl.tagName.toLowerCase() === 'canvas') {
+      try {
+        const dataUrl = rootEl.toDataURL('image/png');
+        if (dataUrl) {
+          return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${rootW}" height="${rootH}" viewBox="0 0 ${rootW} ${rootH}">
+  <image width="${rootW}" height="${rootH}" href="${escapeXml(dataUrl)}" xlink:href="${escapeXml(dataUrl)}" preserveAspectRatio="xMidYMid slice" />
+</svg>`;
+        }
+      } catch (e) {}
+    }
 
     const rootBg = rootStyles.backgroundColor;
     const hasRootBg =
@@ -157,6 +264,14 @@
       svgLayers.push(`<rect width="${rootW}" height="${rootH}" rx="${rootRx}" fill="${rootBg}" />`);
     } else {
       svgLayers.push(`<rect width="${rootW}" height="${rootH}" fill="none" />`);
+    }
+
+    // Root background image if present
+    const rootBgImg = getBackgroundImageData(rootStyles, rootEl);
+    if (rootBgImg) {
+      svgLayers.push(
+        `<image width="${rootW}" height="${rootH}" href="${escapeXml(rootBgImg)}" xlink:href="${escapeXml(rootBgImg)}" preserveAspectRatio="xMidYMid slice" />`
+      );
     }
 
     // Direct text nodes on rootEl
@@ -210,24 +325,49 @@
 
       const tag = child.tagName.toLowerCase();
 
-      // SVG Icon
+      // SVG Icon / Graphic
       if (tag === 'svg') {
         processedSvgs.add(child);
         const iconColor = comp.color || '#ffffff';
         let innerSvg = child.innerHTML.trim().replace(/currentColor/g, iconColor);
-        if (!innerSvg.includes('fill=') && !innerSvg.includes('stroke=')) {
-          innerSvg = `<g fill="${iconColor}">${innerSvg}</g>`;
-        }
-        svgLayers.push(`<g transform="translate(${relX}, ${relY})">${innerSvg}</g>`);
+        const vb = child.getAttribute('viewBox');
+        const vbAttr = vb ? `viewBox="${vb}"` : `viewBox="0 0 ${w} ${h}"`;
+        svgLayers.push(
+          `<svg x="${relX}" y="${relY}" width="${w}" height="${h}" ${vbAttr}>${innerSvg}</svg>`
+        );
         continue;
       }
 
-      // Image
-      if (tag === 'img' && child.src) {
+      // Canvas element
+      if (tag === 'canvas') {
+        try {
+          const dataUrl = child.toDataURL('image/png');
+          if (dataUrl) {
+            svgLayers.push(
+              `<image x="${relX}" y="${relY}" width="${w}" height="${h}" href="${escapeXml(dataUrl)}" xlink:href="${escapeXml(dataUrl)}" preserveAspectRatio="xMidYMid slice" />`
+            );
+            continue;
+          }
+        } catch (e) {}
+      }
+
+      // Image element
+      if (tag === 'img') {
+        const dataUrl = imageToDataUrl(child);
+        if (dataUrl) {
+          svgLayers.push(
+            `<image x="${relX}" y="${relY}" width="${w}" height="${h}" href="${escapeXml(dataUrl)}" xlink:href="${escapeXml(dataUrl)}" preserveAspectRatio="xMidYMid slice" />`
+          );
+          continue;
+        }
+      }
+
+      // Background image on div/span/section/figure etc.
+      const bgImgData = getBackgroundImageData(comp, child);
+      if (bgImgData) {
         svgLayers.push(
-          `<image x="${relX}" y="${relY}" width="${w}" height="${h}" href="${escapeXml(child.src)}" preserveAspectRatio="xMidYMid slice" />`
+          `<image x="${relX}" y="${relY}" width="${w}" height="${h}" href="${escapeXml(bgImgData)}" xlink:href="${escapeXml(bgImgData)}" preserveAspectRatio="xMidYMid slice" />`
         );
-        continue;
       }
 
       // Container background or border (button, pill, card, input)
@@ -291,7 +431,7 @@
       }
     }
 
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${rootW}" height="${rootH}" viewBox="0 0 ${rootW} ${rootH}">
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${rootW}" height="${rootH}" viewBox="0 0 ${rootW} ${rootH}">
   <style>
     text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
   </style>
