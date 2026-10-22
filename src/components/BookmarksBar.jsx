@@ -62,8 +62,8 @@ const styles = {
     alignItems: 'center',
     gap: '4px',
     padding: '0 12px',
-    background: 'var(--bg-secondary)',
-    borderBottom: '1px solid var(--border-subtle)',
+    background: 'transparent',
+    borderBottom: 'none',
     overflowX: 'auto',
     overflowY: 'hidden',
     zIndex: 30

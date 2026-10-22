@@ -18,11 +18,11 @@ export const SEARCH_ENGINES = [
   },
   {
     id: 'tor',
-    name: 'Tor Search (Ahmia / Onion)',
+    name: 'Tor Search (Tor Network & Privacy)',
     badge: 'Máximo Anonimato',
-    desc: 'Búsqueda privada en la red Tor y sitios de privacidad Onion',
-    homeUrl: 'https://ahmia.fi',
-    searchUrl: (q) => `https://ahmia.fi/search/?q=${encodeURIComponent(q)}`
+    desc: 'Motor de búsqueda anónimo oficial de la red Tor sin rastros ni historial',
+    homeUrl: 'https://duckduckgo.com/?t=tor',
+    searchUrl: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}&t=tor`
   },
   {
     id: 'brave',

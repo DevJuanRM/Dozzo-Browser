@@ -108,6 +108,7 @@ function createWindow(initialUrl = '') {
     frame: false, // Borderless modern browser frame
     backgroundColor: '#000000',
     title: 'Dozzo Browser',
+    icon: path.join(__dirname, '../public/icon-512.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       webviewTag: true,
@@ -121,9 +122,10 @@ function createWindow(initialUrl = '') {
     mainWindow = win;
   }
 
-  // Ensure Widevine plugins and protected media keys are active inside webviews for Spotify
+  // Ensure Widevine plugins, media keys and script access are active inside webviews
   win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     webPreferences.plugins = true;
+    webPreferences.contextIsolation = false;
   });
 
   // Set user agent
@@ -150,6 +152,12 @@ function createWindow(initialUrl = '') {
 
   setupPermissions(session.defaultSession);
   setupPermissions(browserPartition);
+
+  // Onion / Tor standard: Disable WebRTC non-proxied UDP to prevent local & public IP leakage
+  try {
+    session.defaultSession.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+    browserPartition.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+  } catch (e) {}
 
   const notifyRenderer = (count, url) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -262,7 +270,16 @@ ipcMain.handle('window-is-maximized', (event) => {
 
 // Multi-window: Drag tab out to separate monitor / new window
 ipcMain.on('open-new-window', (event, data) => {
-  createWindow(data?.url || '');
+  const win = createWindow(data?.url || '');
+  if (data && typeof data.screenX === 'number' && typeof data.screenY === 'number') {
+    setTimeout(() => {
+      if (win && !win.isDestroyed()) {
+        try {
+          win.setPosition(Math.round(data.screenX - 200), Math.round(data.screenY - 20));
+        } catch (e) {}
+      }
+    }, 100);
+  }
 });
 
 // Adblock IPC
@@ -351,6 +368,25 @@ app.on('web-contents-created', (event, contents) => {
     }
 
     menuTemplate.push({ type: 'separator' });
+    menuTemplate.push({
+      label: 'Reproductor en miniatura (Picture-in-Picture)',
+      click: () => {
+        contents.executeJavaScript(`
+          (async function() {
+            try {
+              let v = document.elementFromPoint(${params.x}, ${params.y})?.closest('video') || document.querySelector('video');
+              if (v) {
+                if (document.pictureInPictureElement) {
+                  await document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled) {
+                  await v.requestPictureInPicture();
+                }
+              }
+            } catch (err) {}
+          })();
+        `);
+      }
+    });
     menuTemplate.push({
       label: 'Inspeccionar elemento',
       click: () => contents.inspectElement(params.x, params.y)

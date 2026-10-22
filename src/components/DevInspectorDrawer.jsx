@@ -10,12 +10,21 @@ import {
   Sparkles,
   FileCode,
   Smartphone,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   Box,
   Eye,
-  Sliders
+  Sliders,
+  ChevronRight,
+  ChevronLeft,
+  ListTree,
+  ChevronDown,
+  Terminal,
+  Zap,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Grid,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 export default function DevInspectorDrawer({
@@ -26,20 +35,58 @@ export default function DevInspectorDrawer({
   onToggleResponsive,
   isResponsiveActive = false
 }) {
-  const [activeTab, setActiveTab] = useState('visual');
+  const [activeTab, setActiveTab] = useState('visor'); // 'visor' | 'styles' | 'code' | 'figma'
+  const [previewZoom, setPreviewZoom] = useState(1);
+  const [previewBg, setPreviewBg] = useState('checker'); // 'checker' | 'dark' | 'light'
+  const [codeMode, setCodeMode] = useState('jsx'); // 'jsx' | 'html'
   const [copied, setCopied] = useState(false);
   const [copiedType, setCopiedType] = useState('');
   const [selectedLayerIdx, setSelectedLayerIdx] = useState(0);
-  const [previewZoom, setPreviewZoom] = useState(1);
   const [drawerWidth, setDrawerWidth] = useState(480);
   const [isResizing, setIsResizing] = useState(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(480);
 
-  // Reset to first layer when new element is inspected
+  // Breadcrumb horizontal scroll & tree popup states
+  const breadcrumbScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showTreeDropdown, setShowTreeDropdown] = useState(false);
+  const isDraggingBreadcrumbRef = useRef(false);
+  const dragStartXRef = useRef(0);
+  const dragScrollLeftRef = useRef(0);
+
+  const checkBreadcrumbScroll = () => {
+    if (!breadcrumbScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = breadcrumbScrollRef.current;
+    setCanScrollLeft(scrollLeft > 4);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+  };
+
+  const handleScrollBreadcrumb = (direction) => {
+    if (!breadcrumbScrollRef.current) return;
+    const offset = direction === 'left' ? -150 : 150;
+    breadcrumbScrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+    setTimeout(checkBreadcrumbScroll, 220);
+  };
+
+  // Reset to first layer & 100% zoom when new element is inspected
   useEffect(() => {
     setSelectedLayerIdx(0);
+    setPreviewZoom(1);
+    setShowTreeDropdown(false);
   }, [elementData]);
+
+  // Auto-scroll selected element into view and re-check scroll boundaries
+  useEffect(() => {
+    if (!breadcrumbScrollRef.current) return;
+    const activePill = breadcrumbScrollRef.current.querySelector(`[data-layer-idx="${selectedLayerIdx}"]`);
+    if (activePill) {
+      activePill.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    }
+    const t = setTimeout(checkBreadcrumbScroll, 200);
+    return () => clearTimeout(t);
+  }, [selectedLayerIdx, elementData, drawerWidth]);
 
   // Handle drawer drag resizing from left edge
   useEffect(() => {
@@ -71,6 +118,7 @@ export default function DevInspectorDrawer({
   const s = activeElement.styles || {};
 
   const handleCopy = (text, type = 'code') => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setCopiedType(type);
@@ -80,26 +128,71 @@ export default function DevInspectorDrawer({
     }, 1800);
   };
 
+  // Convert CSS object to formatted CSS string
+  const getCssSnippet = () => {
+    if (!s) return '';
+    const lines = [];
+    if (s.width) lines.push(`  width: ${s.width};`);
+    if (s.height) lines.push(`  height: ${s.height};`);
+    if (s.display) lines.push(`  display: ${s.display};`);
+    if (s.flexDirection && s.display === 'flex') lines.push(`  flex-direction: ${s.flexDirection};`);
+    if (s.alignItems) lines.push(`  align-items: ${s.alignItems};`);
+    if (s.justifyContent) lines.push(`  justify-content: ${s.justifyContent};`);
+    if (s.gap && s.gap !== 'normal') lines.push(`  gap: ${s.gap};`);
+    if (s.padding && s.padding !== '0px') lines.push(`  padding: ${s.padding};`);
+    if (s.margin && s.margin !== '0px') lines.push(`  margin: ${s.margin};`);
+    if (s.backgroundColor && s.backgroundColor !== 'transparent') lines.push(`  background-color: ${s.backgroundColor};`);
+    if (s.color) lines.push(`  color: ${s.color};`);
+    if (s.fontFamily) lines.push(`  font-family: ${s.fontFamily};`);
+    if (s.fontSize) lines.push(`  font-size: ${s.fontSize};`);
+    if (s.fontWeight) lines.push(`  font-weight: ${s.fontWeight};`);
+    if (s.lineHeight && s.lineHeight !== 'normal') lines.push(`  line-height: ${s.lineHeight};`);
+    if (s.borderRadius && s.borderRadius !== '0px') lines.push(`  border-radius: ${s.borderRadius};`);
+    if (s.border && s.border !== 'none') lines.push(`  border: ${s.border};`);
+    if (s.boxShadow && s.boxShadow !== 'none') lines.push(`  box-shadow: ${s.boxShadow};`);
+
+    return `.${activeElement.className ? activeElement.className.split(' ')[0] : activeElement.tagName.toLowerCase()} {\n${lines.join('\n')}\n}`;
+  };
+
+  // Generate clean Tailwind CSS classes estimate
+  const getTailwindSnippet = () => {
+    const tw = [];
+    if (s.display === 'flex') tw.push('flex');
+    if (s.flexDirection === 'column') tw.push('flex-col');
+    if (s.alignItems === 'center') tw.push('items-center');
+    if (s.justifyContent === 'center') tw.push('justify-center');
+    if (s.justifyContent === 'space-between') tw.push('justify-between');
+    if (s.borderRadius && s.borderRadius !== '0px') {
+      const r = parseInt(s.borderRadius, 10);
+      if (r >= 16) tw.push('rounded-2xl');
+      else if (r >= 12) tw.push('rounded-xl');
+      else if (r >= 8) tw.push('rounded-lg');
+      else if (r >= 4) tw.push('rounded-md');
+    }
+    if (s.boxShadow && s.boxShadow !== 'none') tw.push('shadow-lg');
+    if (s.fontWeight && parseInt(s.fontWeight, 10) >= 700) tw.push('font-bold');
+    else if (s.fontWeight && parseInt(s.fontWeight, 10) >= 600) tw.push('font-semibold');
+    return tw.join(' ') || 'flex items-center';
+  };
+
   const getFigmaSnippet = () => {
     if (!activeElement.styles) return '';
-    return `/* Dozzo Dev Studio -> Figma Properties */
+    return `/* Dozzo Dev Mode -> Figma Properties */
 Element: <${activeElement.tagName}>
 Dimensions: ${s.width} × ${s.height}
-Font Family: ${s.fontFamily}
-Font Size: ${s.fontSize}
-Font Weight: ${s.fontWeight}
-Line Height: ${s.lineHeight}
-Letter Spacing: ${s.letterSpacing || 'normal'}
-Color: ${s.color}
-Background: ${s.backgroundColor}
-Border Radius: ${s.borderRadius}
-Border: ${s.border}
-Box Shadow: ${s.boxShadow}
-Padding: ${s.padding}
-Margin: ${s.margin}
-Auto-Layout: ${s.display} (${s.flexDirection || 'row'}, Gap: ${s.gap})
-Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}
-Opacity: ${s.opacity || '1'}`;
+Font Family: ${s.fontFamily || 'Sans-Serif'}
+Font Size: ${s.fontSize || '14px'}
+Font Weight: ${s.fontWeight || '400'}
+Line Height: ${s.lineHeight || 'normal'}
+Color: ${s.color || '#ffffff'}
+Background: ${s.backgroundColor || 'transparent'}
+Border Radius: ${s.borderRadius || '0px'}
+Border: ${s.border || 'none'}
+Box Shadow: ${s.boxShadow || 'none'}
+Padding: ${s.padding || '0px'}
+Margin: ${s.margin || '0px'}
+Auto-Layout: ${s.display} (${s.flexDirection || 'row'}, Gap: ${s.gap || '0px'})
+Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
   };
 
   // Parse Box Model values into clean pixel representations
@@ -117,8 +210,8 @@ Opacity: ${s.opacity || '1'}`;
   const marginVals = parseBoxValues(s.margin);
   const borderVal = s.borderWidth ? s.borderWidth.replace('px', '') : '0';
 
-  const previewW = activeElement.rect?.width || 120;
-  const previewH = activeElement.rect?.height || 40;
+  const previewW = activeElement.rect?.width || 0;
+  const previewH = activeElement.rect?.height || 0;
 
   return (
     <div
@@ -146,15 +239,10 @@ Opacity: ${s.opacity || '1'}`;
             <Code2 size={16} color="var(--accent)" />
           </div>
           <div>
-            <div style={styles.title}>
-              Dozzo Dev Studio
-            </div>
+            <div style={styles.title}>Dozzo Dev Studio</div>
             <div style={styles.subtitle}>
-              <span style={styles.tagBadge}>&lt;{activeElement.tagName}&gt;</span>
-              {activeElement.rect ? ` • ${activeElement.rect.width}×${activeElement.rect.height}px` : ''}
-              {activeElement.className && typeof activeElement.className === 'string'
-                ? ` (.${activeElement.className.split(' ')[0].slice(0, 20)})`
-                : ''}
+              <span style={styles.tagBadge}>&lt;{activeElement.tagName.toLowerCase()}&gt;</span>
+              {previewW > 0 && <span style={styles.dimBadge}> • {previewW}×{previewH}px</span>}
             </div>
           </div>
         </div>
@@ -178,9 +266,9 @@ Opacity: ${s.opacity || '1'}`;
           <button
             style={styles.pickBtn}
             onClick={onPickAnother}
-            title="Hacer clic para inspeccionar otro elemento en la página"
+            title="Hacer clic para inspeccionar otro elemento"
           >
-            <MousePointer size={13} />
+            <MousePointer size={13} color="var(--accent)" />
             <span>Inspeccionar</span>
           </button>
 
@@ -191,48 +279,184 @@ Opacity: ${s.opacity || '1'}`;
         </div>
       </div>
 
-      {/* Hierarchy / Layers Carousel */}
-      {layers.length > 1 && (
-        <div style={styles.layersBar}>
-          <div style={styles.layersHeader}>
-            <Layers size={13} color="var(--accent)" />
-            <span>Jerarquía de Capas ({layers.length}):</span>
-          </div>
-          <div style={styles.layersChipsList}>
-            {layers.map((layer, idx) => {
-              const isSelected = idx === selectedLayerIdx;
-              return (
+      {/* Breadcrumb Hierarchy Bar (Clean, intuitive path trail with smooth scrolling & tree popup) */}
+      <div style={styles.breadcrumbBar}>
+        <div style={styles.breadcrumbHeader}>
+          <Layers size={12} color="var(--accent)" />
+          <span style={styles.breadcrumbLabel}>Jerarquía DOM:</span>
+          {/* Quick Tree View popover toggle button */}
+          <button
+            style={{
+              ...styles.treeToggleBtn,
+              ...(showTreeDropdown ? styles.treeToggleBtnActive : {})
+            }}
+            onClick={() => setShowTreeDropdown((prev) => !prev)}
+            title={`Ver árbol DOM completo (${layers.length} componentes)`}
+          >
+            <ListTree size={11} />
+            <span>{layers.length}</span>
+            <ChevronDown size={10} style={{ transform: showTreeDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+          </button>
+        </div>
+
+        {/* Scroll Left Button if overflowing */}
+        {canScrollLeft && (
+          <button
+            style={styles.scrollArrowBtn}
+            onClick={() => handleScrollBreadcrumb('left')}
+            title="Deslizar a la izquierda"
+          >
+            <ChevronLeft size={13} />
+          </button>
+        )}
+
+        <div
+          ref={breadcrumbScrollRef}
+          style={styles.breadcrumbScroll}
+          className="custom-scrollbar"
+          onScroll={checkBreadcrumbScroll}
+          onWheel={(e) => {
+            if (e.deltaY !== 0) {
+              e.currentTarget.scrollLeft += e.deltaY;
+              checkBreadcrumbScroll();
+            }
+          }}
+          onMouseDown={(e) => {
+            if (e.target.closest('button')) return;
+            isDraggingBreadcrumbRef.current = true;
+            dragStartXRef.current = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
+            dragScrollLeftRef.current = breadcrumbScrollRef.current?.scrollLeft || 0;
+          }}
+          onMouseMove={(e) => {
+            if (!isDraggingBreadcrumbRef.current || !breadcrumbScrollRef.current) return;
+            e.preventDefault();
+            const x = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
+            const walk = (x - dragStartXRef.current) * 1.5;
+            breadcrumbScrollRef.current.scrollLeft = dragScrollLeftRef.current - walk;
+            checkBreadcrumbScroll();
+          }}
+          onMouseUp={() => {
+            isDraggingBreadcrumbRef.current = false;
+          }}
+          onMouseLeave={() => {
+            isDraggingBreadcrumbRef.current = false;
+          }}
+        >
+          {layers.map((layer, idx) => {
+            const isSelected = idx === selectedLayerIdx;
+            const primaryClass = layer.className && typeof layer.className === 'string'
+              ? layer.className.trim().split(' ')[0]
+              : '';
+            return (
+              <React.Fragment key={idx}>
+                {idx > 0 && <ChevronRight size={11} color="rgba(255, 255, 255, 0.3)" style={{ flexShrink: 0 }} />}
                 <button
-                  key={idx}
+                  data-layer-idx={idx}
                   style={{
-                    ...styles.layerChip,
-                    ...(isSelected ? styles.layerChipSelected : {})
+                    ...styles.breadcrumbPill,
+                    ...(isSelected ? styles.breadcrumbPillActive : {})
                   }}
                   onClick={() => setSelectedLayerIdx(idx)}
-                  title={`Ver capa ${idx + 1}: ${layer.layerName} - <${layer.tagName}>`}
+                  title={`Seleccionar <${layer.tagName.toLowerCase()}> (Capa ${idx + 1})`}
                 >
-                  <span style={styles.layerIdx}>{idx + 1}</span>
-                  <span style={styles.layerTag}>&lt;{layer.tagName}&gt;</span>
-                  {layer.rect && (
-                    <span style={styles.layerDim}>
-                      {layer.rect.width}×{layer.rect.height}
-                    </span>
+                  <span style={styles.breadcrumbTag}>{layer.tagName.toLowerCase()}</span>
+                  {primaryClass && (
+                    <span style={styles.breadcrumbClass}>.{primaryClass.slice(0, 18)}</span>
                   )}
                 </button>
-              );
-            })}
-          </div>
+              </React.Fragment>
+            );
+          })}
         </div>
-      )}
 
-      {/* Navigation Tabs */}
+        {/* Scroll Right Button if overflowing */}
+        {canScrollRight && (
+          <button
+            style={styles.scrollArrowBtn}
+            onClick={() => handleScrollBreadcrumb('right')}
+            title="Deslizar a la derecha"
+          >
+            <ChevronRight size={13} />
+          </button>
+        )}
+
+        {/* Tree Dropdown Flyout */}
+        {showTreeDropdown && (
+          <div style={styles.treeDropdown} className="glass-panel animate-scale-in">
+            <div style={styles.treeDropdownHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ListTree size={13} color="var(--accent)" />
+                <span>Estructura de Componentes DOM ({layers.length})</span>
+              </div>
+              <button
+                onClick={() => setShowTreeDropdown(false)}
+                style={styles.closeTreeBtn}
+                title="Cerrar vista de árbol"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            <div style={styles.treeList} className="custom-scrollbar">
+              {layers.map((layer, idx) => {
+                const isSelected = idx === selectedLayerIdx;
+                const primaryClass = layer.className && typeof layer.className === 'string'
+                  ? layer.className.trim().split(' ')[0]
+                  : '';
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      ...styles.treeItem,
+                      ...(isSelected ? styles.treeItemActive : {}),
+                      paddingLeft: `${10 + idx * 8}px`
+                    }}
+                    onClick={() => {
+                      setSelectedLayerIdx(idx);
+                      setShowTreeDropdown(false);
+                    }}
+                    title={`Seleccionar <${layer.tagName.toLowerCase()}>`}
+                  >
+                    <span style={styles.treeItemPrefix}>↳</span>
+                    <span style={styles.breadcrumbTag}>&lt;{layer.tagName.toLowerCase()}&gt;</span>
+                    {primaryClass && <span style={styles.breadcrumbClass}>.{primaryClass}</span>}
+                    {layer.rect && (
+                      <span style={styles.treeDim}>
+                        {layer.rect.width}×{layer.rect.height}px
+                      </span>
+                    )}
+                    {isSelected && <span style={styles.activeBadge}>Activo</span>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Modern 4-Tab Bar (Visor Visual prominently featured) */}
       <div style={styles.tabsStrip}>
         <button
-          style={{ ...styles.tabBtn, ...(activeTab === 'visual' ? styles.tabBtnActive : {}) }}
-          onClick={() => setActiveTab('visual')}
+          style={{ ...styles.tabBtn, ...(activeTab === 'visor' ? styles.tabBtnActive : {}) }}
+          onClick={() => setActiveTab('visor')}
         >
           <Eye size={13} />
-          <span>Visual & Box Model</span>
+          <span>Visor Visual & Caja</span>
+        </button>
+
+        <button
+          style={{ ...styles.tabBtn, ...(activeTab === 'styles' ? styles.tabBtnActive : {}) }}
+          onClick={() => setActiveTab('styles')}
+        >
+          <Sliders size={13} />
+          <span>Propiedades CSS</span>
+        </button>
+
+        <button
+          style={{ ...styles.tabBtn, ...(activeTab === 'code' ? styles.tabBtnActive : {}) }}
+          onClick={() => setActiveTab('code')}
+        >
+          <FileCode size={13} />
+          <span>Código (JSX / HTML)</span>
         </button>
 
         <button
@@ -240,63 +464,106 @@ Opacity: ${s.opacity || '1'}`;
           onClick={() => setActiveTab('figma')}
         >
           <Palette size={13} />
-          <span>Figma & Estilos</span>
-        </button>
-
-        <button
-          style={{ ...styles.tabBtn, ...(activeTab === 'jsx' ? styles.tabBtnActive : {}) }}
-          onClick={() => setActiveTab('jsx')}
-        >
-          <FileCode size={13} />
-          <span>React (JSX)</span>
-        </button>
-
-        <button
-          style={{ ...styles.tabBtn, ...(activeTab === 'html' ? styles.tabBtnActive : {}) }}
-          onClick={() => setActiveTab('html')}
-        >
-          <Code2 size={13} />
-          <span>HTML</span>
+          <span>Figma Dev Mode</span>
         </button>
       </div>
 
       {/* Body Area */}
-      <div style={styles.bodyScroll}>
-        {/* TAB 1: VISUAL & CHROME BOX MODEL */}
-        {activeTab === 'visual' && (
+      <div style={styles.bodyScroll} className="custom-scrollbar">
+        {/* TAB 1: VISOR VISUAL & BOX MODEL */}
+        {activeTab === 'visor' && (
           <div style={styles.tabContent}>
-            {/* Visual Graphic Representation Card */}
+            {/* Visual Graphic Representation Card (VISOR VISUAL DEL COMPONENTE) */}
             <div style={styles.sectionCard}>
               <div style={styles.sectionHeader}>
                 <div style={styles.sectionTitleRow}>
-                  <Sparkles size={14} color="var(--accent)" />
-                  <span style={styles.sectionTitle}>Referencia Gráfica del Elemento</span>
+                  <Sparkles size={13} color="var(--accent)" />
+                  <span style={styles.sectionTitle}>Visor Visual del Componente</span>
                 </div>
-                <div style={styles.zoomControls}>
-                  <button
-                    style={styles.zoomBtn}
-                    onClick={() => setPreviewZoom((z) => Math.max(0.5, z - 0.25))}
-                    title="Reducir zoom"
-                  >
-                    <ZoomOut size={12} />
-                  </button>
-                  <span style={styles.zoomLabel}>{Math.round(previewZoom * 100)}%</span>
-                  <button
-                    style={styles.zoomBtn}
-                    onClick={() => setPreviewZoom((z) => Math.min(2.5, z + 0.25))}
-                    title="Aumentar zoom"
-                  >
-                    <ZoomIn size={12} />
-                  </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Canvas Background selector */}
+                  <div style={styles.bgSwitcher}>
+                    <button
+                      style={{
+                        ...styles.bgBtn,
+                        ...(previewBg === 'checker' ? styles.bgBtnActive : {})
+                      }}
+                      onClick={() => setPreviewBg('checker')}
+                      title="Fondo Cuadrícula"
+                    >
+                      <Grid size={11} />
+                    </button>
+                    <button
+                      style={{
+                        ...styles.bgBtn,
+                        ...(previewBg === 'dark' ? styles.bgBtnActive : {})
+                      }}
+                      onClick={() => setPreviewBg('dark')}
+                      title="Fondo Oscuro"
+                    >
+                      <Moon size={11} />
+                    </button>
+                    <button
+                      style={{
+                        ...styles.bgBtn,
+                        ...(previewBg === 'light' ? styles.bgBtnActive : {})
+                      }}
+                      onClick={() => setPreviewBg('light')}
+                      title="Fondo Claro"
+                    >
+                      <Sun size={11} />
+                    </button>
+                  </div>
+
+                  {/* Zoom Controls */}
+                  <div style={styles.zoomControls}>
+                    <button
+                      style={styles.zoomBtn}
+                      onClick={() => setPreviewZoom((z) => Math.max(0.4, Number((z - 0.2).toFixed(1))))}
+                      title="Reducir Zoom"
+                    >
+                      <ZoomOut size={12} />
+                    </button>
+                    <span style={styles.zoomLabel}>{Math.round(previewZoom * 100)}%</span>
+                    <button
+                      style={styles.zoomBtn}
+                      onClick={() => setPreviewZoom((z) => Math.min(2.5, Number((z + 0.2).toFixed(1))))}
+                      title="Aumentar Zoom"
+                    >
+                      <ZoomIn size={12} />
+                    </button>
+                    {previewZoom !== 1 && (
+                      <button
+                        style={styles.zoomBtn}
+                        onClick={() => setPreviewZoom(1)}
+                        title="Restablecer 100%"
+                      >
+                        <RotateCcw size={10} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Graphic Stage Canvas */}
-              <div style={styles.graphicStage}>
+              <div
+                style={{
+                  ...styles.graphicStage,
+                  background:
+                    previewBg === 'checker'
+                      ? '#0a0b10 radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0)'
+                      : previewBg === 'light'
+                      ? '#ffffff'
+                      : '#08080d',
+                  backgroundSize: previewBg === 'checker' ? '14px 14px' : undefined
+                }}
+              >
                 <div
                   style={{
                     ...styles.graphicRenderBox,
-                    transform: `scale(${previewZoom})`
+                    transform: `scale(${previewZoom})`,
+                    transformOrigin: 'center center'
                   }}
                 >
                   {activeElement.figmaSvg ? (
@@ -307,7 +574,7 @@ Opacity: ${s.opacity || '1'}`;
                         alignItems: 'center',
                         justifyContent: 'center',
                         maxWidth: '100%',
-                        maxHeight: '180px'
+                        maxHeight: '175px'
                       }}
                     />
                   ) : activeElement.svg ? (
@@ -323,23 +590,28 @@ Opacity: ${s.opacity || '1'}`;
                   ) : (
                     <div
                       style={{
-                        padding: `${s.paddingTop || '10px'} ${s.paddingRight || '14px'} ${s.paddingBottom || '10px'} ${s.paddingLeft || '14px'}`,
+                        padding: s.padding && s.padding !== '0px' ? s.padding : '12px 18px',
                         backgroundColor: s.backgroundColor && s.backgroundColor !== 'transparent' ? s.backgroundColor : 'rgba(255,255,255,0.06)',
                         color: s.color || '#ffffff',
                         borderRadius: s.borderRadius || '6px',
                         border: s.border && s.border !== 'none' ? s.border : '1px solid rgba(255,255,255,0.12)',
-                        boxShadow: s.boxShadow !== 'none' ? s.boxShadow : 'none',
+                        boxShadow: s.boxShadow && s.boxShadow !== 'none' ? s.boxShadow : 'none',
                         fontFamily: s.fontFamily || 'sans-serif',
                         fontSize: s.fontSize || '13px',
                         fontWeight: s.fontWeight || '500',
-                        textAlign: 'center',
-                        maxWidth: '320px',
+                        textAlign: s.textAlign || 'center',
+                        display: s.display || 'flex',
+                        alignItems: s.alignItems || 'center',
+                        justifyContent: s.justifyContent || 'center',
+                        gap: s.gap || '8px',
+                        maxWidth: '340px',
+                        maxHeight: '170px',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        userSelect: 'none'
                       }}
                     >
-                      {activeElement.text || `<${activeElement.tagName}>`}
+                      {activeElement.text || `<${activeElement.tagName.toLowerCase()}>`}
                     </div>
                   )}
                 </div>
@@ -350,24 +622,33 @@ Opacity: ${s.opacity || '1'}`;
                 </div>
               </div>
 
-              {/* Quick Copy Action Bar */}
-              <div style={styles.quickActionsBar}>
+              {/* Quick Actions Bar */}
+              <div style={styles.quickBar}>
                 <button
-                  style={{ ...styles.primaryActionBtn, background: 'var(--accent)', color: '#000000' }}
-                  onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
-                  title="Copia el componente como vector Figma listo para pegar directamente con Ctrl+V"
+                  style={styles.quickBtn}
+                  onClick={() => handleCopy(getCssSnippet(), 'css')}
+                  title="Copiar reglas CSS del elemento seleccionado"
                 >
-                  {copied && copiedType === 'figma' ? <Check size={14} /> : <Sparkles size={14} />}
-                  <span>{copied && copiedType === 'figma' ? '¡Copiado a Figma!' : 'Copiar para Figma (Ctrl+V)'}</span>
+                  {copied && copiedType === 'css' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                  <span>{copied && copiedType === 'css' ? 'CSS Copiado' : 'Copiar CSS'}</span>
                 </button>
 
                 <button
-                  style={styles.secondaryActionBtn}
-                  onClick={() => handleCopy(activeElement.jsx || '', 'jsx')}
-                  title="Copiar código del componente en formato React JSX"
+                  style={styles.quickBtn}
+                  onClick={() => handleCopy(getTailwindSnippet(), 'tw')}
+                  title="Copiar clases equivalentes de Tailwind CSS"
                 >
-                  {copied && copiedType === 'jsx' ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
-                  <span>Copiar JSX</span>
+                  {copied && copiedType === 'tw' ? <Check size={12} color="#10B981" /> : <Zap size={12} color="#38BDF8" />}
+                  <span>{copied && copiedType === 'tw' ? 'Tailwind Copiado' : 'Copiar Tailwind'}</span>
+                </button>
+
+                <button
+                  style={{ ...styles.quickBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                  onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
+                  title="Copiar vector listo para pegar con Ctrl+V en Figma"
+                >
+                  {copied && copiedType === 'figma' ? <Check size={12} color="#10B981" /> : <Sparkles size={12} />}
+                  <span>{copied && copiedType === 'figma' ? 'Vector Copiado' : 'Pegar a Figma'}</span>
                 </button>
               </div>
             </div>
@@ -376,10 +657,10 @@ Opacity: ${s.opacity || '1'}`;
             <div style={styles.sectionCard}>
               <div style={styles.sectionHeader}>
                 <div style={styles.sectionTitleRow}>
-                  <Box size={14} color="var(--accent)" />
+                  <Box size={13} color="var(--accent)" />
                   <span style={styles.sectionTitle}>Modelo de Caja (Box Model)</span>
                 </div>
-                <span style={styles.sectionSub}>Valores en píxeles</span>
+                <span style={styles.sectionSub}>px</span>
               </div>
 
               <div style={styles.boxModelWrapper}>
@@ -419,75 +700,378 @@ Opacity: ${s.opacity || '1'}`;
               </div>
             </div>
 
-            {/* Quick Metrics Grid */}
-            <div style={styles.metricsGrid}>
-              <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Tipografía</div>
-                <div style={styles.metricVal}>{s.fontFamily || 'Sans-serif'}</div>
-                <div style={styles.metricSub}>{s.fontSize} • Peso {s.fontWeight}</div>
-              </div>
-
-              <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Colores</div>
-                <div style={styles.colorRow}>
-                  <div style={{ ...styles.swatch, backgroundColor: s.color || '#fff' }} />
-                  <span style={styles.colorHex}>{s.color || '#ffffff'}</span>
+            {/* Clean Computed Properties Specs in Organized Cards */}
+            <div style={styles.propertiesGrid}>
+              {/* Card 1: Layout & Dimensiones */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>📐 Dimensiones & Posición</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>width × height</span>
+                  <span style={styles.propVal}>{s.width || `${previewW}px`} × {s.height || `${previewH}px`}</span>
                 </div>
-                <div style={styles.colorRow}>
-                  <div style={{ ...styles.swatch, backgroundColor: s.backgroundColor || 'transparent' }} />
-                  <span style={styles.colorHex}>{s.backgroundColor || 'transparent'}</span>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>display</span>
+                  <span style={styles.propVal}>{s.display || 'block'}</span>
+                </div>
+                {s.position && s.position !== 'static' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>position</span>
+                    <span style={styles.propVal}>{s.position}</span>
+                  </div>
+                )}
+                {s.gap && s.gap !== 'normal' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>gap</span>
+                    <span style={styles.propVal}>{s.gap}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Tipografía */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🖋️ Tipografía</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>font-family</span>
+                  <span style={styles.propVal}>{s.fontFamily ? s.fontFamily.split(',')[0].replace(/['"]/g, '') : 'Sans-Serif'}</span>
+                </div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>size / weight</span>
+                  <span style={styles.propVal}>{s.fontSize || '14px'} • {s.fontWeight || '400'}</span>
+                </div>
+                {s.lineHeight && s.lineHeight !== 'normal' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>line-height</span>
+                    <span style={styles.propVal}>{s.lineHeight}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 3: Colores & Fondos */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🎨 Colores & Fondo</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>color</span>
+                  <div
+                    style={styles.colorPill}
+                    onClick={() => handleCopy(s.color || '#ffffff', 'color')}
+                    title="Clic para copiar color"
+                  >
+                    <div style={{ ...styles.swatch, backgroundColor: s.color || '#fff' }} />
+                    <span style={styles.colorText}>{s.color || '#ffffff'}</span>
+                  </div>
+                </div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>background</span>
+                  <div
+                    style={styles.colorPill}
+                    onClick={() => handleCopy(s.backgroundColor || 'transparent', 'bg')}
+                    title="Clic para copiar fondo"
+                  >
+                    <div style={{ ...styles.swatch, backgroundColor: s.backgroundColor || 'transparent' }} />
+                    <span style={styles.colorText}>{s.backgroundColor || 'transparent'}</span>
+                  </div>
                 </div>
               </div>
 
-              <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Bordes & Sombra</div>
-                <div style={styles.metricVal}>Radio: {s.borderRadius || '0px'}</div>
-                <div style={styles.metricSub}>Sombra: {s.boxShadow !== 'none' ? 'Sí' : 'Ninguna'}</div>
-              </div>
-
-              <div style={styles.metricCard}>
-                <div style={styles.metricLabel}>Layout (Auto-Layout)</div>
-                <div style={styles.metricVal}>{s.display || 'block'} {s.flexDirection ? `(${s.flexDirection})` : ''}</div>
-                <div style={styles.metricSub}>Gap: {s.gap || '0px'}</div>
+              {/* Card 4: Bordes & Sombras */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🔲 Bordes & Sombra</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>border-radius</span>
+                  <span style={styles.propVal}>{s.borderRadius || '0px'}</span>
+                </div>
+                {s.border && s.border !== 'none' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>border</span>
+                    <span style={styles.propVal}>{s.border}</span>
+                  </div>
+                )}
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>box-shadow</span>
+                  <span style={styles.propVal}>{s.boxShadow && s.boxShadow !== 'none' ? s.boxShadow.slice(0, 22) + '...' : 'none'}</span>
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: FIGMA & ESTILOS */}
-        {activeTab === 'figma' && (
+        {/* TAB 2: PROPIEDADES CSS & BOX MODEL */}
+        {activeTab === 'styles' && (
           <div style={styles.tabContent}>
+            {/* Quick Copy Action Bar */}
+            <div style={styles.quickBar}>
+              <button
+                style={styles.quickBtn}
+                onClick={() => handleCopy(getCssSnippet(), 'css')}
+                title="Copiar reglas CSS del elemento seleccionado"
+              >
+                {copied && copiedType === 'css' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                <span>{copied && copiedType === 'css' ? 'CSS Copiado' : 'Copiar CSS'}</span>
+              </button>
+
+              <button
+                style={styles.quickBtn}
+                onClick={() => handleCopy(getTailwindSnippet(), 'tw')}
+                title="Copiar clases equivalentes de Tailwind CSS"
+              >
+                {copied && copiedType === 'tw' ? <Check size={12} color="#10B981" /> : <Zap size={12} color="#38BDF8" />}
+                <span>{copied && copiedType === 'tw' ? 'Tailwind Copiado' : 'Copiar Tailwind'}</span>
+              </button>
+
+              <button
+                style={{ ...styles.quickBtn, borderColor: 'var(--accent)', color: 'var(--accent)' }}
+                onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
+                title="Copiar vector listo para pegar con Ctrl+V en Figma"
+              >
+                {copied && copiedType === 'figma' ? <Check size={12} color="#10B981" /> : <Sparkles size={12} />}
+                <span>{copied && copiedType === 'figma' ? 'Vector Copiado' : 'Pegar a Figma'}</span>
+              </button>
+            </div>
+
+            {/* Interactive Chrome Box Model Diagram */}
             <div style={styles.sectionCard}>
               <div style={styles.sectionHeader}>
                 <div style={styles.sectionTitleRow}>
-                  <Sparkles size={14} color="var(--accent)" />
-                  <span style={styles.sectionTitle}>Exportación Directa a Figma</span>
+                  <Box size={13} color="var(--accent)" />
+                  <span style={styles.sectionTitle}>Modelo de Caja (Box Model)</span>
                 </div>
-                <button
-                  style={{ ...styles.primaryActionBtn, background: 'var(--accent)', color: '#000' }}
-                  onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
-                >
-                  {copied && copiedType === 'figma' ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copied && copiedType === 'figma' ? '¡Copiado!' : 'Copiar Capas Vectoriales'}</span>
-                </button>
+                <span style={styles.sectionSub}>px</span>
               </div>
-              <p style={styles.tipText}>
-                Pega directamente en el lienzo de Figma con <strong>Ctrl + V</strong>. Todas las capas, textos editables, fondos e iconos se crearán como componentes vectoriales nativos.
-              </p>
+
+              <div style={styles.boxModelWrapper}>
+                {/* Margin Box (Orange) */}
+                <div style={styles.bmMargin}>
+                  <span style={styles.bmTagMargin}>margin</span>
+                  <span style={styles.bmValTop}>{marginVals.top}</span>
+                  <span style={styles.bmValLeft}>{marginVals.left}</span>
+                  <span style={styles.bmValRight}>{marginVals.right}</span>
+                  <span style={styles.bmValBottom}>{marginVals.bottom}</span>
+
+                  {/* Border Box (Yellow) */}
+                  <div style={styles.bmBorder}>
+                    <span style={styles.bmTagBorder}>border</span>
+                    <span style={styles.bmValTop}>{borderVal}</span>
+                    <span style={styles.bmValLeft}>{borderVal}</span>
+                    <span style={styles.bmValRight}>{borderVal}</span>
+                    <span style={styles.bmValBottom}>{borderVal}</span>
+
+                    {/* Padding Box (Green) */}
+                    <div style={styles.bmPadding}>
+                      <span style={styles.bmTagPadding}>padding</span>
+                      <span style={styles.bmValTop}>{paddingVals.top}</span>
+                      <span style={styles.bmValLeft}>{paddingVals.left}</span>
+                      <span style={styles.bmValRight}>{paddingVals.right}</span>
+                      <span style={styles.bmValBottom}>{paddingVals.bottom}</span>
+
+                      {/* Content Box (Blue) */}
+                      <div style={styles.bmContent}>
+                        <span style={styles.bmContentText}>
+                          {previewW} × {previewH}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Complete Styles Specs */}
+            {/* Clean Computed Properties Specs in Organized Cards */}
+            <div style={styles.propertiesGrid}>
+              {/* Card 1: Layout & Dimensiones */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>📐 Dimensiones & Posición</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>width × height</span>
+                  <span style={styles.propVal}>{s.width || `${previewW}px`} × {s.height || `${previewH}px`}</span>
+                </div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>display</span>
+                  <span style={styles.propVal}>{s.display || 'block'}</span>
+                </div>
+                {s.position && s.position !== 'static' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>position</span>
+                    <span style={styles.propVal}>{s.position}</span>
+                  </div>
+                )}
+                {s.zIndex && s.zIndex !== 'auto' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>z-index</span>
+                    <span style={styles.propVal}>{s.zIndex}</span>
+                  </div>
+                )}
+                {s.gap && s.gap !== 'normal' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>gap</span>
+                    <span style={styles.propVal}>{s.gap}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Tipografía */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🖋️ Tipografía</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>font-family</span>
+                  <span style={styles.propVal}>{s.fontFamily ? s.fontFamily.split(',')[0].replace(/['"]/g, '') : 'Sans-Serif'}</span>
+                </div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>size / weight</span>
+                  <span style={styles.propVal}>{s.fontSize || '14px'} • {s.fontWeight || '400'}</span>
+                </div>
+                {s.lineHeight && s.lineHeight !== 'normal' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>line-height</span>
+                    <span style={styles.propVal}>{s.lineHeight}</span>
+                  </div>
+                )}
+                {s.textAlign && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>text-align</span>
+                    <span style={styles.propVal}>{s.textAlign}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 3: Colores & Fondos */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🎨 Colores & Fondo</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>color</span>
+                  <div
+                    style={styles.colorPill}
+                    onClick={() => handleCopy(s.color || '#ffffff', 'color')}
+                    title="Clic para copiar color"
+                  >
+                    <div style={{ ...styles.swatch, backgroundColor: s.color || '#fff' }} />
+                    <span style={styles.colorText}>{s.color || '#ffffff'}</span>
+                  </div>
+                </div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>background</span>
+                  <div
+                    style={styles.colorPill}
+                    onClick={() => handleCopy(s.backgroundColor || 'transparent', 'bg')}
+                    title="Clic para copiar fondo"
+                  >
+                    <div style={{ ...styles.swatch, backgroundColor: s.backgroundColor || 'transparent' }} />
+                    <span style={styles.colorText}>{s.backgroundColor || 'transparent'}</span>
+                  </div>
+                </div>
+                {s.opacity && s.opacity !== '1' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>opacity</span>
+                    <span style={styles.propVal}>{s.opacity}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 4: Bordes & Sombras */}
+              <div style={styles.propCard}>
+                <div style={styles.propCardHeader}>🔲 Bordes & Sombra</div>
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>border-radius</span>
+                  <span style={styles.propVal}>{s.borderRadius || '0px'}</span>
+                </div>
+                {s.border && s.border !== 'none' && (
+                  <div style={styles.propRow}>
+                    <span style={styles.propKey}>border</span>
+                    <span style={styles.propVal}>{s.border}</span>
+                  </div>
+                )}
+                <div style={styles.propRow}>
+                  <span style={styles.propKey}>box-shadow</span>
+                  <span style={styles.propVal}>{s.boxShadow && s.boxShadow !== 'none' ? s.boxShadow.slice(0, 22) + '...' : 'none'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: CÓDIGO (JSX & HTML) */}
+        {activeTab === 'code' && (
+          <div style={styles.tabContent}>
+            <div style={styles.codeSubTabs}>
+              <button
+                style={{
+                  ...styles.codeSubBtn,
+                  ...(codeMode === 'jsx' ? styles.codeSubBtnActive : {})
+                }}
+                onClick={() => setCodeMode('jsx')}
+              >
+                React (JSX)
+              </button>
+              <button
+                style={{
+                  ...styles.codeSubBtn,
+                  ...(codeMode === 'html' ? styles.codeSubBtnActive : {})
+                }}
+                onClick={() => setCodeMode('html')}
+              >
+                HTML Original
+              </button>
+            </div>
+
+            <div style={styles.codeCard}>
+              <div style={styles.codeHeader}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Terminal size={12} color="var(--accent)" />
+                  <span>{codeMode === 'jsx' ? 'Componente React JSX' : 'Estructura HTML'}</span>
+                </div>
+                <button
+                  style={styles.copyCodeBtn}
+                  onClick={() => handleCopy(codeMode === 'jsx' ? activeElement.jsx || '' : activeElement.html || '', 'code')}
+                >
+                  {copied && copiedType === 'code' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
+                  <span>{copied && copiedType === 'code' ? '¡Copiado!' : 'Copiar Código'}</span>
+                </button>
+              </div>
+              <pre style={styles.codePre}>
+                <code>{codeMode === 'jsx' ? activeElement.jsx || '// No hay JSX disponible' : activeElement.html || '<!-- No hay HTML disponible -->'}</code>
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: FIGMA DEV MODE */}
+        {activeTab === 'figma' && (
+          <div style={styles.tabContent}>
+            {/* Primary Action Hero */}
+            <div style={styles.figmaHeroCard}>
+              <div style={styles.figmaHeroHeader}>
+                <div style={styles.figmaIconBox}>
+                  <Sparkles size={18} color="var(--accent)" />
+                </div>
+                <div>
+                  <div style={styles.figmaHeroTitle}>Exportación Directa a Figma</div>
+                  <div style={styles.figmaHeroSub}>
+                    Pega directamente con <strong>Ctrl + V</strong> en Figma para crear componentes vectoriales nativos.
+                  </div>
+                </div>
+              </div>
+
+              <button
+                style={styles.figmaCopyBtn}
+                onClick={() => handleCopy(activeElement.figmaSvg || activeElement.svg || '', 'figma')}
+              >
+                {copied && copiedType === 'figma' ? <Check size={15} /> : <Copy size={15} />}
+                <span>{copied && copiedType === 'figma' ? '¡Componente Copiado!' : 'Copiar Capas Vectoriales (Ctrl+V)'}</span>
+              </button>
+            </div>
+
+            {/* Design Tokens & Specs */}
             <div style={styles.sectionCard}>
               <div style={styles.sectionHeader}>
-                <span style={styles.sectionTitle}>Tokens CSS & Especificaciones</span>
+                <span style={styles.sectionTitle}>Tokens de Diseño & Especificaciones</span>
                 <button
-                  style={styles.secondaryActionBtn}
+                  style={styles.quickBtn}
                   onClick={() => handleCopy(getFigmaSnippet(), 'specs')}
                 >
-                  {copied && copiedType === 'specs' ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
+                  {copied && copiedType === 'specs' ? <Check size={12} color="#10B981" /> : <Copy size={12} />}
                   <span>Copiar Especificaciones</span>
                 </button>
               </div>
+
               <div style={styles.specsList}>
                 {Object.entries(s).map(([key, val]) => {
                   if (!val || val === 'none' || val === 'normal') return null;
@@ -502,48 +1086,6 @@ Opacity: ${s.opacity || '1'}`;
             </div>
           </div>
         )}
-
-        {/* TAB 3: REACT JSX */}
-        {activeTab === 'jsx' && (
-          <div style={styles.tabContent}>
-            <div style={styles.codeCard}>
-              <div style={styles.codeHeader}>
-                <span>Componente React (JSX limpio)</span>
-                <button
-                  style={styles.secondaryActionBtn}
-                  onClick={() => handleCopy(activeElement.jsx || '', 'jsx')}
-                >
-                  {copied && copiedType === 'jsx' ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
-                  <span>{copied && copiedType === 'jsx' ? '¡Copiado!' : 'Copiar JSX'}</span>
-                </button>
-              </div>
-              <pre style={styles.codePre}>
-                <code>{activeElement.jsx}</code>
-              </pre>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 4: HTML PURO */}
-        {activeTab === 'html' && (
-          <div style={styles.tabContent}>
-            <div style={styles.codeCard}>
-              <div style={styles.codeHeader}>
-                <span>Estructura HTML original</span>
-                <button
-                  style={styles.secondaryActionBtn}
-                  onClick={() => handleCopy(activeElement.html || '', 'html')}
-                >
-                  {copied && copiedType === 'html' ? <Check size={13} color="var(--success)" /> : <Copy size={13} />}
-                  <span>{copied && copiedType === 'html' ? '¡Copiado!' : 'Copiar HTML'}</span>
-                </button>
-              </div>
-              <pre style={styles.codePre}>
-                <code>{activeElement.html}</code>
-              </pre>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -555,15 +1097,18 @@ const styles = {
     top: 0,
     right: 0,
     bottom: 0,
-    background: 'linear-gradient(180deg, rgba(16, 17, 24, 0.98), rgba(10, 11, 16, 0.98))',
+    background: 'linear-gradient(180deg, rgba(14, 15, 22, 0.98), rgba(9, 10, 15, 0.99))',
     borderLeft: '1px solid rgba(255, 255, 255, 0.12)',
-    boxShadow: '-12px 0 40px rgba(0, 0, 0, 0.75)',
+    boxShadow: '-16px 0 44px rgba(0, 0, 0, 0.85)',
     zIndex: 9999,
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'Lato, -apple-system, sans-serif',
-    backdropFilter: 'blur(20px)',
-    transition: 'width 0.05s ease'
+    backdropFilter: 'blur(24px)',
+    transition: 'width 0.05s ease',
+    overflow: 'hidden',
+    maxWidth: '100vw',
+    boxSizing: 'border-box'
   },
   resizerHandle: {
     position: 'absolute',
@@ -596,24 +1141,24 @@ const styles = {
     gap: '6px'
   },
   iconBadge: {
-    width: '30px',
-    height: '30px',
+    width: '32px',
+    height: '32px',
     borderRadius: '8px',
     background: 'rgba(255, 255, 255, 0.06)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid rgba(255, 255, 255, 0.08)'
+    border: '1px solid rgba(255, 255, 255, 0.1)'
   },
   title: {
-    fontSize: '13px',
+    fontSize: '13.5px',
     fontWeight: '800',
     color: '#ffffff',
     letterSpacing: '0.3px'
   },
   subtitle: {
     fontSize: '11px',
-    color: 'rgba(255, 255, 255, 0.55)',
+    color: 'rgba(255, 255, 255, 0.6)',
     marginTop: '1px',
     display: 'flex',
     alignItems: 'center',
@@ -623,6 +1168,11 @@ const styles = {
     color: 'var(--accent)',
     fontFamily: 'JetBrains Mono, monospace',
     fontWeight: '700'
+  },
+  dimBadge: {
+    fontSize: '10.5px',
+    color: 'var(--text-muted)',
+    fontFamily: 'JetBrains Mono, monospace'
   },
   iconActionBtn: {
     width: '28px',
@@ -646,13 +1196,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
-    padding: '4px 10px',
-    borderRadius: '6px',
+    padding: '5px 11px',
+    borderRadius: '7px',
     background: 'rgba(255, 255, 255, 0.08)',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
     color: '#ffffff',
-    fontSize: '11px',
-    fontWeight: '600',
+    fontSize: '11.5px',
+    fontWeight: '700',
     cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
@@ -669,66 +1219,193 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
-  layersBar: {
-    padding: '8px 14px',
-    background: 'rgba(0, 0, 0, 0.35)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    flexShrink: 0
-  },
-  layersHeader: {
+  breadcrumbBar: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    fontSize: '11px',
-    fontWeight: '700',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: '6px'
+    padding: '7px 12px',
+    background: 'rgba(0, 0, 0, 0.40)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    flexShrink: 0,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
+    position: 'relative',
+    overflow: 'hidden'
   },
-  layersChipsList: {
-    display: 'flex',
-    gap: '5px',
-    overflowX: 'auto',
-    paddingBottom: '2px'
-  },
-  layerChip: {
+  breadcrumbHeader: {
     display: 'flex',
     alignItems: 'center',
     gap: '5px',
+    flexShrink: 0,
+    userSelect: 'none'
+  },
+  breadcrumbLabel: {
+    fontSize: '10.5px',
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px',
+    whiteSpace: 'nowrap'
+  },
+  breadcrumbScroll: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    flex: '1 1 0%',
+    minWidth: 0,
+    maxWidth: '100%',
+    paddingBottom: '3px',
+    paddingTop: '2px',
+    scrollBehavior: 'smooth',
+    WebkitOverflowScrolling: 'touch',
+    cursor: 'grab'
+  },
+  breadcrumbPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
     padding: '3px 8px',
     borderRadius: '5px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    color: 'rgba(255, 255, 255, 0.7)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.10)',
+    color: 'rgba(255, 255, 255, 0.75)',
     fontSize: '11px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    flexShrink: 0,
     transition: 'all 0.15s ease'
   },
-  layerChipSelected: {
-    background: 'rgba(255, 255, 255, 0.16)',
+  breadcrumbPillActive: {
+    background: 'rgba(240, 185, 11, 0.18)',
+    borderColor: 'var(--accent)',
+    color: '#ffffff',
+    boxShadow: '0 0 8px rgba(240, 185, 11, 0.25)'
+  },
+  breadcrumbTag: {
+    fontFamily: 'JetBrains Mono, monospace',
+    fontWeight: '700',
+    color: 'var(--accent)'
+  },
+  breadcrumbClass: {
+    fontSize: '10px',
+    color: 'rgba(255, 255, 255, 0.55)'
+  },
+  scrollArrowBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '20px',
+    height: '22px',
+    borderRadius: '4px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    color: '#ffffff',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'all 0.15s ease'
+  },
+  treeToggleBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
+    padding: '2px 6px',
+    borderRadius: '5px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: '10.5px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'all 0.15s ease'
+  },
+  treeToggleBtnActive: {
+    background: 'rgba(240, 185, 11, 0.20)',
     borderColor: 'var(--accent)',
     color: '#ffffff'
   },
-  layerIdx: {
-    fontSize: '9px',
-    fontWeight: '800',
-    color: 'var(--accent)',
-    background: 'rgba(0,0,0,0.4)',
-    padding: '1px 4px',
-    borderRadius: '3px'
+  treeDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: '12px',
+    right: '12px',
+    maxHeight: '260px',
+    background: '#0d0f16',
+    border: '1px solid rgba(255, 255, 255, 0.16)',
+    borderRadius: '8px',
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
+    zIndex: 100,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   },
-  layerTag: {
-    fontFamily: 'JetBrains Mono, monospace',
-    fontWeight: '600'
+  treeDropdownHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '8px 12px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#ffffff'
   },
-  layerDim: {
+  closeTreeBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'rgba(255, 255, 255, 0.6)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '2px'
+  },
+  treeList: {
+    overflowY: 'auto',
+    padding: '6px'
+  },
+  treeItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '5px 8px',
+    borderRadius: '6px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+    color: 'rgba(255, 255, 255, 0.8)'
+  },
+  treeItemActive: {
+    background: 'rgba(240, 185, 11, 0.15)',
+    border: '1px solid rgba(240, 185, 11, 0.35)',
+    color: '#ffffff'
+  },
+  treeItemPrefix: {
+    color: 'rgba(255, 255, 255, 0.35)',
+    fontFamily: 'monospace'
+  },
+  treeDim: {
+    marginLeft: 'auto',
     fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.45)'
+    color: 'var(--text-muted)',
+    fontFamily: 'JetBrains Mono, monospace'
+  },
+  activeBadge: {
+    fontSize: '9.5px',
+    padding: '1px 5px',
+    borderRadius: '4px',
+    background: 'var(--accent)',
+    color: '#000000',
+    fontWeight: '800',
+    marginLeft: '6px'
   },
   tabsStrip: {
     display: 'flex',
     padding: '0 12px',
-    background: 'rgba(0, 0, 0, 0.25)',
+    background: 'rgba(0, 0, 0, 0.22)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
     gap: '4px',
     flexShrink: 0
@@ -737,13 +1414,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '8px 12px',
+    padding: '9px 12px',
     background: 'transparent',
     border: 'none',
     borderBottom: '2px solid transparent',
     color: 'rgba(255, 255, 255, 0.6)',
     fontSize: '12px',
-    fontWeight: '600',
+    fontWeight: '700',
     cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
@@ -759,7 +1436,27 @@ const styles = {
   tabContent: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px'
+    gap: '12px'
+  },
+  quickBar: {
+    display: 'flex',
+    gap: '6px'
+  },
+  quickBtn: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '5px',
+    padding: '6px 8px',
+    borderRadius: '7px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: '#ffffff',
+    fontSize: '11px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
   },
   sectionCard: {
     background: 'rgba(255, 255, 255, 0.035)',
@@ -768,7 +1465,7 @@ const styles = {
     padding: '12px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: '8px'
   },
   sectionHeader: {
     display: 'flex',
@@ -787,54 +1484,35 @@ const styles = {
     letterSpacing: '0.2px'
   },
   sectionSub: {
-    fontSize: '11px',
+    fontSize: '10.5px',
     color: 'rgba(255, 255, 255, 0.45)'
-  },
-  zoomControls: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    background: 'rgba(0, 0, 0, 0.3)',
-    borderRadius: '4px',
-    padding: '1px 4px'
-  },
-  zoomBtn: {
-    background: 'transparent',
-    border: 'none',
-    color: 'rgba(255, 255, 255, 0.7)',
-    cursor: 'pointer',
-    padding: '2px'
-  },
-  zoomLabel: {
-    fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '600'
   },
   graphicStage: {
     position: 'relative',
     height: '190px',
     borderRadius: '8px',
-    background: '#0a0b10 radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 0)',
-    backgroundSize: '16px 16px',
+    background: '#0a0b10 radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 0)',
+    backgroundSize: '14px 14px',
     border: '1px solid rgba(255, 255, 255, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    transition: 'background 0.2s ease'
   },
   graphicRenderBox: {
     transition: 'transform 0.15s ease',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: '90%',
-    maxHeight: '90%'
+    maxWidth: '92%',
+    maxHeight: '92%'
   },
   dimensionBadge: {
     position: 'absolute',
     bottom: '8px',
     right: '8px',
-    background: 'rgba(0, 0, 0, 0.75)',
+    background: 'rgba(0, 0, 0, 0.8)',
     border: '1px solid rgba(255, 255, 255, 0.15)',
     borderRadius: '4px',
     padding: '2px 6px',
@@ -843,49 +1521,70 @@ const styles = {
     color: 'var(--accent)',
     fontFamily: 'JetBrains Mono, monospace'
   },
-  quickActionsBar: {
+  bgSwitcher: {
     display: 'flex',
-    gap: '8px'
+    alignItems: 'center',
+    background: 'rgba(0, 0, 0, 0.35)',
+    borderRadius: '5px',
+    padding: '1px 2px',
+    gap: '2px',
+    border: '1px solid rgba(255, 255, 255, 0.08)'
   },
-  primaryActionBtn: {
-    flex: 1,
+  bgBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'rgba(255, 255, 255, 0.55)',
+    cursor: 'pointer',
+    padding: '3px 5px',
+    borderRadius: '4px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '6px',
-    padding: '8px 12px',
-    borderRadius: '7px',
-    border: 'none',
-    fontSize: '12px',
-    fontWeight: '700',
-    cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
-  secondaryActionBtn: {
+  bgBtnActive: {
+    background: 'rgba(255, 255, 255, 0.18)',
+    color: '#ffffff'
+  },
+  zoomControls: {
     display: 'flex',
     alignItems: 'center',
-    gap: '5px',
-    padding: '7px 12px',
-    borderRadius: '7px',
-    background: 'rgba(255, 255, 255, 0.07)',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
-    color: '#ffffff',
-    fontSize: '11px',
-    fontWeight: '600',
+    gap: '3px',
+    background: 'rgba(0, 0, 0, 0.35)',
+    borderRadius: '5px',
+    padding: '1px 4px',
+    border: '1px solid rgba(255, 255, 255, 0.08)'
+  },
+  zoomBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'rgba(255, 255, 255, 0.7)',
     cursor: 'pointer',
-    transition: 'all 0.15s ease'
+    padding: '3px 4px',
+    borderRadius: '3px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  zoomLabel: {
+    fontSize: '10px',
+    color: 'rgba(255, 255, 255, 0.75)',
+    fontWeight: '700',
+    fontFamily: 'JetBrains Mono, monospace',
+    minWidth: '32px',
+    textAlign: 'center'
   },
   boxModelWrapper: {
     display: 'flex',
     justifyContent: 'center',
-    padding: '6px 0'
+    padding: '4px 0'
   },
   bmMargin: {
     position: 'relative',
     background: 'rgba(249, 204, 157, 0.12)',
     border: '1px dashed rgba(249, 204, 157, 0.5)',
     borderRadius: '6px',
-    padding: '22px 30px',
+    padding: '20px 28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -895,7 +1594,7 @@ const styles = {
     background: 'rgba(255, 230, 153, 0.15)',
     border: '1px solid rgba(255, 230, 153, 0.6)',
     borderRadius: '5px',
-    padding: '18px 24px',
+    padding: '16px 22px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -905,7 +1604,7 @@ const styles = {
     background: 'rgba(195, 230, 195, 0.15)',
     border: '1px dashed rgba(195, 230, 195, 0.6)',
     borderRadius: '4px',
-    padding: '16px 22px',
+    padding: '14px 20px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -914,7 +1613,7 @@ const styles = {
     background: 'rgba(142, 197, 255, 0.3)',
     border: '1px solid rgba(142, 197, 255, 0.8)',
     borderRadius: '3px',
-    padding: '10px 18px',
+    padding: '8px 16px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -924,28 +1623,31 @@ const styles = {
     top: '3px',
     left: '5px',
     fontSize: '9px',
-    color: 'rgba(249, 204, 157, 0.85)',
-    fontWeight: '700'
+    fontWeight: '700',
+    color: 'rgba(249, 204, 157, 0.8)',
+    textTransform: 'uppercase'
   },
   bmTagBorder: {
     position: 'absolute',
     top: '3px',
     left: '5px',
     fontSize: '9px',
-    color: 'rgba(255, 230, 153, 0.85)',
-    fontWeight: '700'
+    fontWeight: '700',
+    color: 'rgba(255, 230, 153, 0.8)',
+    textTransform: 'uppercase'
   },
   bmTagPadding: {
     position: 'absolute',
     top: '3px',
     left: '5px',
     fontSize: '9px',
-    color: 'rgba(195, 230, 195, 0.85)',
-    fontWeight: '700'
+    fontWeight: '700',
+    color: 'rgba(195, 230, 195, 0.8)',
+    textTransform: 'uppercase'
   },
   bmValTop: {
     position: 'absolute',
-    top: '4px',
+    top: '3px',
     left: '50%',
     transform: 'translateX(-50%)',
     fontSize: '10px',
@@ -954,7 +1656,7 @@ const styles = {
   },
   bmValBottom: {
     position: 'absolute',
-    bottom: '4px',
+    bottom: '3px',
     left: '50%',
     transform: 'translateX(-50%)',
     fontSize: '10px',
@@ -963,7 +1665,7 @@ const styles = {
   },
   bmValLeft: {
     position: 'absolute',
-    left: '6px',
+    left: '5px',
     top: '50%',
     transform: 'translateY(-50%)',
     fontSize: '10px',
@@ -972,7 +1674,7 @@ const styles = {
   },
   bmValRight: {
     position: 'absolute',
-    right: '6px',
+    right: '5px',
     top: '50%',
     transform: 'translateY(-50%)',
     fontSize: '10px',
@@ -985,63 +1687,191 @@ const styles = {
     color: '#ffffff',
     fontFamily: 'JetBrains Mono, monospace'
   },
-  metricsGrid: {
+  propertiesGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: '8px'
   },
-  metricCard: {
+  propCard: {
     background: 'rgba(255, 255, 255, 0.03)',
     border: '1px solid rgba(255, 255, 255, 0.08)',
     borderRadius: '8px',
-    padding: '9px 12px'
+    padding: '8px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
   },
-  metricLabel: {
-    fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontWeight: '700',
+  propCardHeader: {
+    fontSize: '10.5px',
+    fontWeight: '800',
+    color: 'var(--text-muted)',
     textTransform: 'uppercase',
     letterSpacing: '0.4px',
-    marginBottom: '3px'
+    marginBottom: '2px'
   },
-  metricVal: {
-    fontSize: '12px',
+  propRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: '11px',
+    gap: '6px'
+  },
+  propKey: {
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontWeight: '600'
+  },
+  propVal: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: '10.5px',
+    textAlign: 'right',
+    maxWidth: '120px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  },
+  colorPill: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    padding: '2px 5px',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  swatch: {
+    width: '10px',
+    height: '10px',
+    borderRadius: '2px',
+    border: '1px solid rgba(255, 255, 255, 0.3)'
+  },
+  colorText: {
+    fontSize: '10px',
+    fontFamily: 'JetBrains Mono, monospace',
     color: '#ffffff',
     fontWeight: '700'
   },
-  metricSub: {
-    fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.5)',
-    marginTop: '2px'
+  codeSubTabs: {
+    display: 'flex',
+    gap: '6px',
+    background: 'rgba(0, 0, 0, 0.3)',
+    padding: '3px',
+    borderRadius: '8px'
   },
-  colorRow: {
+  codeSubBtn: {
+    flex: 1,
+    padding: '6px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'transparent',
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: '11.5px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+  codeSubBtnActive: {
+    background: 'rgba(255, 255, 255, 0.12)',
+    color: '#ffffff'
+  },
+  codeCard: {
+    background: 'rgba(0, 0, 0, 0.45)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '10px',
+    overflow: 'hidden'
+  },
+  codeHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    marginTop: '3px'
+    justifyContent: 'space-between',
+    padding: '8px 12px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    fontSize: '11.5px',
+    fontWeight: '700',
+    color: 'rgba(255, 255, 255, 0.8)'
   },
-  swatch: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '3px',
-    border: '1px solid rgba(255, 255, 255, 0.25)'
-  },
-  colorHex: {
-    fontSize: '11px',
+  copyCodeBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '4px 8px',
+    borderRadius: '5px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
     color: '#ffffff',
-    fontFamily: 'JetBrains Mono, monospace'
+    fontSize: '11px',
+    fontWeight: '600',
+    cursor: 'pointer'
   },
-  tipText: {
+  codePre: {
+    margin: 0,
+    padding: '12px',
+    fontSize: '11px',
+    color: '#e2e8f0',
+    fontFamily: 'JetBrains Mono, monospace',
+    lineHeight: '1.5',
+    maxHeight: '440px',
+    overflow: 'auto',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word'
+  },
+  figmaHeroCard: {
+    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(6, 182, 212, 0.08))',
+    border: '1px solid rgba(139, 92, 246, 0.3)',
+    borderRadius: '12px',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  figmaHeroHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  figmaIconBox: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    background: 'rgba(139, 92, 246, 0.2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  figmaHeroTitle: {
+    fontSize: '13px',
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  figmaHeroSub: {
     fontSize: '11px',
     color: 'rgba(255, 255, 255, 0.65)',
-    lineHeight: '1.4',
-    margin: 0
+    marginTop: '2px',
+    lineHeight: '1.4'
+  },
+  figmaCopyBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '10px',
+    borderRadius: '8px',
+    background: 'var(--accent)',
+    color: '#000000',
+    border: 'none',
+    fontSize: '12.5px',
+    fontWeight: '800',
+    cursor: 'pointer',
+    boxShadow: '0 4px 16px var(--accent-glow)'
   },
   specsList: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
-    maxHeight: '260px',
+    maxHeight: '280px',
     overflowY: 'auto'
   },
   specRow: {
@@ -1060,34 +1890,5 @@ const styles = {
     color: 'var(--accent)',
     fontFamily: 'JetBrains Mono, monospace',
     fontWeight: '600'
-  },
-  codeCard: {
-    background: 'rgba(0, 0, 0, 0.4)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '8px',
-    overflow: 'hidden'
-  },
-  codeHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '8px 12px',
-    background: 'rgba(255, 255, 255, 0.04)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-    fontSize: '11px',
-    fontWeight: '600',
-    color: 'rgba(255, 255, 255, 0.7)'
-  },
-  codePre: {
-    margin: 0,
-    padding: '12px',
-    fontSize: '11px',
-    color: '#e2e8f0',
-    fontFamily: 'JetBrains Mono, monospace',
-    lineHeight: '1.5',
-    maxHeight: '400px',
-    overflow: 'auto',
-    whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word'
   }
 };

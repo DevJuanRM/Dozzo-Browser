@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -168,20 +168,74 @@ export function BrokerIcon({ brokerId = 'binance', size = 15 }) {
   }
 }
 
-const COIN_METADATA = {
-  BTCUSDT: { name: 'Bitcoin', icon: '₿', color: '#F7931A' },
-  ETHUSDT: { name: 'Ethereum', icon: 'Ξ', color: '#627EEA' },
-  SOLUSDT: { name: 'Solana', icon: '◎', color: '#14F195' },
-  BNBUSDT: { name: 'BNB Chain', icon: '⚡', color: '#F3BA2F' },
-  XRPUSDT: { name: 'XRP Ripple', icon: '✕', color: '#23292F' },
-  DOGEUSDT: { name: 'Dogecoin', icon: 'Ð', color: '#C2A633' },
-  ADAUSDT: { name: 'Cardano', icon: '₳', color: '#0033AD' },
-  AVAXUSDT: { name: 'Avalanche', icon: '▲', color: '#E84142' },
-  NEARUSDT: { name: 'NEAR Protocol', icon: 'Ⓝ', color: '#000000' },
-  SUIUSDT: { name: 'Sui Network', icon: '💧', color: '#4DA2FF' }
+// Comprehensive Metadata for Crypto, Stablecoins & Fiat currencies
+export const COIN_METADATA = {
+  // Stablecoins & Major Currencies
+  USDT: { name: 'Tether USD', icon: '₮', color: '#26A17B', tag: 'Stablecoin' },
+  USDC: { name: 'USD Coin', icon: '$', color: '#2775CA', tag: 'Stablecoin' },
+  EUR: { name: 'Euro', icon: '€', color: '#003399', tag: 'Divisa Fiat' },
+  GBP: { name: 'Libra Esterlina', icon: '£', color: '#9B51E0', tag: 'Divisa Fiat' },
+  BRL: { name: 'Real Brasileño', icon: 'R$', color: '#009B3A', tag: 'Divisa Fiat' },
+  TRY: { name: 'Lira Turca', icon: '₺', color: '#E30A17', tag: 'Divisa Fiat' },
+  FDUSD: { name: 'First Digital USD', icon: '$', color: '#1EBA78', tag: 'Stablecoin' },
+  DAI: { name: 'Dai Stablecoin', icon: '◈', color: '#F4B731', tag: 'Stablecoin' },
+
+  // Top Cryptocurrencies
+  BTC: { name: 'Bitcoin', icon: '₿', color: '#F7931A', tag: 'Layer 1' },
+  ETH: { name: 'Ethereum', icon: 'Ξ', color: '#627EEA', tag: 'Smart Contracts' },
+  SOL: { name: 'Solana', icon: '◎', color: '#14F195', tag: 'DeFi & Web3' },
+  BNB: { name: 'BNB Chain', icon: '⚡', color: '#F3BA2F', tag: 'Exchange / L1' },
+  XRP: { name: 'XRP Ripple', icon: '✕', color: '#23292F', tag: 'Pagos Globales' },
+  DOGE: { name: 'Dogecoin', icon: 'Ð', color: '#C2A633', tag: 'Meme Coin' },
+  ADA: { name: 'Cardano', icon: '₳', color: '#0033AD', tag: 'PoS Blockchain' },
+  AVAX: { name: 'Avalanche', icon: '▲', color: '#E84142', tag: 'Subnets' },
+  SUI: { name: 'Sui Network', icon: '💧', color: '#4DA2FF', tag: 'Move Layer 1' },
+  NEAR: { name: 'NEAR Protocol', icon: 'Ⓝ', color: '#000000', tag: 'AI & Sharding' },
+  LINK: { name: 'Chainlink', icon: '⬡', color: '#375BD2', tag: 'Oráculos' },
+  PEPE: { name: 'Pepe', icon: '🐸', color: '#4CAF50', tag: 'Meme Coin' },
+  SHIB: { name: 'Shiba Inu', icon: '🐕', color: '#FFA409', tag: 'Ecosistema' },
+  DOT: { name: 'Polkadot', icon: '●', color: '#E6007A', tag: 'Interoperabilidad' },
+  LTC: { name: 'Litecoin', icon: 'Ł', color: '#345D9D', tag: 'Pagos Rápidos' },
+  TRX: { name: 'TRON', icon: 'TRX', color: '#FF0013', tag: 'Pagos & Red USDT' },
+  TON: { name: 'The Open Network', icon: '💎', color: '#0088CC', tag: 'Telegram Web3' },
+  RENDER: { name: 'Render Token', icon: '⚡', color: '#E53E3E', tag: 'GPU & AI' },
+  FET: { name: 'Artificial Superintelligence', icon: '🧠', color: '#10B981', tag: 'Alianza IA' },
+  INJ: { name: 'Injective', icon: '🥷', color: '#00D1FF', tag: 'DeFi L1' },
+  TIA: { name: 'Celestia', icon: '✦', color: '#7B2CBF', tag: 'Modular' },
+  ATOM: { name: 'Cosmos', icon: '⚛', color: '#2E3148', tag: 'IBC Hub' },
+  UNI: { name: 'Uniswap', icon: '🦄', color: '#FF007A', tag: 'DEX Líder' },
+  AAVE: { name: 'Aave', icon: '👻', color: '#B6509E', tag: 'Préstamos DeFi' },
+  OP: { name: 'Optimism', icon: '🔴', color: '#FF0420', tag: 'Ethereum L2' },
+  ARB: { name: 'Arbitrum', icon: '🔷', color: '#28A0F0', tag: 'Ethereum L2' },
+  APT: { name: 'Aptos', icon: '▲', color: '#000000', tag: 'Move L1' },
+  POL: { name: 'Polygon Ecosystem', icon: '🟣', color: '#8247E5', tag: 'ZK Rollups' },
+  HBAR: { name: 'Hedera', icon: 'ℏ', color: '#000000', tag: 'Enterprise DLT' },
+  FIL: { name: 'Filecoin', icon: '⨎', color: '#0090FF', tag: 'Storage' },
+  ICP: { name: 'Internet Computer', icon: '∞', color: '#29ABE2', tag: 'Cloud Web3' },
+  FTM: { name: 'Sonic (Fantom)', icon: '👻', color: '#1969FF', tag: 'Ultra Rápido' }
 };
 
-const TOP_SYMBOLS = Object.keys(COIN_METADATA);
+export function parseSymbol(symbol) {
+  let base = symbol;
+  let quote = 'USDT';
+  if (symbol.endsWith('USDT')) {
+    base = symbol.replace('USDT', '');
+    quote = 'USDT';
+  } else if (symbol.endsWith('USDC')) {
+    base = symbol.replace('USDC', '');
+    quote = 'USDC';
+  } else if (symbol.endsWith('EUR')) {
+    base = symbol.replace('EUR', '');
+    quote = 'EUR';
+  } else if (symbol.endsWith('FDUSD')) {
+    base = symbol.replace('FDUSD', '');
+    quote = 'FDUSD';
+  } else if (symbol.endsWith('BTC')) {
+    base = symbol.replace('BTC', '');
+    quote = 'BTC';
+  }
+  return { base, quote };
+}
 
 // Mini SVG Sparkline generator
 function MiniSparkline({ isPositive }) {
@@ -204,6 +258,29 @@ function MiniSparkline({ isPositive }) {
   );
 }
 
+const DEFAULT_POPULAR = [
+  'BTCUSDT',
+  'ETHUSDT',
+  'SOLUSDT',
+  'BNBUSDT',
+  'XRPUSDT',
+  'DOGEUSDT',
+  'ADAUSDT',
+  'AVAXUSDT',
+  'SUIUSDT',
+  'NEARUSDT',
+  'LINKUSDT',
+  'PEPEUSDT',
+  'SHIBUSDT',
+  'DOTUSDT',
+  'EURUSDT',
+  'LTCUSDT',
+  'TRXUSDT',
+  'TONUSDT',
+  'RENDERUSDT',
+  'FETUSDT'
+];
+
 export default function BinanceWidget({
   isOpen,
   onClose,
@@ -212,7 +289,7 @@ export default function BinanceWidget({
   onSelectBroker
 }) {
   const [activeBrokerId, setActiveBrokerId] = useState(selectedBrokerId);
-  const [tickers, setTickers] = useState([]);
+  const [allTickers, setAllTickers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -232,24 +309,39 @@ export default function BinanceWidget({
       if (!res.ok) throw new Error('Network error');
       const data = await res.json();
 
-      const relevant = data.filter((t) => TOP_SYMBOLS.includes(t.symbol));
-      relevant.sort((a, b) => TOP_SYMBOLS.indexOf(a.symbol) - TOP_SYMBOLS.indexOf(b.symbol));
+      // Filter for liquid traded pairs
+      const liquidPairs = data.filter((t) => {
+        if (!t.symbol) return false;
+        return (
+          (t.symbol.endsWith('USDT') || t.symbol.endsWith('USDC') || t.symbol.endsWith('EUR')) &&
+          parseFloat(t.volume || '0') > 0
+        );
+      });
 
-      setTickers(relevant);
+      // Sort by 24h dollar volume descending
+      liquidPairs.sort((a, b) => parseFloat(b.quoteVolume || '0') - parseFloat(a.quoteVolume || '0'));
+
+      setAllTickers(liquidPairs);
       setLastUpdated(new Date());
     } catch (err) {
       console.warn('Crypto API fallback to cached rates:', err);
-      setTickers([
-        { symbol: 'BTCUSDT', lastPrice: '84250.00', priceChangePercent: '1.45', highPrice: '85100.00', lowPrice: '82900.00', volume: '34820.5' },
-        { symbol: 'ETHUSDT', lastPrice: '2680.40', priceChangePercent: '0.85', highPrice: '2720.00', lowPrice: '2610.00', volume: '284200.0' },
-        { symbol: 'SOLUSDT', lastPrice: '182.20', priceChangePercent: '4.20', highPrice: '185.00', lowPrice: '172.50', volume: '984500.0' },
-        { symbol: 'BNBUSDT', lastPrice: '645.80', priceChangePercent: '-0.30', highPrice: '652.00', lowPrice: '638.00', volume: '112000.0' },
-        { symbol: 'XRPUSDT', lastPrice: '1.42', priceChangePercent: '2.15', highPrice: '1.45', lowPrice: '1.38', volume: '4820000.0' },
-        { symbol: 'DOGEUSDT', lastPrice: '0.195', priceChangePercent: '-1.20', highPrice: '0.205', lowPrice: '0.191', volume: '12400000.0' },
-        { symbol: 'ADAUSDT', lastPrice: '0.78', priceChangePercent: '1.05', highPrice: '0.81', lowPrice: '0.76', volume: '3820000.0' },
-        { symbol: 'AVAXUSDT', lastPrice: '29.50', priceChangePercent: '-2.10', highPrice: '30.80', lowPrice: '28.90', volume: '840000.0' },
-        { symbol: 'NEARUSDT', lastPrice: '5.85', priceChangePercent: '3.40', highPrice: '6.05', lowPrice: '5.60', volume: '1420000.0' },
-        { symbol: 'SUIUSDT', lastPrice: '3.15', priceChangePercent: '5.80', highPrice: '3.25', lowPrice: '2.95', volume: '2410000.0' }
+      // Fallback data
+      setAllTickers([
+        { symbol: 'BTCUSDT', lastPrice: '84250.00', priceChange: '1240.50', priceChangePercent: '1.45', highPrice: '85100.00', lowPrice: '82900.00', volume: '34820.5', quoteVolume: '2933000000' },
+        { symbol: 'ETHUSDT', lastPrice: '2680.40', priceChange: '22.80', priceChangePercent: '0.85', highPrice: '2720.00', lowPrice: '2610.00', volume: '284200.0', quoteVolume: '761000000' },
+        { symbol: 'SOLUSDT', lastPrice: '182.20', priceChange: '7.40', priceChangePercent: '4.20', highPrice: '185.00', lowPrice: '172.50', volume: '984500.0', quoteVolume: '179000000' },
+        { symbol: 'BNBUSDT', lastPrice: '645.80', priceChange: '-1.95', priceChangePercent: '-0.30', highPrice: '652.00', lowPrice: '638.00', volume: '112000.0', quoteVolume: '72300000' },
+        { symbol: 'XRPUSDT', lastPrice: '1.42', priceChange: '0.03', priceChangePercent: '2.15', highPrice: '1.45', lowPrice: '1.38', volume: '4820000.0', quoteVolume: '6840000' },
+        { symbol: 'DOGEUSDT', lastPrice: '0.195', priceChange: '-0.002', priceChangePercent: '-1.20', highPrice: '0.205', lowPrice: '0.191', volume: '12400000.0', quoteVolume: '2418000' },
+        { symbol: 'ADAUSDT', lastPrice: '0.78', priceChange: '0.008', priceChangePercent: '1.05', highPrice: '0.81', lowPrice: '0.76', volume: '3820000.0', quoteVolume: '2979000' },
+        { symbol: 'AVAXUSDT', lastPrice: '29.50', priceChange: '-0.63', priceChangePercent: '-2.10', highPrice: '30.80', lowPrice: '28.90', volume: '840000.0', quoteVolume: '24780000' },
+        { symbol: 'SUIUSDT', lastPrice: '3.15', priceChange: '0.17', priceChangePercent: '5.80', highPrice: '3.25', lowPrice: '2.95', volume: '2410000.0', quoteVolume: '7590000' },
+        { symbol: 'NEARUSDT', lastPrice: '5.85', priceChange: '0.19', priceChangePercent: '3.40', highPrice: '6.05', lowPrice: '5.60', volume: '1420000.0', quoteVolume: '8307000' },
+        { symbol: 'LINKUSDT', lastPrice: '18.40', priceChange: '0.62', priceChangePercent: '3.48', highPrice: '18.90', lowPrice: '17.60', volume: '890000.0', quoteVolume: '16376000' },
+        { symbol: 'PEPEUSDT', lastPrice: '0.0000095', priceChange: '0.0000008', priceChangePercent: '8.40', highPrice: '0.0000099', lowPrice: '0.0000085', volume: '18400000000', quoteVolume: '174800000' },
+        { symbol: 'SHIBUSDT', lastPrice: '0.0000178', priceChange: '-0.0000003', priceChangePercent: '-1.65', highPrice: '0.0000185', lowPrice: '0.0000172', volume: '8400000000', quoteVolume: '149520000' },
+        { symbol: 'DOTUSDT', lastPrice: '6.95', priceChange: '0.14', priceChangePercent: '2.05', highPrice: '7.10', lowPrice: '6.75', volume: '1240000.0', quoteVolume: '8618000' },
+        { symbol: 'EURUSDT', lastPrice: '1.0850', priceChange: '0.0025', priceChangePercent: '0.23', highPrice: '1.0875', lowPrice: '1.0820', volume: '48200000.0', quoteVolume: '52297000' }
       ]);
     } finally {
       setLoading(false);
@@ -264,19 +356,58 @@ export default function BinanceWidget({
     }
   }, [isOpen]);
 
+  // Comprehensive Multi-Currency & Crypto Search Filter
+  const displayedTickers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+
+    if (!q) {
+      // Default view: Prioritize popular pairs first, then top volume
+      const popular = allTickers.filter((t) => DEFAULT_POPULAR.includes(t.symbol));
+      popular.sort((a, b) => DEFAULT_POPULAR.indexOf(a.symbol) - DEFAULT_POPULAR.indexOf(b.symbol));
+
+      const remaining = allTickers.filter((t) => !DEFAULT_POPULAR.includes(t.symbol)).slice(0, 15);
+      return [...popular, ...remaining];
+    }
+
+    // Filter across all Binance pairs
+    const matches = allTickers.filter((t) => {
+      const { base, quote } = parseSymbol(t.symbol);
+      const meta = COIN_METADATA[base];
+      return (
+        t.symbol.toLowerCase().includes(q) ||
+        base.toLowerCase().includes(q) ||
+        quote.toLowerCase().includes(q) ||
+        (meta && meta.name.toLowerCase().includes(q)) ||
+        (meta && meta.tag.toLowerCase().includes(q))
+      );
+    });
+
+    let results = matches.slice(0, 40);
+
+    // If user searched for USDT or Tether, explicitly provide Tether USD as row #1
+    if (q === 'usdt' || q === 'tether' || q === 'dolar' || q === 'usd') {
+      const tetherRow = {
+        symbol: 'USDTUSDT',
+        isNativeTether: true,
+        lastPrice: '1.0000',
+        priceChange: '0.0000',
+        priceChangePercent: '0.00',
+        highPrice: '1.0005',
+        lowPrice: '0.9998',
+        volume: '48500000000',
+        quoteVolume: '48500000000'
+      };
+      results = [tetherRow, ...results.filter((x) => x.symbol !== 'USDTUSDT')];
+    }
+
+    return results;
+  }, [allTickers, search]);
+
   if (!isOpen) return null;
 
-  const filteredTickers = tickers.filter((t) => {
-    const meta = COIN_METADATA[t.symbol];
-    const q = search.toLowerCase();
-    return (
-      t.symbol.toLowerCase().includes(q) ||
-      (meta && meta.name.toLowerCase().includes(q))
-    );
-  });
-
   const handleOpenCoin = (symbol) => {
-    const url = activeBroker.pairUrl(symbol);
+    const cleanSym = symbol === 'USDTUSDT' ? 'USDT' : symbol;
+    const url = activeBroker.pairUrl(cleanSym);
     if (onOpenTradePair) onOpenTradePair(url);
     onClose();
   };
@@ -297,7 +428,7 @@ export default function BinanceWidget({
             <div>
               <div style={styles.title}>Crypto Markets & Brokers Hub</div>
               <div style={styles.subtitle}>
-                Precios Spot en tiempo real vía <span style={{ color: activeBroker.color, fontWeight: '700' }}>{activeBroker.name}</span>
+                Precios y Variación 24h en tiempo real vía <span style={{ color: activeBroker.color, fontWeight: '700' }}>{activeBroker.name}</span>
               </div>
             </div>
           </div>
@@ -346,84 +477,140 @@ export default function BinanceWidget({
           })}
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar with Currency & Token Support */}
         <div style={styles.searchBox}>
           <Search size={14} color="var(--text-muted)" style={{ marginLeft: '10px' }} />
           <input
             type="text"
-            placeholder="Buscar criptomoneda (ej. BTC, ETH, Solana, Sui)..."
+            placeholder="Buscar criptomoneda o divisa (USDT, EUR, BTC, PEPE, SOL, ETH...)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={styles.searchInput}
             autoFocus
           />
           {search && (
-            <button style={styles.clearSearchBtn} onClick={() => setSearch('')}>
+            <button style={styles.clearSearchBtn} onClick={() => setSearch('')} title="Limpiar búsqueda">
               &times;
             </button>
           )}
         </div>
 
+        {/* Status / Results Count */}
+        <div style={styles.statusRow}>
+          <span>
+            {search ? `Resultados para "${search}": ${displayedTickers.length} pares` : 'Principales Criptomonedas y Divisas'}
+          </span>
+          {lastUpdated && (
+            <span style={styles.lastUpdatedText}>
+              Actualizado: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+        </div>
+
         {/* Live Cryptos List */}
         <div style={styles.tickersList} className="custom-scrollbar">
-          {filteredTickers.length === 0 ? (
-            <div style={styles.emptyMsg}>No se encontraron criptomonedas con ese filtro</div>
+          {displayedTickers.length === 0 ? (
+            <div style={styles.emptyMsg}>
+              No se encontraron pares o divisas con "{search}". Prueba con USDT, EUR, BTC, SOL o PEPE.
+            </div>
           ) : (
-            filteredTickers.map((t) => {
-              const meta = COIN_METADATA[t.symbol] || { name: t.symbol, icon: '●', color: 'var(--accent)' };
-              const change = parseFloat(t.priceChangePercent);
-              const isPositive = change >= 0;
-              const price = parseFloat(t.lastPrice);
+            displayedTickers.map((t) => {
+              const { base, quote } = parseSymbol(t.symbol);
+              const meta = COIN_METADATA[base] || {
+                name: base,
+                icon: base.slice(0, 1),
+                color: 'var(--accent)',
+                tag: 'Criptomoneda'
+              };
+
+              const changePercent = parseFloat(t.priceChangePercent || '0');
+              const isPositive = changePercent >= 0;
+              const price = parseFloat(t.lastPrice || '0');
+              const changeAmount = parseFloat(t.priceChange || '0');
+
+              // Formatted price with proper decimals
               const formattedPrice =
                 price >= 1
                   ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                  : price.toFixed(4);
+                  : price.toFixed(price < 0.0001 ? 7 : 4);
+
+              // Formatted change amount in dollars
+              const formattedChangeAmount =
+                Math.abs(changeAmount) >= 1
+                  ? Math.abs(changeAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  : Math.abs(changeAmount).toFixed(price < 0.0001 ? 7 : 4);
+
+              const high = parseFloat(t.highPrice || '0');
+              const low = parseFloat(t.lowPrice || '0');
+              const formattedHigh = high >= 1 ? high.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : high.toFixed(4);
+              const formattedLow = low >= 1 ? low.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : low.toFixed(4);
+
+              const quoteVolNumber = parseFloat(t.quoteVolume || '0');
+              const volFormatted =
+                quoteVolNumber >= 1e9
+                  ? `$${(quoteVolNumber / 1e9).toFixed(2)}B`
+                  : quoteVolNumber >= 1e6
+                  ? `$${(quoteVolNumber / 1e6).toFixed(1)}M`
+                  : `$${Math.round(quoteVolNumber).toLocaleString()}`;
 
               return (
                 <div
                   key={t.symbol}
                   style={styles.tickerCard}
                   onClick={() => handleOpenCoin(t.symbol)}
-                  title={`Abrir ${meta.name} en ${activeBroker.name}`}
+                  title={`Abrir ${meta.name} (${t.symbol}) en ${activeBroker.name}`}
                 >
                   {/* Left: Coin Emblem & Name */}
                   <div style={styles.coinLeft}>
-                    <div style={{ ...styles.coinIcon, backgroundColor: `${meta.color}22`, color: meta.color }}>
+                    <div style={{ ...styles.coinIcon, backgroundColor: `${meta.color}22`, color: meta.color, border: `1px solid ${meta.color}44` }}>
                       {meta.icon}
                     </div>
                     <div>
                       <div style={styles.coinSymbolRow}>
-                        <span style={styles.coinCode}>{t.symbol.replace('USDT', '')}</span>
-                        <span style={styles.pairQuote}>/USDT</span>
+                        <span style={styles.coinCode}>{base}</span>
+                        <span style={styles.pairQuote}>/{quote}</span>
                       </div>
-                      <div style={styles.coinFullName}>{meta.name}</div>
+                      <div style={styles.coinFullName}>
+                        {meta.name} <span style={styles.coinTagDot}>•</span> <span style={styles.coinTag}>{meta.tag}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Center: Sparkline */}
+                  {/* Center: Sparkline & High / Low range today */}
                   <div style={styles.sparklineCol}>
                     <MiniSparkline isPositive={isPositive} />
-                    <span style={styles.volText}>24h Vol: {parseInt(t.volume).toLocaleString()}</span>
+                    <div style={styles.rangeText}>
+                      <span>Mín: ${formattedLow}</span>
+                      <span style={{ opacity: 0.4 }}>•</span>
+                      <span>Máx: ${formattedHigh}</span>
+                    </div>
                   </div>
 
-                  {/* Right: Live Price & 24h Change Badge */}
+                  {/* Right: Live Price & Explicit Daily Gain / Loss (¿Cuánto subió hoy?) */}
                   <div style={styles.coinRight}>
                     <div style={styles.coinPrice}>${formattedPrice}</div>
                     <div
                       style={{
                         ...styles.changeBadge,
-                        backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.14)' : 'rgba(239, 68, 68, 0.14)',
-                        color: isPositive ? '#10B981' : '#EF4444'
+                        backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.16)' : 'rgba(239, 68, 68, 0.16)',
+                        color: isPositive ? '#10B981' : '#EF4444',
+                        border: isPositive ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)'
                       }}
                     >
                       {isPositive ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-                      <span>{isPositive ? `+${change.toFixed(2)}%` : `${change.toFixed(2)}%`}</span>
+                      <span>
+                        {isPositive ? `+${changePercent.toFixed(2)}%` : `${changePercent.toFixed(2)}%`} hoy
+                      </span>
+                      <span style={styles.changeAmountText}>
+                        ({isPositive ? `+$${formattedChangeAmount}` : `-$${formattedChangeAmount}`})
+                      </span>
                     </div>
+                    <span style={styles.volText}>24h Vol: {volFormatted}</span>
                   </div>
 
                   {/* Action Link Arrow */}
                   <div style={styles.openArrow}>
-                    <ArrowUpRight size={13} />
+                    <ArrowUpRight size={14} />
                   </div>
                 </div>
               );
@@ -456,58 +643,56 @@ export default function BinanceWidget({
 const styles = {
   overlay: {
     position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'transparent',
-    zIndex: 9990
+    inset: 0,
+    background: 'rgba(0, 0, 0, 0.65)',
+    backdropFilter: 'blur(8px)',
+    zIndex: 1000,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    animation: 'fadeIn 0.2s ease'
   },
   drawer: {
-    position: 'absolute',
-    top: '92px',
-    right: '16px',
-    width: '385px',
-    maxWidth: '92vw',
-    maxHeight: 'calc(100vh - 110px)',
+    width: '540px',
+    maxWidth: '100vw',
+    height: '100%',
     background: 'var(--bg-secondary)',
-    border: '1px solid var(--border-hover)',
-    borderRadius: '14px',
-    boxShadow: '0 16px 45px rgba(0, 0, 0, 0.75)',
+    borderLeft: '1px solid var(--border-hover)',
     display: 'flex',
     flexDirection: 'column',
-    overflow: 'hidden'
+    boxShadow: '-10px 0 35px rgba(0, 0, 0, 0.85)',
+    zIndex: 1001
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '16px 18px 12px 18px',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
+    padding: '16px 20px',
+    borderBottom: '1px solid var(--border-subtle)',
+    background: 'rgba(0, 0, 0, 0.2)'
   },
   brandRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px'
+    gap: '12px'
   },
   brokerBadgeIcon: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '8px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     border: '1px solid'
   },
   title: {
-    fontSize: '14px',
+    fontSize: '15px',
     fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: '0.3px'
+    color: 'var(--text-primary)',
+    letterSpacing: '0.2px'
   },
   subtitle: {
-    fontSize: '11px',
-    color: 'var(--text-muted)',
+    fontSize: '11.5px',
+    color: 'var(--text-secondary)',
     marginTop: '2px'
   },
   headerActions: {
@@ -516,80 +701,95 @@ const styles = {
     gap: '6px'
   },
   actionBtn: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '6px',
+    width: '30px',
+    height: '30px',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: 'var(--text-secondary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--text-secondary)',
-    background: 'rgba(255, 255, 255, 0.05)',
-    transition: 'all 0.2s ease'
+    cursor: 'pointer',
+    transition: 'all 0.18s ease'
   },
   brokerTabsRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '10px 18px',
-    background: 'rgba(0, 0, 0, 0.4)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-    overflowX: 'auto'
+    padding: '10px 16px',
+    borderBottom: '1px solid var(--border-subtle)',
+    overflowX: 'auto',
+    scrollbarWidth: 'none'
   },
   brokerTab: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '5px 10px',
+    padding: '6px 10px',
     borderRadius: '8px',
     background: 'rgba(255, 255, 255, 0.04)',
     border: '1px solid rgba(255, 255, 255, 0.08)',
     color: 'var(--text-secondary)',
     fontSize: '11.5px',
-    fontWeight: '700',
+    fontWeight: '600',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     transition: 'all 0.15s ease'
   },
-  brokerDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '50%'
-  },
   brokerMiniBadge: {
-    fontSize: '9.5px',
+    fontSize: '9px',
+    fontWeight: '800',
     padding: '1px 5px',
     borderRadius: '4px',
-    background: 'rgba(255, 255, 255, 0.12)',
-    opacity: 0.9
+    background: 'rgba(255, 255, 255, 0.15)',
+    color: 'inherit'
   },
   searchBox: {
+    margin: '12px 16px 6px 16px',
     display: 'flex',
     alignItems: 'center',
-    margin: '12px 18px',
-    height: '36px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    borderRadius: '10px'
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '10px',
+    height: '38px',
+    position: 'relative'
   },
   searchInput: {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    color: '#ffffff',
-    fontSize: '12px',
+    outline: 'none',
+    color: 'var(--text-primary)',
+    fontSize: '12.5px',
     padding: '0 10px'
   },
   clearSearchBtn: {
-    width: '24px',
-    height: '24px',
+    padding: '0 10px',
+    background: 'transparent',
+    border: 'none',
     color: 'var(--text-muted)',
     fontSize: '16px',
-    marginRight: '6px'
+    cursor: 'pointer'
+  },
+  statusRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '4px 18px 8px 18px',
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    fontWeight: '600'
+  },
+  lastUpdatedText: {
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: '10px',
+    opacity: 0.8
   },
   tickersList: {
     flex: 1,
     overflowY: 'auto',
-    padding: '0 18px 10px 18px',
+    padding: '6px 16px',
     display: 'flex',
     flexDirection: 'column',
     gap: '6px'
@@ -598,16 +798,17 @@ const styles = {
     textAlign: 'center',
     color: 'var(--text-muted)',
     fontSize: '12px',
-    padding: '24px 0'
+    padding: '36px 16px',
+    lineHeight: '1.6'
   },
   tickerCard: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 12px',
-    borderRadius: '10px',
+    padding: '10px 14px',
+    borderRadius: '12px',
     background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.07)',
     cursor: 'pointer',
     transition: 'all 0.18s ease'
   },
@@ -615,17 +816,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    minWidth: '120px'
+    minWidth: '135px'
   },
   coinIcon: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
+    width: '34px',
+    height: '34px',
+    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '14px',
-    fontWeight: '800'
+    fontWeight: '800',
+    flexShrink: 0
   },
   coinSymbolRow: {
     display: 'flex',
@@ -633,7 +835,7 @@ const styles = {
     gap: '3px'
   },
   coinCode: {
-    fontSize: '13px',
+    fontSize: '13.5px',
     fontWeight: '800',
     color: '#ffffff'
   },
@@ -644,27 +846,42 @@ const styles = {
   coinFullName: {
     fontSize: '11px',
     color: 'var(--text-secondary)',
-    marginTop: '1px'
+    marginTop: '1px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  coinTagDot: {
+    opacity: 0.4
+  },
+  coinTag: {
+    fontSize: '9.5px',
+    color: 'var(--text-muted)'
   },
   sparklineCol: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '2px'
+    gap: '3px',
+    padding: '0 8px'
   },
-  volText: {
+  rangeText: {
     fontSize: '9.5px',
     color: 'var(--text-muted)',
-    fontFamily: 'JetBrains Mono, monospace'
+    fontFamily: 'JetBrains Mono, monospace',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
   },
   coinRight: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
-    gap: '3px'
+    gap: '3px',
+    minWidth: '130px'
   },
   coinPrice: {
-    fontSize: '13px',
+    fontSize: '13.5px',
     fontWeight: '800',
     color: '#ffffff',
     fontFamily: 'JetBrains Mono, monospace'
@@ -672,11 +889,21 @@ const styles = {
   changeBadge: {
     display: 'flex',
     alignItems: 'center',
-    gap: '3px',
+    gap: '4px',
     fontSize: '10px',
     fontWeight: '700',
-    padding: '2px 6px',
-    borderRadius: '5px',
+    padding: '2px 7px',
+    borderRadius: '6px',
+    fontFamily: 'JetBrains Mono, monospace',
+    whiteSpace: 'nowrap'
+  },
+  changeAmountText: {
+    fontSize: '9px',
+    opacity: 0.85
+  },
+  volText: {
+    fontSize: '9px',
+    color: 'var(--text-muted)',
     fontFamily: 'JetBrains Mono, monospace'
   },
   openArrow: {
@@ -691,7 +918,7 @@ const styles = {
   },
   exchangeBtn: {
     width: '100%',
-    height: '38px',
+    height: '40px',
     borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
@@ -699,6 +926,8 @@ const styles = {
     fontWeight: '800',
     fontSize: '13px',
     letterSpacing: '0.2px',
+    border: 'none',
+    cursor: 'pointer',
     boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
     transition: 'all 0.18s ease'
   }

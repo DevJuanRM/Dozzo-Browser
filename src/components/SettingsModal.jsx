@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/searchEngines';
 import { CURRENT_VERSION, checkForLatestRelease, GITHUB_REPO } from '../utils/updateChecker';
+import { CURATED_THEMES } from '../utils/themes';
 
 export default function SettingsModal({
   isOpen,
@@ -26,9 +27,7 @@ export default function SettingsModal({
   searchEngine,
   onChangeSearchEngine,
   theme,
-  onToggleTheme,
-  accentColor,
-  onChangeAccent,
+  onSelectTheme,
   showBookmarksBar,
   onToggleBookmarksBar,
   onOpenInstallGuide
@@ -54,14 +53,6 @@ export default function SettingsModal({
 
   const engines = SEARCH_ENGINES;
 
-  const accents = [
-    { id: 'gold', name: 'Binance Gold', color: '#F0B90B' },
-    { id: 'cyan', name: 'Cyber Cyan', color: '#06B6D4' },
-    { id: 'emerald', name: 'Emerald Green', color: '#10B981' },
-    { id: 'purple', name: 'Royal Violet', color: '#8B5CF6' },
-    { id: 'orange', name: 'Sunset Flame', color: '#F97316' },
-    { id: 'crimson', name: 'Ruby Crimson', color: '#EF4444' }
-  ];
 
   return (
     <div style={styles.overlay} onClick={onClose}>
@@ -70,7 +61,7 @@ export default function SettingsModal({
         <div style={styles.header}>
           <div style={styles.titleGroup}>
             <div style={styles.iconBadge}>
-              <Sliders size={18} color="var(--accent)" />
+              <img src="./Logo.svg" alt="Dozzo" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'contain' }} />
             </div>
             <div>
               <div style={styles.title}>Ajustes de Dozzo Browser</div>
@@ -123,59 +114,59 @@ export default function SettingsModal({
           <div style={styles.section}>
             <div style={styles.sectionTitle}>
               <Palette size={14} color="var(--accent)" />
-              <span>Apariencia y Colores</span>
+              <span>Colección de Temas (10 Modos)</span>
             </div>
 
-            <div style={styles.themeToggleRow}>
-              <span>Tema de la Interfaz</span>
-              <div style={styles.themeBtns}>
-                <button
-                  style={{
-                    ...styles.themeOptionBtn,
-                    background: theme === 'dark' ? 'var(--accent)' : 'transparent',
-                    color: theme === 'dark' ? 'var(--accent-text)' : 'var(--text-secondary)'
-                  }}
-                  onClick={() => onToggleTheme('dark')}
-                >
-                  <Moon size={14} />
-                  <span>Oscuro (Pro)</span>
-                </button>
-                <button
-                  style={{
-                    ...styles.themeOptionBtn,
-                    background: theme === 'light' ? 'var(--accent)' : 'transparent',
-                    color: theme === 'light' ? 'var(--accent-text)' : 'var(--text-secondary)'
-                  }}
-                  onClick={() => onToggleTheme('light')}
-                >
-                  <Sun size={14} />
-                  <span>Claro</span>
-                </button>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '12px' }}>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Color de Acento
-              </div>
-              <div style={styles.accentsGrid}>
-                {accents.map((acc) => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '10px' }}>
+              {CURATED_THEMES.map((thm) => {
+                const isSelected =
+                  theme === thm.id ||
+                  (theme === 'dark' && thm.id === 'obsidian-aurora') ||
+                  (theme === 'light' && thm.id === 'mac-snow');
+                return (
                   <div
-                    key={acc.id}
-                    onClick={() => onChangeAccent(acc.id)}
+                    key={thm.id}
+                    onClick={() => onSelectTheme && onSelectTheme(thm.id)}
                     style={{
-                      ...styles.accentBox,
-                      backgroundColor: acc.color,
-                      boxShadow: accentColor === acc.id ? '0 0 0 2px white, 0 0 10px ' + acc.color : 'none'
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderRadius: '10px',
+                      background: isSelected ? 'var(--bg-hover)' : 'var(--bg-tertiary)',
+                      border: isSelected ? '1.5px solid var(--accent)' : '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
                     }}
-                    title={acc.name}
                   >
-                    {accentColor === acc.id && <Check size={14} color="#000" strokeWidth={3} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: thm.primaryColor,
+                          border: `2px solid ${thm.accentColor}`,
+                          boxShadow: `0 0 6px ${thm.accentColor}55`,
+                          flexShrink: 0
+                        }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: isSelected ? '700' : '600', color: 'var(--text-primary)' }}>
+                          {thm.name}
+                        </div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                          {thm.badge}
+                        </div>
+                      </div>
+                    </div>
+                    {isSelected && <Check size={14} color="var(--accent)" strokeWidth={3} />}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
+
 
           {/* Section: Bookmarks Bar */}
           <div style={styles.section}>
@@ -206,9 +197,12 @@ export default function SettingsModal({
 
             <div style={styles.updateCard}>
               <div style={styles.updateHeaderRow}>
-                <div>
-                  <div style={styles.versionLabel}>Dozzo Browser v{CURRENT_VERSION}</div>
-                  <div style={styles.versionSub}>Canal Oficial de Actualizaciones GitHub</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <img src="./Logo.svg" alt="Dozzo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'contain' }} />
+                  <div>
+                    <div style={styles.versionLabel}>Dozzo Browser v{CURRENT_VERSION}</div>
+                    <div style={styles.versionSub}>Canal Oficial de Actualizaciones GitHub</div>
+                  </div>
                 </div>
 
                 <button

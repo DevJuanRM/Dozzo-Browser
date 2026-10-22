@@ -8,106 +8,131 @@ import {
   Volume2,
   Globe,
   LayoutGrid,
-  ExternalLink,
   Home,
   Star,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ExternalLink
 } from 'lucide-react';
 
-function CalligraphyLogo() {
+function DozzoBrandLogo() {
+  const [isAnimating, setIsAnimating] = useState(false);
   const [animKey, setAnimKey] = useState(0);
 
+  const handleClick = (e) => {
+    e.stopPropagation();
+    setAnimKey((prev) => prev + 1);
+    setIsAnimating(true);
+  };
+
   useEffect(() => {
-    // Initial cursive plumilla ink stroke animation
-    setAnimKey(1);
+    if (!isAnimating) return;
+    // Slow, smooth luxury stroke animation lasts ~3.6s, then gently collapses back to default logo
+    const timer = setTimeout(() => {
+      setIsAnimating(false);
+    }, 3800);
 
-    // Repeats calligraphy fountain pen drawing effect smoothly every 10 seconds
-    const interval = setInterval(() => {
-      setAnimKey((prev) => prev + 1);
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [isAnimating, animKey]);
 
   return (
     <div
       style={styles.brand}
-      className="no-drag"
-      title="Dozzo Browser - Clic para volver a escribir"
-      onClick={() => setAnimKey((k) => k + 1)}
+      className={`no-drag dozzo-brand-container ${isAnimating ? 'expanded' : 'compact'}`}
+      title={isAnimating ? 'DOZZO' : 'Dozzo - Clic para ver firma'}
+      onClick={handleClick}
     >
-      <svg
-        key={animKey}
-        viewBox="0 0 138 25"
-        width="132"
-        height="24"
-        className="dozzo-calligraphy-svg"
+      {/* Default Brand Icon: Always visible with smooth luxury gold hover glow */}
+      <div style={styles.brandIconWrapper}>
+        <img
+          src="./Logo.svg"
+          alt="Dozzo"
+          style={styles.brandLogoImg}
+          className="dozzo-brand-icon"
+        />
+      </div>
+
+      {/* Handwritten "dozzo" SVG: Only appears and animates when clicked */}
+      <div
+        className={`dozzo-calligraphy-wrapper ${isAnimating ? 'animating' : 'hidden'}`}
+        style={{
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          maxWidth: isAnimating ? '140px' : '0px',
+          opacity: isAnimating ? 1 : 0,
+          transform: isAnimating ? 'translateX(0)' : 'translateX(-8px)',
+          transition: 'max-width 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease, transform 0.35s ease',
+          pointerEvents: isAnimating ? 'auto' : 'none'
+        }}
       >
-        <defs>
-          <linearGradient id="dozzoGoldInk" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#FFF4A3" />
-            <stop offset="25%" stopColor="#F0B90B" />
-            <stop offset="65%" stopColor="#FFD700" />
-            <stop offset="88%" stopColor="#E09000" />
-            <stop offset="100%" stopColor="#FFF8C4" />
-          </linearGradient>
-          <filter id="dozzoGoldLuster" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="rgba(240, 185, 11, 0.45)" />
-          </filter>
-        </defs>
+        <svg
+          key={animKey}
+          viewBox="0 0 138 25"
+          width="130"
+          height="24"
+          className="dozzo-calligraphy-svg"
+          style={{ flexShrink: 0, marginLeft: '6px' }}
+        >
+          <defs>
+            <linearGradient id="dozzoGoldInk" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FFF4A3" />
+              <stop offset="25%" stopColor="#F0B90B" />
+              <stop offset="65%" stopColor="#FFD700" />
+              <stop offset="88%" stopColor="#E09000" />
+              <stop offset="100%" stopColor="#FFF8C4" />
+            </linearGradient>
+            <filter id="dozzoGoldLuster" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="1" stdDeviation="1.2" floodColor="rgba(240, 185, 11, 0.45)" />
+            </filter>
+          </defs>
 
-        <g className="dozzo-handwriting-group" filter="url(#dozzoGoldLuster)">
-          {/* Cursive D - Slender stem & wide oval loop */}
-          <path
-            className="callig-stroke callig-d1"
-            d="M 11 5 C 8.5 8, 6.5 13, 6.5 17 C 6.5 19.5, 8.5 20.5, 10.5 19.8 C 12 19.2, 11.5 17.5, 9.5 17 C 8 16.5, 6.5 18, 7.5 19.8 C 8.5 21, 11.5 21.2, 15.5 20.5 C 24 19, 31 15, 31 10 C 31 6, 26 3.5, 19 3.5 C 13.5 3.5, 9 6.5, 9 8.5"
-          />
-          <path
-            className="callig-stroke callig-d2"
-            d="M 11.5 19.5 C 18 19.5, 27 17.5, 36 14.5"
-          />
+          <g className={`dozzo-handwriting-group ${isAnimating ? 'dozzo-is-drawing' : 'dozzo-is-static'}`} filter="url(#dozzoGoldLuster)">
+            {/* Cursive D - Slender stem & wide oval loop */}
+            <path
+              className="callig-stroke callig-d1"
+              d="M 11 5 C 8.5 8, 6.5 13, 6.5 17 C 6.5 19.5, 8.5 20.5, 10.5 19.8 C 12 19.2, 11.5 17.5, 9.5 17 C 8 16.5, 6.5 18, 7.5 19.8 C 8.5 21, 11.5 21.2, 15.5 20.5 C 24 19, 31 15, 31 10 C 31 6, 26 3.5, 19 3.5 C 13.5 3.5, 9 6.5, 9 8.5"
+            />
+            <path
+              className="callig-stroke callig-d2"
+              d="M 11.5 19.5 C 18 19.5, 27 17.5, 36 14.5"
+            />
 
-          {/* Lowercase o */}
-          <path
-            className="callig-stroke callig-o1"
-            d="M 37 14 C 35 11.5, 38 9.5, 41.5 9.5 C 45 9.5, 47 12, 47 14.5 C 47 17.5, 44 19.5, 40.5 19.5 C 37 19.5, 35 17, 37 14 C 39 11.5, 43 11, 47 12"
-          />
+            {/* Lowercase o */}
+            <path
+              className="callig-stroke callig-o1"
+              d="M 37 14 C 35 11.5, 38 9.5, 41.5 9.5 C 45 9.5, 47 12, 47 14.5 C 47 17.5, 44 19.5, 40.5 19.5 C 37 19.5, 35 17, 37 14 C 39 11.5, 43 11, 47 12"
+            />
 
-          {/* First z with cursive lower loop */}
-          <path
-            className="callig-stroke callig-z1"
-            d="M 47 12 C 50 11.5, 54 11.5, 56 12.2 C 55 13.8, 52.5 15.5, 50.5 16.8 C 54 16.5, 57.5 16.2, 57.5 18.2 C 57.5 20.5, 54.5 23.5, 52.5 23.5 C 51 23.5, 51.5 21.5, 53.5 19.8 C 55.5 18.2, 58 16.8, 61 14.2"
-          />
+            {/* First z with cursive lower loop */}
+            <path
+              className="callig-stroke callig-z1"
+              d="M 47 12 C 50 11.5, 54 11.5, 56 12.2 C 55 13.8, 52.5 15.5, 50.5 16.8 C 54 16.5, 57.5 16.2, 57.5 18.2 C 57.5 20.5, 54.5 23.5, 52.5 23.5 C 51 23.5, 51.5 21.5, 53.5 19.8 C 55.5 18.2, 58 16.8, 61 14.2"
+            />
 
-          {/* Second z with cursive lower loop */}
-          <path
-            className="callig-stroke callig-z2"
-            d="M 61 14.2 C 64 11.5, 68 11.5, 70 12.2 C 69 13.8, 66.5 15.5, 64.5 16.8 C 68 16.5, 71.5 16.2, 71.5 18.2 C 71.5 20.5, 68.5 23.5, 66.5 23.5 C 65 23.5, 65.5 21.5, 67.5 19.8 C 69.5 18.2, 72 16.8, 75 14.2"
-          />
+            {/* Second z with cursive lower loop */}
+            <path
+              className="callig-stroke callig-z2"
+              d="M 61 14.2 C 64 11.5, 68 11.5, 70 12.2 C 69 13.8, 66.5 15.5, 64.5 16.8 C 68 16.5, 71.5 16.2, 71.5 18.2 C 71.5 20.5, 68.5 23.5, 66.5 23.5 C 65 23.5, 65.5 21.5, 67.5 19.8 C 69.5 18.2, 72 16.8, 75 14.2"
+            />
 
-          {/* Final o */}
-          <path
-            className="callig-stroke callig-o2"
-            d="M 75 14 C 73 11.5, 76 9.5, 79.5 9.5 C 83 9.5, 85 12, 85 14.5 C 85 17.5, 82 19.5, 78.5 19.5 C 75 19.5, 73 17, 75 14 C 77 11.5, 81 11, 85 12"
-          />
+            {/* Final o */}
+            <path
+              className="callig-stroke callig-o2"
+              d="M 75 14 C 73 11.5, 76 9.5, 79.5 9.5 C 83 9.5, 85 12, 85 14.5 C 85 17.5, 82 19.5, 78.5 19.5 C 75 19.5, 73 17, 75 14 C 77 11.5, 81 11, 85 12"
+            />
 
-          {/* Cursive finishing tail flourish */}
-          <path
-            className="callig-stroke callig-tail"
-            d="M 85 12 C 92 13.5, 102 15.5, 114 15 C 122 14.5, 128 13, 134 11.5"
-          />
+            {/* Cursive finishing tail flourish */}
+            <path
+              className="callig-stroke callig-tail"
+              d="M 85 12 C 92 13.5, 102 15.5, 114 15 C 122 14.5, 128 13, 134 11.5"
+            />
 
-          {/* Subtle underline stroke */}
-          <path
-            className="callig-stroke callig-underline"
-            d="M 16 22.5 C 45 23.5, 85 23, 128 20.5"
-          />
-
-          {/* Luminous Fountain Pen Nib Sparkle Particle */}
-          <circle r="1.8" fill="#FFF8C4" className="pen-nib-dot" />
-        </g>
-      </svg>
+            {/* Luminous Fountain Pen Nib Sparkle Particle (only when drawing) */}
+            {isAnimating && <circle r="1.8" fill="#FFF8C4" className="pen-nib-dot-slow" />}
+          </g>
+        </svg>
+      </div>
     </div>
   );
 }
@@ -117,42 +142,31 @@ function TabCircleItem({
   isActive,
   isExpanded,
   onSelect,
-  onToggleExpand,
+  onMouseEnter,
+  onMouseLeave,
   onClose,
-  onPopOut
+  isDragging,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd
 }) {
   const fullTitle = tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...');
-  const [typedTitle, setTypedTitle] = useState(isExpanded ? fullTitle : '');
-
-  // Silky smooth typewriter animation when opening tab pill towards the right
-  useEffect(() => {
-    if (!isExpanded) {
-      setTypedTitle('');
-      return;
-    }
-    setTypedTitle('');
-    let i = 0;
-    const len = fullTitle.length;
-    const timer = setInterval(() => {
-      i++;
-      setTypedTitle(fullTitle.slice(0, i));
-      if (i >= len) {
-        clearInterval(timer);
-      }
-    }, 20);
-    return () => clearInterval(timer);
-  }, [isExpanded, fullTitle]);
 
   return (
     <div
-      className={`high-gloss-tab-item ${isExpanded ? 'expanded' : ''} ${isActive ? 'active' : ''}`}
-      onClick={() => {
-        onSelect();
-        onToggleExpand();
-      }}
-      title={isExpanded ? 'Clic para colapsar a círculo' : fullTitle}
+      className={`high-gloss-tab-item ${isExpanded ? 'expanded' : ''} ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+      onClick={onSelect}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      draggable={true}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      title={isExpanded ? '' : fullTitle}
     >
-      {/* Pinned Favicon (Anchored on the left at 0px, NEVER shifts or moves) */}
+      {/* Pinned Favicon (Strictly centered inside the 34px icon box with zero pixel shift) */}
       <div className="tab-pinned-icon">
         {tab.isLoading ? (
           <div style={styles.spinner} />
@@ -170,14 +184,9 @@ function TabCircleItem({
         )}
       </div>
 
-      {/* Smoothly expanding title & actions towards the right */}
+      {/* Instantly rendered title & close action with smooth, slow hardware-accelerated CSS */}
       <div className="tab-expanding-content">
-        <span style={styles.tabTitle}>
-          {typedTitle}
-          {isExpanded && typedTitle.length < fullTitle.length && (
-            <span className="typewriter-cursor">|</span>
-          )}
-        </span>
+        <span style={styles.tabTitle}>{fullTitle}</span>
 
         {tab.isAudioPlaying && (
           <div style={styles.audioIcon} title="Reproduciendo audio">
@@ -189,9 +198,12 @@ function TabCircleItem({
           style={styles.tabActionBtn}
           onClick={(e) => {
             e.stopPropagation();
-            onPopOut();
+            if (window.browserAPI?.openNewWindow) {
+              window.browserAPI.openNewWindow({ url: tab.url || '' });
+              onClose();
+            }
           }}
-          title="Mover a otra pantalla / Nueva ventana sin reiniciar video"
+          title="Mover pestaña a otra pantalla / ventana independiente"
         >
           <ExternalLink size={11} />
         </button>
@@ -225,10 +237,68 @@ export default function TitleBar({
   onGoHome,
   onToggleBookmarksBar,
   showBookmarksBar,
-  onPopOutTab
+  onReorderTabs,
+  isHomeActive = false,
+  isBookmarked = false,
+  onToggleBookmark
 }) {
-  const [expandedTabId, setExpandedTabId] = useState(null);
+  const [hoveredTabId, setHoveredTabId] = useState(null);
+  const [draggedTabId, setDraggedTabId] = useState(null);
   const [showSplitMenu, setShowSplitMenu] = useState(false);
+
+  const handleDragStart = (e, tabId) => {
+    setDraggedTabId(tabId);
+    setHoveredTabId(null);
+    e.dataTransfer.setData('text/plain', tabId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, targetTabId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!draggedTabId || draggedTabId === targetTabId) return;
+
+    if (onReorderTabs) {
+      const srcIdx = tabs.findIndex((t) => t.id === draggedTabId);
+      const targetIdx = tabs.findIndex((t) => t.id === targetTabId);
+      if (srcIdx !== -1 && targetIdx !== -1 && srcIdx !== targetIdx) {
+        const nextTabs = [...tabs];
+        const [moved] = nextTabs.splice(srcIdx, 1);
+        nextTabs.splice(targetIdx, 0, moved);
+        onReorderTabs(nextTabs);
+      }
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDraggedTabId(null);
+  };
+
+  const handleDragEnd = (e) => {
+    if (draggedTabId && e && typeof e.screenX === 'number') {
+      const isOutside =
+        e.screenX < window.screenX - 30 ||
+        e.screenX > window.screenX + window.outerWidth + 30 ||
+        e.screenY < window.screenY - 30 ||
+        e.screenY > window.screenY + window.outerHeight + 30;
+
+      if (isOutside) {
+        const draggedTab = tabs.find((t) => t.id === draggedTabId);
+        if (draggedTab && window.browserAPI?.openNewWindow) {
+          window.browserAPI.openNewWindow({
+            url: draggedTab.url || '',
+            screenX: e.screenX,
+            screenY: e.screenY
+          });
+          if (tabs.length > 1) {
+            onCloseTab(draggedTabId);
+          }
+        }
+      }
+    }
+    setDraggedTabId(null);
+  };
 
   const handleMinimize = () => {
     if (window.browserAPI?.minimize) window.browserAPI.minimize();
@@ -243,12 +313,17 @@ export default function TitleBar({
   };
 
   return (
-    <div style={styles.titlebar} onDoubleClick={handleMaximize}>
-      {/* Brand: Cursive Plumilla Handwriting Effect with 10s Cycle */}
-      <CalligraphyLogo />
+    <div style={styles.titlebar} className="titlebar-drag-region" onDoubleClick={handleMaximize}>
+      {/* Brand: Luxury Dozzo Logo (Static by default, smooth slow handwriting on click) */}
+      <div className="no-drag">
+        <DozzoBrandLogo />
+      </div>
 
       {/* Left Draggable Spacer between Brand and Dock */}
-      <div style={{ flex: 1, height: '100%', minWidth: '16px' }} className="titlebar-drag-region" />
+      <div
+        style={{ flex: 1, height: '100%', minWidth: '16px' }}
+        className="titlebar-drag-region"
+      />
 
       {/* Mac Dock-Style Centered Circles (Home, Star, divider, tab circles, add button) */}
       <div
@@ -259,30 +334,40 @@ export default function TitleBar({
         {/* Pinned Quick Circles (Mac Menu / Dock Style): Home & Favoritos */}
         <div style={styles.pinnedDockGroup}>
           <button
-            className="high-gloss-circle"
+            className={`high-gloss-circle ${isHomeActive ? 'active-home' : ''}`}
             onClick={onGoHome}
             title="Página de inicio (Speed Dial)"
             style={{ width: '36px', height: '36px' }}
           >
-            <Home size={15} />
+            <Home size={15} fill={isHomeActive ? 'currentColor' : 'none'} />
           </button>
 
           <button
-            className={`high-gloss-circle ${showBookmarksBar ? 'active' : ''}`}
-            onClick={onToggleBookmarksBar}
-            title={showBookmarksBar ? 'Ocultar barra de marcadores/favoritos' : 'Mostrar barra de marcadores/favoritos'}
+            className={`high-gloss-circle ${isBookmarked ? 'active-star' : showBookmarksBar ? 'active' : ''}`}
+            onClick={() => {
+              if (onToggleBookmark) onToggleBookmark();
+              else if (onToggleBookmarksBar) onToggleBookmarksBar();
+            }}
+            title={isBookmarked ? 'Página en Marcadores (Favorito)' : 'Guardar en Marcadores / Favoritos'}
             style={{ width: '36px', height: '36px' }}
           >
-            <Star size={15} fill={showBookmarksBar ? 'currentColor' : 'none'} />
+            <Star
+              size={15}
+              fill={isBookmarked ? '#F59E0B' : showBookmarksBar ? 'currentColor' : 'none'}
+              color={isBookmarked ? '#F59E0B' : 'currentColor'}
+            />
           </button>
         </div>
 
         <div style={styles.dockSeparator} />
 
-        {/* Dynamic Tab Circles */}
+        {/* Dynamic Tab Circles with Chrome-style drag-and-drop & hover expansion */}
         {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          const isExpanded = expandedTabId === tab.id;
+          // If viewing Home, tab circle ring turns OFF
+          const isActive = !isHomeActive && tab.id === activeTabId;
+          const isExpanded = !draggedTabId && hoveredTabId === tab.id;
+          const isDragging = draggedTabId === tab.id;
+
 
           return (
             <TabCircleItem
@@ -291,19 +376,17 @@ export default function TitleBar({
               isActive={isActive}
               isExpanded={isExpanded}
               onSelect={() => onSelectTab(tab.id)}
-              onToggleExpand={() => setExpandedTabId((prev) => (prev === tab.id ? null : tab.id))}
+              onMouseEnter={() => !draggedTabId && setHoveredTabId(tab.id)}
+              onMouseLeave={() => setHoveredTabId((prev) => (prev === tab.id ? null : prev))}
               onClose={() => {
                 onCloseTab(tab.id);
-                if (isExpanded) setExpandedTabId(null);
+                if (hoveredTabId === tab.id) setHoveredTabId(null);
               }}
-              onPopOut={() => {
-                if (onPopOutTab) {
-                  onPopOutTab(tab.id);
-                } else if (window.browserAPI?.openNewWindow) {
-                  window.browserAPI.openNewWindow({ url: tab.url });
-                  if (tabs.length > 1) onCloseTab(tab.id);
-                }
-              }}
+              isDragging={isDragging}
+              onDragStart={(e) => handleDragStart(e, tab.id)}
+              onDragOver={(e) => handleDragOver(e, tab.id)}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
             />
           );
         })}
@@ -320,7 +403,10 @@ export default function TitleBar({
       </div>
 
       {/* Right Draggable Spacer between Dock and Controls */}
-      <div style={{ flex: 1, height: '100%', minWidth: '16px' }} className="titlebar-drag-region" />
+      <div
+        style={{ flex: 1, height: '100%', minWidth: '16px' }}
+        className="titlebar-drag-region"
+      />
 
       {/* Split Layout Switcher (Max 4 Views) */}
       {onChangeSplitMode && (
@@ -450,33 +536,46 @@ const styles = {
     height: '48px',
     display: 'flex',
     alignItems: 'center',
-    background: 'var(--bg-secondary)',
-    borderBottom: '1px solid var(--border-subtle)',
+    background: 'transparent',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
     padding: '0 12px',
     userSelect: 'none',
     zIndex: 50,
     position: 'relative'
   },
   brand: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
     cursor: 'pointer',
     flexShrink: 0,
     marginLeft: '6px',
-    padding: '0 8px 0 2px'
+    padding: 0,
+    background: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+    outline: 'none',
+    userSelect: 'none'
   },
-  brandName: {
-    fontFamily: "'Syne', 'Space Grotesk', -apple-system, sans-serif",
-    fontSize: '13px',
-    fontWeight: '900',
-    letterSpacing: '2.5px',
-    color: 'var(--text-primary)',
-    background: 'linear-gradient(135deg, var(--text-primary) 55%, var(--accent) 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    textTransform: 'uppercase',
-    display: 'inline-flex',
-    alignItems: 'center'
+  brandIconWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'transparent',
+    border: 'none',
+    boxShadow: 'none',
+    padding: 0,
+    flexShrink: 0
+  },
+  brandLogoImg: {
+    width: '26px',
+    height: '26px',
+    objectFit: 'contain',
+    display: 'block',
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 0,
+    transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease',
+    filter: 'drop-shadow(0 0 6px rgba(240, 185, 11, 0.4))'
   },
   floatingTabsContainer: {
     display: 'flex',
@@ -512,7 +611,11 @@ const styles = {
   favicon: {
     width: '18px',
     height: '18px',
-    borderRadius: '50%'
+    borderRadius: '4px',
+    objectFit: 'contain',
+    display: 'block',
+    margin: '0 auto',
+    pointerEvents: 'none'
   },
   spinner: {
     width: '12px',

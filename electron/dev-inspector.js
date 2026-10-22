@@ -1,57 +1,71 @@
 // Injected inspector engine into webviews for developers
 (function () {
-  if (window.__dozzo_inspector_initialized) return;
-  window.__dozzo_inspector_initialized = true;
+  let overlay = document.getElementById('__dozzo_inspector_overlay');
+  let label = document.getElementById('__dozzo_inspector_label');
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '__dozzo_inspector_overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      pointer-events: none;
+      z-index: 2147483647;
+      border: 2px solid #F0B90B;
+      background: rgba(240, 185, 11, 0.15);
+      border-radius: 4px;
+      display: none;
+      transition: all 0.08s ease;
+      box-shadow: 0 0 12px rgba(240, 185, 11, 0.4);
+    `;
+
+    label = document.createElement('div');
+    label.id = '__dozzo_inspector_label';
+    label.style.cssText = `
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 4px;
+      background: #0f172a;
+      color: #F0B90B;
+      border: 1px solid rgba(240, 185, 11, 0.4);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      font-weight: 700;
+      white-space: nowrap;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    `;
+    overlay.appendChild(label);
+  }
+
+  function ensureOverlayAttached() {
+    const parent = document.body || document.documentElement;
+    if (parent && !parent.contains(overlay)) {
+      try {
+        parent.appendChild(overlay);
+      } catch (e) {}
+    }
+  }
+  ensureOverlayAttached();
 
   let isActive = false;
   let hoveredElement = null;
 
-  // Create floating highlight overlay
-  const overlay = document.createElement('div');
-  overlay.id = '__dozzo_inspector_overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    pointer-events: none;
-    z-index: 2147483647;
-    border: 2px solid #F0B90B;
-    background: rgba(240, 185, 11, 0.15);
-    border-radius: 4px;
-    display: none;
-    transition: all 0.08s ease;
-    box-shadow: 0 0 12px rgba(240, 185, 11, 0.4);
-  `;
-
-  // Create floating tag label
-  const label = document.createElement('div');
-  label.id = '__dozzo_inspector_label';
-  label.style.cssText = `
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    margin-bottom: 4px;
-    background: #0f172a;
-    color: #F0B90B;
-    border: 1px solid rgba(240, 185, 11, 0.4);
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-family: monospace;
-    font-weight: 700;
-    white-space: nowrap;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  `;
-  overlay.appendChild(label);
-  (document.body || document.documentElement).appendChild(overlay);
-
   function updateOverlay(el) {
     if (!el || el === overlay || el === label || el.contains(overlay)) {
-      overlay.style.display = 'none';
+      if (overlay) overlay.style.display = 'none';
       return;
     }
+    ensureOverlayAttached();
     const rect = el.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) {
+      if (overlay) overlay.style.display = 'none';
+      return;
+    }
     overlay.style.display = 'block';
     overlay.style.top = `${rect.top}px`;
     overlay.style.left = `${rect.left}px`;
@@ -352,14 +366,19 @@
     let idx = 0;
 
     const layerLabels = [
-      'Capa 1: Elemento',
-      'Capa 2: Contenedor',
+      'Capa 1: Elemento Seleccionado',
+      'Capa 2: Contenedor Directo',
       'Capa 3: Tarjeta / Componente',
-      'Capa 4: Bloque / Sección',
-      'Capa 5: Estructura Raíz'
+      'Capa 4: Bloque / Subsección',
+      'Capa 5: Módulo / Sección',
+      'Capa 6: Marco / Wrapper',
+      'Capa 7: Área Principal',
+      'Capa 8: Estructura Superior',
+      'Capa 9: Raíz de Aplicación',
+      'Capa 10: Contenedor Raíz'
     ];
 
-    while (current && current !== document.body && current !== document.documentElement && idx < 5) {
+    while (current && current !== document.body && current !== document.documentElement && idx < 10) {
       try {
         const details = getElementDetails(current);
         details.layerIndex = idx;
@@ -386,6 +405,37 @@
     updateOverlay(hoveredElement);
   }
 
+  function sendPayload(primaryData) {
+    try {
+      if (window.__dozzo_ipcRenderer && typeof window.__dozzo_ipcRenderer.sendToHost === 'function') {
+        window.__dozzo_ipcRenderer.sendToHost('dozzo-inspector-element', primaryData);
+      }
+    } catch (e) {}
+
+    try {
+      if (typeof require !== 'undefined') {
+        const electron = require('electron');
+        if (electron && electron.ipcRenderer && typeof electron.ipcRenderer.sendToHost === 'function') {
+          electron.ipcRenderer.sendToHost('dozzo-inspector-element', primaryData);
+        }
+      }
+    } catch (e) {}
+
+    try {
+      const payloadStr = JSON.stringify(primaryData);
+      const logFn = window.__dozzo_native_log || console.log;
+      logFn('__DOZZO_DEV_INSPECT__:' + payloadStr);
+      logFn('__DOZZO_INSPECTOR_PAYLOAD__:' + payloadStr);
+    } catch (e) {}
+  }
+
+  function handlePointerDown(e) {
+    if (!isActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  }
+
   function handleClick(e) {
     if (!isActive) return;
     e.preventDefault();
@@ -397,33 +447,56 @@
     const target = e.target;
     if (!target) return;
 
-    const layers = buildLayersHierarchy(target);
-    const primaryData = {
-      ...layers[0],
-      layers: layers
-    };
-
-    // Send payload through console hook captured by Electron webview with both prefixes
-    const payloadStr = JSON.stringify(primaryData);
-    console.log('__DOZZO_DEV_INSPECT__:' + payloadStr);
-    console.log('__DOZZO_INSPECTOR_PAYLOAD__:' + payloadStr);
+    try {
+      const layers = buildLayersHierarchy(target);
+      const primaryData = {
+        ...layers[0],
+        layers: layers
+      };
+      sendPayload(primaryData);
+    } catch (err) {
+      try {
+        const rect = target.getBoundingClientRect();
+        sendPayload({
+          tagName: target.tagName ? target.tagName.toLowerCase() : 'div',
+          id: target.id || '',
+          className: typeof target.className === 'string' ? target.className : '',
+          html: target.outerHTML || '',
+          jsx: target.outerHTML || '',
+          svg: null,
+          figmaSvg: '',
+          styles: {},
+          rect: { width: Math.round(rect.width), height: Math.round(rect.height) },
+          text: target.innerText ? target.innerText.trim().substring(0, 80) : '',
+          layers: []
+        });
+      } catch (e2) {}
+    }
 
     // Turn off inspector after element is captured
-    window.__dozzo_toggle_inspector(false);
+    if (typeof window.__dozzo_toggle_inspector === 'function') {
+      window.__dozzo_toggle_inspector(false);
+    }
   }
 
   window.__dozzo_toggle_inspector = function (enable) {
     isActive = Boolean(enable);
     if (!isActive) {
-      overlay.style.display = 'none';
+      if (overlay) overlay.style.display = 'none';
       hoveredElement = null;
-      document.body.style.cursor = 'default';
+      if (document.body) document.body.style.cursor = 'default';
       window.removeEventListener('mousemove', handleMouseMove, true);
       window.removeEventListener('click', handleClick, true);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
     } else {
-      document.body.style.cursor = 'crosshair';
+      if (document.body) document.body.style.cursor = 'crosshair';
+      ensureOverlayAttached();
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      window.removeEventListener('click', handleClick, true);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
       window.addEventListener('mousemove', handleMouseMove, true);
       window.addEventListener('click', handleClick, true);
+      window.addEventListener('pointerdown', handlePointerDown, true);
     }
   };
 })();

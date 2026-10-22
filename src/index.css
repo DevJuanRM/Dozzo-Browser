@@ -38,217 +38,228 @@
   --radius-lg: 16px;
   --radius-full: 9999px;
   --transition: all 0.22s cubic-bezier(0.2, 0.9, 0.25, 1);
+  --header-bg-translucent: rgba(12, 11, 18, 0.65);
 }
 
-/* Light Mode Overrides with Crisp Header Delimitation */
+/* 10 Curated Themes: 7 Ultra-Sleek Dark & 3 Elegant Light */
+
+/* 1. Obsidian Aurora (Default Dark - Pitch Black with Radiant Purple Aura) */
+[data-theme='obsidian-aurora'],
+[data-theme='dark'] {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12111a;
+  --bg-tertiary: #1b1926;
+  --bg-hover: #262335;
+  --bg-active: #322e47;
+  --border-subtle: rgba(168, 85, 247, 0.14);
+  --border-hover: rgba(168, 85, 247, 0.30);
+  --text-primary: #f5f5f7;
+  --text-secondary: #b8b2cc;
+  --text-muted: #7e7696;
+  --glass-bg: rgba(18, 17, 26, 0.90);
+  --glass-border: rgba(168, 85, 247, 0.16);
+  --accent: #a855f7;
+  --accent-hover: #c084fc;
+  --accent-glow: rgba(168, 85, 247, 0.22);
+  --accent-text: #ffffff;
+}
+
+/* 2. Binance Gold (Luxury Pitch Black with Luminous Binance Gold) */
+[data-theme='binance-gold'] {
+  --header-bg-translucent: rgba(18, 16, 8, 0.65);
+  --bg-primary: #090805;
+  --bg-secondary: #121008;
+  --bg-tertiary: #1c180d;
+  --bg-hover: #292414;
+  --bg-active: #38311b;
+  --border-subtle: rgba(240, 185, 11, 0.14);
+  --border-hover: rgba(240, 185, 11, 0.32);
+  --text-primary: #ffffff;
+  --text-secondary: #dcd0b3;
+  --text-muted: #8e8469;
+  --glass-bg: rgba(18, 16, 8, 0.90);
+  --glass-border: rgba(240, 185, 11, 0.18);
+  --accent: #F0B90B;
+  --accent-hover: #FCD535;
+  --accent-glow: rgba(240, 185, 11, 0.24);
+  --accent-text: #000000;
+}
+
+/* 3. Midnight Cyber (Deep Obsidian Navy with Vivid Cyan) */
+[data-theme='midnight-cyber'] {
+  --header-bg-translucent: rgba(13, 21, 34, 0.65);
+  --bg-primary: #070c14;
+  --bg-secondary: #0d1522;
+  --bg-tertiary: #142033;
+  --bg-hover: #1c2c45;
+  --bg-active: #253957;
+  --border-subtle: rgba(6, 182, 212, 0.14);
+  --border-hover: rgba(6, 182, 212, 0.30);
+  --text-primary: #f0fdf4;
+  --text-secondary: #a5d2dc;
+  --text-muted: #648a94;
+  --glass-bg: rgba(13, 21, 34, 0.90);
+  --glass-border: rgba(6, 182, 212, 0.18);
+  --accent: #06B6D4;
+  --accent-hover: #22D3EE;
+  --accent-glow: rgba(6, 182, 212, 0.22);
+  --accent-text: #070c14;
+}
+
+/* 4. Tokyo Night (Cyberpunk Indigo with Neon Rose Magenta) */
+[data-theme='tokyo-night'] {
+  --header-bg-translucent: rgba(22, 24, 38, 0.65);
+  --bg-primary: #0f101a;
+  --bg-secondary: #161826;
+  --bg-tertiary: #1f2236;
+  --bg-hover: #2a2d48;
+  --bg-active: #363a5c;
+  --border-subtle: rgba(244, 63, 94, 0.14);
+  --border-hover: rgba(244, 63, 94, 0.30);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #7a829e;
+  --glass-bg: rgba(22, 24, 38, 0.90);
+  --glass-border: rgba(244, 63, 94, 0.18);
+  --accent: #f43f5e;
+  --accent-hover: #fb7185;
+  --accent-glow: rgba(244, 63, 94, 0.22);
+  --accent-text: #ffffff;
+}
+
+/* 5. Emerald Matrix (Carbon Black with Radiant Cyber Emerald) */
+[data-theme='emerald-matrix'] {
+  --header-bg-translucent: rgba(12, 21, 16, 0.65);
+  --bg-primary: #060b08;
+  --bg-secondary: #0c1510;
+  --bg-tertiary: #132018;
+  --bg-hover: #1b2c22;
+  --bg-active: #243b2d;
+  --border-subtle: rgba(16, 185, 129, 0.14);
+  --border-hover: rgba(16, 185, 129, 0.30);
+  --text-primary: #ecfdf5;
+  --text-secondary: #a7f3d0;
+  --text-muted: #5e8f77;
+  --glass-bg: rgba(12, 21, 16, 0.90);
+  --glass-border: rgba(16, 185, 129, 0.18);
+  --accent: #10B981;
+  --accent-hover: #34D399;
+  --accent-glow: rgba(16, 185, 129, 0.22);
+  --accent-text: #060b08;
+}
+
+/* 6. Sunset Royale (Dark Plum Velvet with Warm Sunset Coral) */
+[data-theme='sunset-royale'] {
+  --header-bg-translucent: rgba(25, 17, 25, 0.65);
+  --bg-primary: #100b10;
+  --bg-secondary: #191119;
+  --bg-tertiary: #251926;
+  --bg-hover: #332334;
+  --bg-active: #422d43;
+  --border-subtle: rgba(249, 115, 22, 0.14);
+  --border-hover: rgba(249, 115, 22, 0.30);
+  --text-primary: #fff7ed;
+  --text-secondary: #fed7aa;
+  --text-muted: #9a7664;
+  --glass-bg: rgba(25, 17, 25, 0.90);
+  --glass-border: rgba(249, 115, 22, 0.18);
+  --accent: #F97316;
+  --accent-hover: #FB923C;
+  --accent-glow: rgba(249, 115, 22, 0.22);
+  --accent-text: #ffffff;
+}
+
+/* 7. Titanium Space (Apple Dark Space Gray & Silver Titanium) */
+[data-theme='titanium-space'] {
+  --header-bg-translucent: rgba(24, 25, 30, 0.65);
+  --bg-primary: #121316;
+  --bg-secondary: #18191e;
+  --bg-tertiary: #212329;
+  --bg-hover: #2b2e36;
+  --bg-active: #373b45;
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-hover: rgba(148, 163, 184, 0.28);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #788294;
+  --glass-bg: rgba(24, 25, 30, 0.90);
+  --glass-border: rgba(148, 163, 184, 0.18);
+  --accent: #94A3B8;
+  --accent-hover: #CBD5E1;
+  --accent-glow: rgba(148, 163, 184, 0.20);
+  --accent-text: #0f172a;
+}
+
+/* 8. Mac Snow (Apple macOS Pure Snow White & Slate) */
+[data-theme='mac-snow'],
 [data-theme='light'] {
-  --bg-primary: #f8fafc;
+  --bg-primary: #f5f6f8;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  --bg-active: #cbd5e1;
-  --border-subtle: rgba(0, 0, 0, 0.14);
+  --bg-tertiary: #eaecf0;
+  --bg-hover: #dfe2e8;
+  --bg-active: #d1d5df;
+  --border-subtle: rgba(0, 0, 0, 0.12);
   --border-hover: rgba(0, 0, 0, 0.26);
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg: rgba(255, 255, 255, 0.92);
   --glass-border: rgba(0, 0, 0, 0.14);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.12);
-}
-
-/* Subtle, Elegant Dark Tints per Accent (Tinting the pure black subtly without being invasive) */
-[data-theme='dark'][data-accent='none'],
-:root:not([data-theme='light'])[data-accent='none'] {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #141414;
-  --bg-hover: #1f1f1f;
-  --bg-active: #2a2a2a;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --accent: #ffffff;
-  --accent-hover: #e5e5e5;
-  --accent-glow: rgba(255, 255, 255, 0.15);
-  --accent-text: #000000;
-}
-
-[data-theme='dark'][data-accent='purple'],
-:root:not([data-theme='light'])[data-accent='purple'] {
-  --bg-primary: #110d17;
-  --bg-secondary: #191422;
-  --bg-tertiary: #241c30;
-  --bg-hover: #2f2540;
-  --border-subtle: rgba(168, 85, 247, 0.12);
-  --border-hover: rgba(168, 85, 247, 0.22);
-  --accent: #a855f7;
-  --accent-hover: #c084fc;
-  --accent-glow: rgba(168, 85, 247, 0.18);
+  --accent: #0f172a;
+  --accent-hover: #334155;
+  --accent-glow: rgba(15, 23, 42, 0.15);
   --accent-text: #ffffff;
+  --header-bg-translucent: rgba(245, 246, 248, 0.82);
 }
 
-[data-theme='dark'][data-accent='gold'],
-:root:not([data-theme='light'])[data-accent='gold'] {
-  --bg-primary: #12110c;
-  --bg-secondary: #1c1912;
-  --bg-tertiary: #262217;
-  --bg-hover: #332e1f;
-  --border-subtle: rgba(240, 185, 11, 0.1);
-  --border-hover: rgba(240, 185, 11, 0.2);
-  --accent: #F0B90B;
-  --accent-hover: #FCD535;
-  --accent-glow: rgba(240, 185, 11, 0.16);
-  --accent-text: #000000;
-}
-
-[data-theme='dark'][data-accent='cyan'],
-:root:not([data-theme='light'])[data-accent='cyan'] {
-  --bg-primary: #0c1214;
-  --bg-secondary: #121a1d;
-  --bg-tertiary: #192429;
-  --bg-hover: #213036;
-  --border-subtle: rgba(6, 182, 212, 0.1);
-  --border-hover: rgba(6, 182, 212, 0.2);
-  --accent: #06B6D4;
-  --accent-hover: #22D3EE;
-  --accent-glow: rgba(6, 182, 212, 0.16);
-  --accent-text: #ffffff;
-}
-
-[data-theme='dark'][data-accent='emerald'],
-:root:not([data-theme='light'])[data-accent='emerald'] {
-  --bg-primary: #0c1310;
-  --bg-secondary: #121c17;
-  --bg-tertiary: #182620;
-  --bg-hover: #20332a;
-  --border-subtle: rgba(16, 185, 129, 0.1);
-  --border-hover: rgba(16, 185, 129, 0.2);
-  --accent: #10B981;
-  --accent-hover: #34D399;
-  --accent-glow: rgba(16, 185, 129, 0.16);
-  --accent-text: #ffffff;
-}
-
-[data-theme='dark'][data-accent='orange'],
-:root:not([data-theme='light'])[data-accent='orange'] {
-  --bg-primary: #130f0c;
-  --bg-secondary: #1d1512;
-  --bg-tertiary: #271d18;
-  --bg-hover: #342720;
-  --border-subtle: rgba(249, 115, 22, 0.1);
-  --border-hover: rgba(249, 115, 22, 0.2);
-  --accent: #F97316;
-  --accent-hover: #FB923C;
-  --accent-glow: rgba(249, 115, 22, 0.16);
-  --accent-text: #ffffff;
-}
-
-[data-theme='dark'][data-accent='crimson'],
-:root:not([data-theme='light'])[data-accent='crimson'] {
-  --bg-primary: #140d0e;
-  --bg-secondary: #1e1314;
-  --bg-tertiary: #291a1c;
-  --bg-hover: #362225;
-  --border-subtle: rgba(239, 68, 68, 0.1);
-  --border-hover: rgba(239, 68, 68, 0.2);
-  --accent: #EF4444;
-  --accent-hover: #F87171;
-  --accent-glow: rgba(239, 68, 68, 0.16);
-  --accent-text: #ffffff;
-}
-
-/* Light Theme Accent Overrides with Subtle Background Tints */
-[data-theme='light'][data-accent='none'] {
-  --bg-primary: #f8fafc;
+/* 9. Nordic Frost (Icy Arctic Blue-White & Frosted Sapphire) */
+[data-theme='nordic-frost'] {
+  --bg-primary: #eef4fb;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: #e2e8f0;
-  --border-subtle: rgba(0, 0, 0, 0.12);
-  --border-hover: rgba(0, 0, 0, 0.22);
-  --accent: #1e293b;
-  --accent-hover: #0f172a;
-  --accent-glow: rgba(0, 0, 0, 0.12);
+  --bg-tertiary: #e0ecf8;
+  --bg-hover: #d1e2f3;
+  --bg-active: #c0d7ee;
+  --border-subtle: rgba(37, 99, 235, 0.14);
+  --border-hover: rgba(37, 99, 235, 0.30);
+  --text-primary: #0c2340;
+  --text-secondary: #3b577d;
+  --text-muted: #627d9f;
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(37, 99, 235, 0.18);
+  --shadow-sm: 0 2px 8px rgba(37, 99, 235, 0.08);
+  --shadow-lg: 0 10px 30px rgba(37, 99, 235, 0.14);
+  --accent: #2563EB;
+  --accent-hover: #3B82F6;
+  --accent-glow: rgba(37, 99, 235, 0.22);
   --accent-text: #ffffff;
+  --header-bg-translucent: rgba(238, 244, 251, 0.82);
 }
 
-[data-theme='light'][data-accent='gold'] {
-  --bg-primary: #fffdf5;
-  --bg-secondary: #fef9e8;
-  --bg-tertiary: #fdf3d0;
-  --bg-hover: #fae8a7;
-  --border-subtle: rgba(217, 160, 6, 0.18);
-  --border-hover: rgba(217, 160, 6, 0.32);
-  --accent: #D9A006;
-  --accent-hover: #B48304;
-  --accent-glow: rgba(217, 160, 6, 0.18);
+/* 10. Latte Champagne (Warm French Luxury Cream & Champagne Gold) */
+[data-theme='latte-champagne'] {
+  --bg-primary: #f7f4ee;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #ede7dc;
+  --bg-hover: #e3dac9;
+  --bg-active: #d7cbba;
+  --border-subtle: rgba(180, 131, 36, 0.16);
+  --border-hover: rgba(180, 131, 36, 0.32);
+  --text-primary: #2a2012;
+  --text-secondary: #5e4f3c;
+  --text-muted: #8c7b65;
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(180, 131, 36, 0.20);
+  --shadow-sm: 0 2px 8px rgba(180, 131, 36, 0.08);
+  --shadow-lg: 0 10px 30px rgba(180, 131, 36, 0.14);
+  --accent: #B48324;
+  --accent-hover: #D49D34;
+  --accent-glow: rgba(180, 131, 36, 0.24);
   --accent-text: #ffffff;
+  --header-bg-translucent: rgba(247, 244, 238, 0.82);
 }
 
-[data-theme='light'][data-accent='cyan'] {
-  --bg-primary: #f4fdff;
-  --bg-secondary: #e6f9fd;
-  --bg-tertiary: #cff3fa;
-  --bg-hover: #b5eaf6;
-  --border-subtle: rgba(8, 145, 178, 0.18);
-  --border-hover: rgba(8, 145, 178, 0.32);
-  --accent: #0891B2;
-  --accent-hover: #0e7490;
-  --accent-glow: rgba(8, 145, 178, 0.18);
-  --accent-text: #ffffff;
-}
-
-[data-theme='light'][data-accent='emerald'] {
-  --bg-primary: #f4fdf8;
-  --bg-secondary: #e7faee;
-  --bg-tertiary: #cff5df;
-  --bg-hover: #b4edcb;
-  --border-subtle: rgba(5, 150, 105, 0.18);
-  --border-hover: rgba(5, 150, 105, 0.32);
-  --accent: #059669;
-  --accent-hover: #047857;
-  --accent-glow: rgba(5, 150, 105, 0.18);
-  --accent-text: #ffffff;
-}
-
-[data-theme='light'][data-accent='purple'] {
-  --bg-primary: #faf6ff;
-  --bg-secondary: #f3ebff;
-  --bg-tertiary: #e9d9ff;
-  --bg-hover: #dcc2ff;
-  --border-subtle: rgba(124, 58, 237, 0.18);
-  --border-hover: rgba(124, 58, 237, 0.32);
-  --accent: #7C3AED;
-  --accent-hover: #6D28D9;
-  --accent-glow: rgba(124, 58, 237, 0.18);
-  --accent-text: #ffffff;
-}
-
-[data-theme='light'][data-accent='orange'] {
-  --bg-primary: #fffaf5;
-  --bg-secondary: #fef2e6;
-  --bg-tertiary: #fde4cb;
-  --bg-hover: #fcd3ab;
-  --border-subtle: rgba(234, 88, 12, 0.18);
-  --border-hover: rgba(234, 88, 12, 0.32);
-  --accent: #EA580C;
-  --accent-hover: #C2410C;
-  --accent-glow: rgba(234, 88, 12, 0.18);
-  --accent-text: #ffffff;
-}
-
-[data-theme='light'][data-accent='crimson'] {
-  --bg-primary: #fff8f8;
-  --bg-secondary: #feecec;
-  --bg-tertiary: #fed8d8;
-  --bg-hover: #fcbebe;
-  --border-subtle: rgba(220, 38, 38, 0.18);
-  --border-hover: rgba(220, 38, 38, 0.32);
-  --accent: #DC2626;
-  --accent-hover: #B91C1C;
-  --accent-glow: rgba(220, 38, 38, 0.18);
-  --accent-text: #ffffff;
-}
 
 /* Base Styles */
 * {
@@ -314,14 +325,21 @@ body {
   position: relative;
 }
 
-/* Auto-hide Collapsible Top Bar Header (Smooth Pro Transition) */
+/* Auto-hide Collapsible Top Bar Header (Luxurious Translucent Glass Drawer) */
 .top-header-wrapper {
   display: flex;
   flex-direction: column;
   width: 100%;
-  transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.25, 1), opacity 0.42s cubic-bezier(0.2, 0.9, 0.25, 1), box-shadow 0.42s ease;
-  z-index: 50;
   position: relative;
+  z-index: 50;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  background: var(--header-bg-translucent, rgba(12, 11, 18, 0.65));
+  border-bottom: 1px solid var(--border-subtle);
+  will-change: transform, opacity;
+  transition: transform 0.80s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.55s ease,
+              background 0.3s ease;
 }
 
 .top-header-wrapper.auto-hidden {
@@ -332,14 +350,20 @@ body {
   transform: translateY(-100%);
   opacity: 0;
   pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.60s ease;
 }
 
 .top-header-wrapper.auto-hidden.peek {
   transform: translateY(0);
   opacity: 1;
   pointer-events: auto;
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85);
+  transition: transform 0.80s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.55s ease;
 }
+
 
 /* Hover Zone at Top Edge to Trigger Bar Slide-down */
 .top-hover-trigger {
@@ -347,54 +371,12 @@ body {
   top: env(safe-area-inset-top, 0px);
   left: 0;
   right: 0;
-  height: 12px;
-  z-index: 60;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  height: 10px;
+  z-index: 120;
   pointer-events: auto;
+  cursor: pointer;
 }
 
-.top-hover-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-hover);
-  border-top: none;
-  border-radius: 0 0 12px 12px;
-  padding: 4px 16px;
-  color: var(--accent);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-  font-size: 11px;
-  font-weight: 600;
-  user-select: none;
-}
-
-.pill-fade-out {
-  animation: pillFadeOut 2.5s forwards cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes pillFadeOut {
-  0% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  15% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  75% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-10px);
-    pointer-events: none;
-  }
-}
 
 /* iOS Dock Tab Magnification & Smooth Slide Animation */
 .dock-tab-item {
@@ -603,17 +585,61 @@ button:active {
   flex-shrink: 0;
 }
 
-/* DOZZO Cursive Real Stroke Handwriting (NO FADE - Literal Pen Drawing) */
+/* DOZZO Cursive Real Stroke Handwriting (Static by default, smooth slow animation on click) */
+.dozzo-brand-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 8px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+}
+
+.dozzo-brand-container {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dozzo-brand-container:hover {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.dozzo-brand-container:hover .dozzo-brand-icon {
+  transform: scale(1.10);
+  filter: drop-shadow(0 0 10px rgba(240, 185, 11, 0.8)) !important;
+}
+
+.dozzo-brand-container:active .dozzo-brand-icon {
+  transform: scale(0.95);
+}
+
 .dozzo-calligraphy-svg {
   display: block;
   overflow: visible;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
 }
 
-.dozzo-handwriting-group .callig-stroke {
+.dozzo-handwriting-group.dozzo-is-static .callig-stroke {
   fill: none;
   stroke: url(#dozzoGoldInk);
-  stroke-width: 1.15px;
+  stroke-width: 1.2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: none !important;
+  stroke-dashoffset: 0 !important;
+  animation: none !important;
+}
+
+.dozzo-handwriting-group.dozzo-is-drawing .callig-stroke {
+  fill: none;
+  stroke: url(#dozzoGoldInk);
+  stroke-width: 1.2px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -624,64 +650,56 @@ button:active {
   }
 }
 
-.callig-d1 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-d1 {
   stroke-dasharray: 150;
   stroke-dashoffset: 150;
-  animation: drawPureStroke 0.42s cubic-bezier(0.25, 1, 0.5, 1) forwards 0s;
+  animation: drawPureStroke 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards 0s;
 }
 
-.callig-d2 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-d2 {
   stroke-dasharray: 60;
   stroke-dashoffset: 60;
-  animation: drawPureStroke 0.22s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.38s;
+  animation: drawPureStroke 0.38s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.58s;
 }
 
-.callig-o1 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-o1 {
   stroke-dasharray: 70;
   stroke-dashoffset: 70;
-  animation: drawPureStroke 0.32s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.58s;
+  animation: drawPureStroke 0.48s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.90s;
 }
 
-.callig-z1 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-z1 {
   stroke-dasharray: 85;
   stroke-dashoffset: 85;
-  animation: drawPureStroke 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards 0.88s;
+  animation: drawPureStroke 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.34s;
 }
 
-.callig-z2 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-z2 {
   stroke-dasharray: 85;
   stroke-dashoffset: 85;
-  animation: drawPureStroke 0.35s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.2s;
+  animation: drawPureStroke 0.55s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.84s;
 }
 
-.callig-o2 {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-o2 {
   stroke-dasharray: 70;
   stroke-dashoffset: 70;
-  animation: drawPureStroke 0.32s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.52s;
+  animation: drawPureStroke 0.48s cubic-bezier(0.25, 1, 0.5, 1) forwards 2.34s;
 }
 
-.callig-tail {
+.dozzo-handwriting-group.dozzo-is-drawing .callig-tail {
   stroke-dasharray: 60;
   stroke-dashoffset: 60;
-  animation: drawPureStroke 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards 1.82s;
-}
-
-.callig-underline {
-  stroke-dasharray: 130;
-  stroke-dashoffset: 130;
-  stroke-width: 0.95px !important;
-  opacity: 0.75;
-  animation: drawPureStroke 0.38s cubic-bezier(0.25, 1, 0.5, 1) forwards 2.05s;
+  animation: drawPureStroke 0.42s cubic-bezier(0.25, 1, 0.5, 1) forwards 2.76s;
 }
 
 /* Luminous Pen Nib Sparkle following strokes */
-.pen-nib-dot {
+.pen-nib-dot-slow {
   opacity: 0;
-  animation: penNibTravel 2.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-  filter: drop-shadow(0 0 4px #FFD700);
+  animation: penNibTravelSlow 3.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  filter: drop-shadow(0 0 5px #FFD700);
 }
 
-@keyframes penNibTravel {
+@keyframes penNibTravelSlow {
   0% { transform: translate(11px, 5px); opacity: 1; }
   18% { transform: translate(31px, 10px); opacity: 1; }
   28% { transform: translate(36px, 14px); opacity: 1; }
@@ -689,15 +707,15 @@ button:active {
   55% { transform: translate(61px, 14px); opacity: 1; }
   70% { transform: translate(75px, 14px); opacity: 1; }
   85% { transform: translate(85px, 12px); opacity: 1; }
-  94% { transform: translate(134px, 11px); opacity: 1; }
-  100% { transform: translate(128px, 20px); opacity: 0; }
+  95% { transform: translate(134px, 11.5px); opacity: 1; }
+  100% { transform: translate(138px, 11px); opacity: 0; }
 }
 
 @keyframes goldLusterFlourish {
-  0%, 80% {
+  0%, 75% {
     filter: drop-shadow(0 1px 2px rgba(240, 185, 11, 0.3));
   }
-  90% {
+  88% {
     filter: drop-shadow(0 0 8px rgba(255, 235, 120, 0.85));
   }
   100% {
@@ -705,8 +723,8 @@ button:active {
   }
 }
 
-.dozzo-handwriting-group {
-  animation: goldLusterFlourish 2.8s ease-in-out forwards;
+.dozzo-handwriting-group.dozzo-is-drawing {
+  animation: goldLusterFlourish 3.4s ease-in-out forwards;
 }
 
 /* Typewriter Logo Cursor */
@@ -734,8 +752,9 @@ button:active {
   }
 }
 
-/* Minimalist Dark Tab Item: Anchored on the left, expands smoothly towards the right */
+/* Minimalist Dark Tab Item: Anchored on the left, expands smoothly towards the right on hover */
 .high-gloss-tab-item {
+  box-sizing: border-box;
   position: relative;
   height: 36px;
   width: 36px;
@@ -750,7 +769,12 @@ button:active {
   user-select: none;
   overflow: hidden;
   flex-shrink: 0;
-  transition: width 0.38s cubic-bezier(0.2, 0.9, 0.25, 1), border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+  will-change: width;
+  transform: translateZ(0);
+  padding: 0;
+  margin: 0;
+  /* Lento y suave (smooth) transition */
+  transition: width 0.38s cubic-bezier(0.25, 1, 0.5, 1), border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
 .high-gloss-tab-item:hover {
@@ -758,17 +782,25 @@ button:active {
   border-color: var(--border-hover);
 }
 
+/* Grayish Titanium Active Ring for Elegance */
 .high-gloss-tab-item.active {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(180, 186, 202, 0.65);
+  box-shadow: 0 0 10px rgba(180, 186, 202, 0.22);
 }
 
 .high-gloss-tab-item.expanded {
   width: 240px;
-  border-color: var(--accent);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 14px var(--accent-glow);
+  border: 1.5px solid rgba(180, 186, 202, 0.75);
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 12px rgba(180, 186, 202, 0.25);
+}
+
+.high-gloss-tab-item.dragging {
+  opacity: 0.45;
+  border: 1.5px solid rgba(180, 186, 202, 0.85);
+  box-shadow: 0 0 14px rgba(180, 186, 202, 0.3);
+  cursor: grabbing !important;
 }
 
 [data-theme='light'] .high-gloss-tab-item {
@@ -784,24 +816,43 @@ button:active {
 
 [data-theme='light'] .high-gloss-tab-item.active {
   background: var(--bg-tertiary);
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent-glow);
+  border: 1.5px solid rgba(100, 116, 139, 0.65);
+  box-shadow: 0 0 8px rgba(100, 116, 139, 0.20);
 }
 
 [data-theme='light'] .high-gloss-tab-item.expanded {
   background: #ffffff;
-  border-color: var(--accent);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12), 0 0 10px var(--accent-glow);
+  border: 1.5px solid rgba(100, 116, 139, 0.75);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 0 8px rgba(100, 116, 139, 0.20);
 }
 
-/* Pinned favicon: anchored at 0px with fixed 36px width, NEVER shifts or moves left */
+/* Pinned Dock Icons: Home Active & Star Yellow Active */
+.high-gloss-circle.active-home {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.high-gloss-circle.active-star {
+  color: #F59E0B !important;
+  border-color: rgba(245, 158, 11, 0.65) !important;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important;
+  background: rgba(245, 158, 11, 0.12) !important;
+}
+
+
+/* Pinned favicon: exactly 34px by 34px to center with 0px offset inside 36px border-box circle */
 .tab-pinned-icon {
-  width: 36px;
-  height: 36px;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin: 0;
+  padding: 0;
 }
 
 /* Expanding text and actions container: slides out towards the right */
@@ -813,9 +864,9 @@ button:active {
   gap: 6px;
   padding-right: 10px;
   opacity: 0;
-  transform: translateX(-8px);
+  transform: translateX(-6px);
   pointer-events: none;
-  transition: opacity 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) 0.06s, transform 0.3s cubic-bezier(0.2, 0.9, 0.25, 1) 0.06s;
+  transition: opacity 0.32s cubic-bezier(0.25, 1, 0.5, 1) 0.05s, transform 0.32s cubic-bezier(0.25, 1, 0.5, 1) 0.05s;
 }
 
 .high-gloss-tab-item.expanded .tab-expanding-content {
@@ -826,5 +877,42 @@ button:active {
 
 .floating-tabs-dock::-webkit-scrollbar {
   display: none;
+}
+
+/* Rolex Crown & Dozzo Calligraphy transition styling */
+.rolex-crown-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 8px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), filter 0.25s ease;
+}
+
+.rolex-crown-wrapper:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 10px rgba(240, 185, 11, 0.75));
+}
+
+.rolex-crown-wrapper:active {
+  transform: scale(0.96);
+}
+
+.dozzo-calligraphy-wrapper {
+  display: flex;
+  align-items: center;
+  animation: fadeInCallig 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInCallig {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 

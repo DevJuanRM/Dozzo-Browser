@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Maximize2, X, Plus, Globe } from 'lucide-react';
 import NewTabPage from './NewTabPage';
-import PictureInPicture from './PictureInPicture';
 
 const getSplitCount = (mode) => {
   switch (mode) {
@@ -94,7 +93,10 @@ export default function WebviewContainer({
   isMobile = false,
   responsiveMode = null,
   isDevInspectorOpen = false,
-  devDrawerWidth = 480
+  devDrawerWidth = 480,
+  isAutoHidden = false,
+  isHoveringTop = false,
+  onDismissTopBar
 }) {
   const isSplit = !isMobile && splitMode !== 'single';
   const paneCount = getSplitCount(splitMode);
@@ -103,113 +105,7 @@ export default function WebviewContainer({
   // Dynamic split ratio for 2-column or 2-row views (stretching / resizing)
   const [splitRatio, setSplitRatio] = useState(50);
 
-  // Picture-in-Picture Floating Window State
-  const [pipTabId, setPipTabId] = useState(null);
-  const [pipBounds, setPipBounds] = useState(() => {
-    const defaultWidth = 440;
-    const defaultHeight = 248;
-    return {
-      width: defaultWidth,
-      height: defaultHeight,
-      left: typeof window !== 'undefined' ? Math.max(20, window.innerWidth - defaultWidth - 24) : 800,
-      top: typeof window !== 'undefined' ? Math.max(60, window.innerHeight - defaultHeight - 24) : 500
-    };
-  });
-  const [isPlayingPip, setIsPlayingPip] = useState(true);
-  const [isMutedPip, setIsMutedPip] = useState(false);
-  const dismissedPipTabIds = useRef(new Set());
-
-  // Automatic PiP Trigger: Only in desktop Electron environment
-  useEffect(() => {
-    const isElectronEnv = typeof window !== 'undefined' && Boolean(window.browserAPI);
-    if (isSplit || isMobile || !isElectronEnv) {
-      setPipTabId(null);
-      return;
-    }
-
-    if (pipTabId === activeTabId) {
-      setPipTabId(null);
-      return;
-    }
-
-    const candidate = tabs.find(
-      (t) => t.id !== activeTabId && t.isAudioPlaying && !t.isNewTab && !dismissedPipTabIds.current.has(t.id)
-    );
-
-    if (candidate) {
-      setPipTabId(candidate.id);
-    }
-  }, [activeTabId, tabs, isSplit, isMobile, pipTabId]);
-
-  const safeRunJsOnWebview = (tabId, code) => {
-    const isElectronEnv = typeof window !== 'undefined' && Boolean(window.browserAPI);
-    if (!isElectronEnv) return Promise.resolve(null);
-    const webview = webviewRefs.current?.get(tabId);
-    if (!webview || typeof webview.executeJavaScript !== 'function') return Promise.resolve(null);
-    try {
-      return webview.executeJavaScript(code).catch(() => null);
-    } catch (e) { }
-    return Promise.resolve(null);
-  };
-
-  const handleReturnToTab = (tabId) => {
-    safeRunJsOnWebview(tabId, 'document.body.classList.remove("dozzo-pip-active");');
-    setPipTabId(null);
-    onSelectTab(tabId);
-  };
-
-  const handleClosePip = (tabId) => {
-    dismissedPipTabIds.current.add(tabId);
-    safeRunJsOnWebview(
-      tabId,
-      `
-        const v = document.querySelector('video');
-        if (v) v.pause();
-        document.body.classList.remove("dozzo-pip-active");
-      `
-    );
-    setPipTabId(null);
-  };
-
-  const handleTogglePlayPause = () => {
-    safeRunJsOnWebview(
-      pipTabId,
-      `
-        (function() {
-          const v = document.querySelector('video');
-          if (v) {
-            if (v.paused) v.play();
-            else v.pause();
-            return !v.paused;
-          }
-          return false;
-        })();
-      `
-    ).then((playing) => {
-      if (playing !== null) setIsPlayingPip(Boolean(playing));
-    });
-  };
-
-  const handleToggleMute = () => {
-    safeRunJsOnWebview(
-      pipTabId,
-      `
-        (function() {
-          const v = document.querySelector('video');
-          if (v) {
-            v.muted = !v.muted;
-            return v.muted;
-          }
-          return false;
-        })();
-      `
-    ).then((muted) => {
-      if (muted !== null) setIsMutedPip(Boolean(muted));
-    });
-  };
-
   const activeTab = tabs.find((t) => t.id === activeTabId);
-  const pipTab = tabs.find((t) => t.id === pipTabId);
   const visibleTabs = tabs.slice(0, paneCount);
   const emptySlotsCount = isSplit ? Math.max(0, paneCount - visibleTabs.length) : 0;
 
@@ -222,12 +118,16 @@ export default function WebviewContainer({
         marginRight: !isMobile && isDevInspectorOpen ? `${devDrawerWidth || 480}px` : 0,
         transition: 'margin-right 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
       }}
+      onMouseDown={() => {
+        if (isAutoHidden && isHoveringTop && onDismissTopBar) {
+          onDismissTopBar();
+        }
+      }}
     >
       {/* Persistent Webviews Tree: Every tab stays continuously mounted so video playback NEVER resets */}
       {tabs.map((tab, idx) => {
         const isCurrentActive = tab.id === activeTabId;
         const isVisibleInSplit = isSplit && idx < paneCount;
-        const isPip = !isSplit && tab.id === pipTabId;
 
         // Determine persistent slot styles without destroying DOM elements
         let slotStyle = {};
@@ -289,18 +189,6 @@ export default function WebviewContainer({
                 pointerEvents: 'auto'
               };
             }
-          } else if (isPip) {
-            slotStyle = {
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              visibility: 'visible',
-              pointerEvents: 'none',
-              zIndex: 9990
-            };
           } else {
             slotStyle = {
               position: 'absolute',
@@ -459,6 +347,9 @@ export default function WebviewContainer({
                     onChangeSearchEngine={onChangeSearchEngine}
                     blockedCount={blockedCount}
                     onOpenBinance={onOpenBinance}
+                    isAutoHidden={isAutoHidden}
+                    isInspectorActive={isInspectorActive && isCurrentActive}
+                    onElementInspected={onElementInspected}
                   />
                 </div>
               )}
@@ -467,19 +358,12 @@ export default function WebviewContainer({
                 tab={tab}
                 isActive={isSplit ? isVisibleInSplit : isCurrentActive}
                 isSplit={isSplit}
-                isPip={isPip}
-                pipBounds={pipBounds}
                 onUpdateTab={onUpdateTab}
                 onNewTabWithUrl={onNewTabWithUrl}
                 webviewRefs={webviewRefs}
                 isInspectorActive={isInspectorActive}
                 onElementInspected={onElementInspected}
                 onScrollDirection={onScrollDirection}
-                onMediaStartedPlaying={(id) => {
-                  if (id !== activeTabId && !dismissedPipTabIds.current.has(id)) {
-                    setPipTabId(id);
-                  }
-                }}
               />
             </div>
           </div>
@@ -506,21 +390,6 @@ export default function WebviewContainer({
             <span style={styles.addPaneText}>Abrir pestaña en panel {visibleTabs.length + i + 1}</span>
           </div>
         ))}
-
-      {/* Floating Glass Picture-in-Picture Controller Overlay */}
-      {!isSplit && pipTab && (
-        <PictureInPicture
-          tab={pipTab}
-          pipBounds={pipBounds}
-          onUpdatePipBounds={(bounds) => setPipBounds((prev) => ({ ...prev, ...bounds }))}
-          onReturnToTab={handleReturnToTab}
-          onClosePip={handleClosePip}
-          onTogglePlayPause={handleTogglePlayPause}
-          onToggleMute={handleToggleMute}
-          isPlaying={isPlayingPip}
-          isMuted={isMutedPip}
-        />
-      )}
     </div>
   );
 }
@@ -529,27 +398,22 @@ function WebviewItem({
   tab,
   isActive,
   isSplit = false,
-  isPip = false,
-  pipBounds,
   onUpdateTab,
   onNewTabWithUrl,
   webviewRefs,
   isInspectorActive,
   onElementInspected,
-  onScrollDirection,
-  onMediaStartedPlaying
+  onScrollDirection
 }) {
   const ref = useRef(null);
   const initialUrlRef = useRef(tab.url || 'about:blank');
   const lastLoadedUrlRef = useRef(tab.url || '');
   const isDomReadyRef = useRef(false);
-  const wasPipRef = useRef(false);
 
   const callbacksRef = useRef({});
   callbacksRef.current = {
     onUpdateTab,
     onNewTabWithUrl,
-    onMediaStartedPlaying,
     onElementInspected,
     onScrollDirection,
     isActive,
@@ -560,11 +424,12 @@ function WebviewItem({
     const isElectronEnv = typeof window !== 'undefined' && Boolean(window.browserAPI);
     if (!isElectronEnv) return Promise.resolve(null);
     const webview = ref.current;
-    if (!webview || !isDomReadyRef.current || typeof webview.executeJavaScript !== 'function') return Promise.resolve(null);
+    if (!webview || typeof webview.executeJavaScript !== 'function') return Promise.resolve(null);
     try {
       return webview.executeJavaScript(code).catch(() => null);
-    } catch (e) { }
-    return Promise.resolve(null);
+    } catch (e) {
+      return Promise.resolve(null);
+    }
   };
 
   // Handle external navigation from Omnibar or bookmarks without changing src attribute
@@ -595,94 +460,38 @@ function WebviewItem({
     } catch (e) { }
   }, [tab.url, tab.isNewTab]);
 
-  // Inject PiP styles into guest page so the video expands to fill the floating PiP window
+
+
+  // Handle active inspector state changes safely with self-healing injection
   useEffect(() => {
-    const isElectronEnv = typeof window !== 'undefined' && Boolean(window.browserAPI);
-    if (!isElectronEnv) return;
-    if (isPip) {
-      wasPipRef.current = true;
-      const applyPipStyles = () => {
+    if (!isActive) return;
+    const webview = ref.current;
+    if (!webview) return;
+
+    if (isInspectorActive) {
+      const inspectorScript = window.browserAPI?.getDevInspectorScript?.();
+      if (inspectorScript) {
         safeExecuteJs(`
           (function() {
-            let st = document.getElementById('__dozzo_pip_css');
-            if (!st) {
-              st = document.createElement('style');
-              st.id = '__dozzo_pip_css';
-              document.documentElement.appendChild(st);
+            try {
+              if (typeof window.__dozzo_toggle_inspector !== 'function') {
+                ${inspectorScript}
+              }
+              if (typeof window.__dozzo_toggle_inspector === 'function') {
+                window.__dozzo_toggle_inspector(true);
+              }
+            } catch (e) {
+              console.error('Error toggling Dozzo inspector:', e);
             }
-            st.textContent = \`
-              html, body {
-                overflow: hidden !important;
-                background: #000000 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-              }
-              #masthead-container, ytd-masthead, #masthead,
-              #secondary, #below, #comments, #guide, tp-yt-app-drawer,
-              #chips-wrapper, #header, #related, .ytp-chrome-top,
-              header, nav, aside, footer, #chat-container {
-                display: none !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-              }
-              ytd-app, #page-manager, ytd-watch-flexy, #columns, #primary, #primary-inner,
-              #player, #player-container-outer, #player-container, #movie_player, .html5-video-player {
-                transform: none !important;
-                contain: none !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
-                position: static !important;
-              }
-              video {
-                position: fixed !important;
-                top: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 100vh !important;
-                max-width: 100vw !important;
-                max-height: 100vh !important;
-                min-width: 100vw !important;
-                min-height: 100vh !important;
-                z-index: 2147483647 !important;
-                background: #000000 !important;
-                object-fit: contain !important;
-                margin: 0 !important;
-                padding: 0 !important;
-              }
-            \`;
-            document.body.classList.add('dozzo-pip-active');
-            const v = document.querySelector('video');
-            if (v && v.paused) v.play().catch(() => {});
-            window.dispatchEvent(new Event('resize'));
           })();
         `);
-      };
-
-      applyPipStyles();
-      const t = setTimeout(applyPipStyles, 300);
-      return () => clearTimeout(t);
-    } else if (wasPipRef.current) {
-      wasPipRef.current = false;
+      }
+    } else {
       safeExecuteJs(`
-        (function() {
-          document.body.classList.remove('dozzo-pip-active');
-          const st = document.getElementById('__dozzo_pip_css');
-          if (st) st.remove();
-          window.dispatchEvent(new Event('resize'));
-        })();
+        if (typeof window.__dozzo_toggle_inspector === 'function') {
+          window.__dozzo_toggle_inspector(false);
+        }
       `);
-    }
-  }, [isPip]);
-
-  // Handle active inspector state changes safely
-  useEffect(() => {
-    if (!isDomReadyRef.current) return;
-    if (isActive) {
-      safeExecuteJs(`window.__dozzo_toggle_inspector && window.__dozzo_toggle_inspector(${isInspectorActive ? 'true' : 'false'})`);
     }
   }, [isActive, isInspectorActive]);
 
@@ -731,6 +540,23 @@ function WebviewItem({
           }
         }
       } catch (err) { }
+
+      // Keep dev inspector active across in-page SPA navigations
+      if (callbacksRef.current.isActive && callbacksRef.current.isInspectorActive) {
+        const inspectorScript = window.browserAPI?.getDevInspectorScript?.();
+        if (inspectorScript) {
+          safeExecuteJs(`
+            try {
+              if (typeof window.__dozzo_toggle_inspector !== 'function') {
+                ${inspectorScript}
+              }
+              if (typeof window.__dozzo_toggle_inspector === 'function') {
+                window.__dozzo_toggle_inspector(true);
+              }
+            } catch (err) {}
+          `);
+        }
+      }
     };
 
     const handleDomReady = () => {
@@ -814,7 +640,7 @@ function WebviewItem({
       if (inspectorScript) {
         safeExecuteJs(inspectorScript).then(() => {
           if (callbacksRef.current.isActive && callbacksRef.current.isInspectorActive) {
-            safeExecuteJs('window.__dozzo_toggle_inspector && window.__dozzo_toggle_inspector(true)');
+            safeExecuteJs('if (typeof window.__dozzo_toggle_inspector === "function") window.__dozzo_toggle_inspector(true);');
           }
         });
       }
@@ -855,6 +681,12 @@ function WebviewItem({
       }
     };
 
+    const handleIpcMessage = (e) => {
+      if (e.channel === 'dozzo-inspector-element' && e.args && e.args[0]) {
+        callbacksRef.current.onElementInspected?.(e.args[0]);
+      }
+    };
+
     webview.addEventListener('did-start-loading', handleStartLoading);
     webview.addEventListener('did-stop-loading', handleStopLoading);
     webview.addEventListener('page-title-updated', handleTitleUpdated);
@@ -866,6 +698,7 @@ function WebviewItem({
     webview.addEventListener('media-started-playing', handleMediaStartedPlaying);
     webview.addEventListener('media-paused', handleMediaPaused);
     webview.addEventListener('console-message', handleConsoleMessage);
+    webview.addEventListener('ipc-message', handleIpcMessage);
 
     return () => {
       isDomReadyRef.current = false;
@@ -881,6 +714,7 @@ function WebviewItem({
       webview.removeEventListener('media-started-playing', handleMediaStartedPlaying);
       webview.removeEventListener('media-paused', handleMediaPaused);
       webview.removeEventListener('console-message', handleConsoleMessage);
+      webview.removeEventListener('ipc-message', handleIpcMessage);
     };
   }, [tab.id]);
 
@@ -893,15 +727,11 @@ function WebviewItem({
     return (
       <div
         style={{
-          display: (isActive || isPip) ? 'flex' : 'none',
-          position: isPip ? 'fixed' : 'relative',
-          top: isPip ? `${pipBounds?.top || 100}px` : 0,
-          left: isPip ? `${pipBounds?.left || 100}px` : 0,
-          width: isPip ? `${pipBounds?.width || 440}px` : '100%',
-          height: isPip ? `${pipBounds?.height || 248}px` : '100%',
-          zIndex: isPip ? 9990 : 1,
-          borderRadius: isPip ? '14px' : '0px',
-          boxShadow: isPip ? '0 16px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.18)' : 'none',
+          display: isActive ? 'flex' : 'none',
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          zIndex: 1,
           flexDirection: 'column',
           background: 'var(--bg-primary)'
         }}
@@ -935,26 +765,23 @@ function WebviewItem({
       src={initialUrlRef.current}
       partition="persist:dozzo-browser"
       preload={webviewPreload || undefined}
+      webpreferences="contextIsolation=no, nodeIntegration=no, plugins=yes"
       allowpopups="true"
       plugins="true"
       useragent={window.browserAPI?.getUserAgent?.() || defaultUserAgent}
       style={{
-        visibility: (isActive || isPip) ? 'visible' : 'hidden',
-        position: isPip ? 'fixed' : isSplit ? 'relative' : isActive ? 'relative' : 'absolute',
-        top: isPip ? `${pipBounds?.top || 100}px` : isSplit ? 0 : isActive ? 0 : -99999,
-        left: isPip ? `${pipBounds?.left || 100}px` : isSplit ? 0 : isActive ? 0 : -99999,
-        width: isPip ? `${pipBounds?.width || 440}px` : '100%',
-        height: isPip ? `${pipBounds?.height || 248}px` : '100%',
-        zIndex: isPip ? 9990 : 1,
-        borderRadius: isPip ? '14px' : '0px',
-        overflow: 'hidden',
-        boxShadow: isPip ? '0 16px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.18)' : 'none',
+        visibility: isActive ? 'visible' : 'hidden',
+        position: isSplit ? 'relative' : isActive ? 'relative' : 'absolute',
+        top: isSplit ? 0 : isActive ? 0 : -99999,
+        left: isSplit ? 0 : isActive ? 0 : -99999,
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
         border: 'none',
         outline: 'none',
-        flex: isPip ? 'none' : 1,
-        pointerEvents: (isActive || isPip) ? 'auto' : 'none',
-        backgroundColor: '#000000',
-        transition: 'border-radius 0.2s ease'
+        flex: 1,
+        pointerEvents: isActive ? 'auto' : 'none',
+        backgroundColor: '#000000'
       }}
     />
   );

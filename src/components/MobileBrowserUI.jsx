@@ -44,7 +44,6 @@ export default function MobileBrowserUI({
   onToggleShieldModal,
   selectedCryptoBroker,
   onOpenBinance,
-  onOpenVoiceAssistant,
   onOpenDownloads,
   onOpenHistory,
   onOpenSettings,
@@ -158,14 +157,6 @@ export default function MobileBrowserUI({
           )}
         </div>
 
-        {/* Voice Assistant Mic Button */}
-        <button
-          style={styles.iconBtn}
-          onClick={onOpenVoiceAssistant}
-          title="Asistente de Voz"
-        >
-          <Mic size={17} color="var(--accent)" />
-        </button>
 
         {/* Chrome Mobile Tabs Counter Square Badge [ 1 ] */}
         <button
@@ -387,18 +378,6 @@ export default function MobileBrowserUI({
 
             {/* Grid of Mobile Actions */}
             <div style={styles.sheetActionsGrid}>
-              <button
-                style={styles.actionTile}
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  onOpenVoiceAssistant();
-                }}
-              >
-                <div style={styles.actionIconBox}>
-                  <Mic size={20} color="var(--accent)" />
-                </div>
-                <span style={styles.actionLabel}>Voz Asistente</span>
-              </button>
 
               <button
                 style={styles.actionTile}
@@ -460,7 +439,7 @@ export default function MobileBrowserUI({
                 }}
               >
                 <div style={styles.actionIconBox}>
-                  <Download size={20} color="var(--accent)" />
+                  <img src="./Logo.svg" alt="Descargas" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'contain' }} />
                 </div>
                 <span style={styles.actionLabel}>Descargas</span>
               </button>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { buildLayersHierarchy, getElementDetails } from '../utils/elementInspector';
 import {
   Search,
   Shield,
@@ -20,31 +21,153 @@ import {
   Image as ImageIcon,
   Palette,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  Check,
+  X
 } from 'lucide-react';
 import { YoutubeIcon, GithubIcon } from './Icons';
 import { SEARCH_ENGINES, getSearchUrl, getEngine } from '../utils/searchEngines';
 
-const ABSTRACT_WALLPAPERS = [
+const CITY_WALLPAPERS = [
   {
-    id: 'aurora',
-    name: 'Obsidian Aurora',
-    background: 'radial-gradient(ellipse at 15% 20%, rgba(139, 92, 246, 0.22) 0%, transparent 45%), radial-gradient(ellipse at 85% 80%, rgba(6, 182, 212, 0.18) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 60%), #000000'
+    id: 'miami',
+    name: 'Miami Beach',
+    location: 'Miami, Florida',
+    tag: 'Costa & Palmeras',
+    url: 'https://images.unsplash.com/photo-1506953823976-52e1fdc0149a?auto=format&fit=crop&w=1920&q=80'
   },
   {
-    id: 'cyber',
-    name: 'Cyber Gold & Emerald',
-    background: 'radial-gradient(circle at 50% -10%, rgba(240, 185, 11, 0.20) 0%, transparent 55%), radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.16) 0%, transparent 50%), radial-gradient(circle at 0% 100%, rgba(139, 92, 246, 0.12) 0%, transparent 45%), #000000'
+    id: 'nyc',
+    name: 'New York Skyline',
+    location: 'Manhattan, NYC',
+    tag: 'Rascacielos',
+    url: 'https://images.unsplash.com/photo-1534430480872-3498386e7856?auto=format&fit=crop&w=1920&q=80'
   },
   {
-    id: 'crimson',
-    name: 'Midnight Velvet',
-    background: 'radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.18) 0%, transparent 45%), radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.16) 0%, transparent 50%), radial-gradient(circle at 50% 30%, rgba(249, 115, 22, 0.10) 0%, transparent 50%), #000000'
+    id: 'dubai',
+    name: 'Dubai Marina & Towers',
+    location: 'Dubai, EAU',
+    tag: 'Arquitectura Futurista',
+    url: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=1920&q=80'
   },
   {
-    id: 'abyss',
-    name: 'Ocean Abyss',
-    background: 'radial-gradient(ellipse at 50% 100%, rgba(14, 165, 233, 0.22) 0%, transparent 65%), radial-gradient(ellipse at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 50%), #000000'
+    id: 'paris',
+    name: 'París Torre Eiffel',
+    location: 'París, Francia',
+    tag: 'Arquitectura Clásica',
+    url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'canada',
+    name: 'Canadá Banff & Rockies',
+    location: 'Alberta, Canadá',
+    tag: 'Montañas & Lago Glaciar',
+    url: 'https://images.unsplash.com/photo-1503614472-8c93d56e92ce?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'mexico',
+    name: 'México Caribe Tulum',
+    location: 'Quintana Roo, México',
+    tag: 'Playa Turquesa',
+    url: 'https://images.unsplash.com/photo-1512813195386-6cf811ad3542?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'panama',
+    name: 'Panamá Bahía & Skyline',
+    location: 'Ciudad de Panamá',
+    tag: 'Bahía & Edificios',
+    url: 'https://images.unsplash.com/photo-1582299723048-b4b9b6574f0c?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'islandia',
+    name: 'Islandia Aurora Boreal',
+    location: 'Reikiavik, Islandia',
+    tag: 'Aurora Polar',
+    url: 'https://images.unsplash.com/photo-1504893524553-b855bce32c67?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'tokyo',
+    name: 'Tokyo Shinjuku Neon',
+    location: 'Tokyo, Japón',
+    tag: 'Metrópolis Cyberpunk',
+    url: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'amalfi',
+    name: 'Costa Amalfitana',
+    location: 'Positano, Italia',
+    tag: 'Costa Mediterránea',
+    url: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'alps',
+    name: 'Alpes Suizos Matterhorn',
+    location: 'Zermatt, Suiza',
+    tag: 'Picos Nevados',
+    url: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'london',
+    name: 'Londres Tower Bridge',
+    location: 'Londres, Reino Unido',
+    tag: 'Ciudad Histórica',
+    url: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'singapore',
+    name: 'Singapur Marina Bay',
+    location: 'Marina Bay, Singapur',
+    tag: 'Jardines Futuristas',
+    url: 'https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'santorini',
+    name: 'Santorini Mar Egeo',
+    location: 'Santorini, Grecia',
+    tag: 'Islas Griegas',
+    url: 'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'kyoto',
+    name: 'Kyoto Bosque de Bambú',
+    location: 'Arashiyama, Japón',
+    tag: 'Naturaleza Zen',
+    url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'canyon',
+    name: 'Gran Cañón Atardecer',
+    location: 'Arizona, EE. UU.',
+    tag: 'Naturaleza Monumental',
+    url: 'https://images.unsplash.com/photo-1474044159687-1ee9f3a51722?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'lofoten',
+    name: 'Islas Lofoten Fiordos',
+    location: 'Lofoten, Noruega',
+    tag: 'Fiordos Árticos',
+    url: 'https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'seoul',
+    name: 'Seúl Gangnam Luces',
+    location: 'Seúl, Corea del Sur',
+    tag: 'Metrópolis Asiática',
+    url: 'https://images.unsplash.com/photo-1538485399081-7191377e8241?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'yosemite',
+    name: 'Yosemite El Capitán',
+    location: 'California, EE. UU.',
+    tag: 'Valle de Granito',
+    url: 'https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=1920&q=80'
+  },
+  {
+    id: 'sydney',
+    name: 'Sídney Ópera & Puerto',
+    location: 'Sídney, Australia',
+    tag: 'Bahía Emblemática',
+    url: 'https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=1920&q=80'
   }
 ];
 
@@ -53,17 +176,36 @@ export default function NewTabPage({
   searchEngine = 'duckduckgo',
   onChangeSearchEngine,
   blockedCount,
-  onOpenBinance
+  onOpenBinance,
+  isAutoHidden = false,
+  isInspectorActive = false,
+  onElementInspected
 }) {
+  const containerRef = useRef(null);
+  const [inspectedTarget, setInspectedTarget] = useState(null);
   const [query, setQuery] = useState('');
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [greeting, setGreeting] = useState('Bienvenido');
   const [isEngineMenuOpen, setIsEngineMenuOpen] = useState(false);
 
-  // Wallpaper System State
-  const [wallpaperMode, setWallpaperMode] = useState(() => localStorage.getItem('dozzo_wallpaper_mode') || 'oled');
-  const [wallpaperIndex, setWallpaperIndex] = useState(() => parseInt(localStorage.getItem('dozzo_wallpaper_idx') || '0', 10));
+  // Wallpaper System State (Rotates every 30s)
+  const [wallpaperIndex, setWallpaperIndex] = useState(() => {
+    const saved = localStorage.getItem('dozzo_wallpaper_idx');
+    return saved !== null ? parseInt(saved, 10) % CITY_WALLPAPERS.length : 0;
+  });
+
+  // Automatically cycle through the 20 wallpapers every 30 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setWallpaperIndex((prev) => {
+        const next = (prev + 1) % CITY_WALLPAPERS.length;
+        localStorage.setItem('dozzo_wallpaper_idx', String(next));
+        return next;
+      });
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Live Weather State
   const [weather, setWeather] = useState({
@@ -188,36 +330,6 @@ export default function NewTabPage({
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-rotate wallpapers every 50 seconds if abstract mode is active
-  useEffect(() => {
-    if (wallpaperMode === 'abstract') {
-      const timer = setInterval(() => {
-        setWallpaperIndex((prev) => {
-          const next = (prev + 1) % ABSTRACT_WALLPAPERS.length;
-          localStorage.setItem('dozzo_wallpaper_idx', String(next));
-          return next;
-        });
-      }, 50000);
-      return () => clearInterval(timer);
-    }
-  }, [wallpaperMode]);
-
-  const toggleWallpaperMode = () => {
-    const nextMode = wallpaperMode === 'oled' ? 'abstract' : 'oled';
-    setWallpaperMode(nextMode);
-    localStorage.setItem('dozzo_wallpaper_mode', nextMode);
-  };
-
-  const cycleWallpaper = (e) => {
-    e.stopPropagation();
-    const next = (wallpaperIndex + 1) % ABSTRACT_WALLPAPERS.length;
-    setWallpaperIndex(next);
-    localStorage.setItem('dozzo_wallpaper_idx', String(next));
-    if (wallpaperMode !== 'abstract') {
-      setWallpaperMode('abstract');
-      localStorage.setItem('dozzo_wallpaper_mode', 'abstract');
-    }
-  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -302,18 +414,82 @@ export default function NewTabPage({
     }
   ];
 
-  const currentWallpaper = ABSTRACT_WALLPAPERS[wallpaperIndex] || ABSTRACT_WALLPAPERS[0];
-  const activeBackground = wallpaperMode === 'abstract' ? currentWallpaper.background : '#000000';
+  const currentWallpaper = CITY_WALLPAPERS[wallpaperIndex] || CITY_WALLPAPERS[0];
+  const activeBackground = currentWallpaper.url
+    ? `linear-gradient(180deg, rgba(8, 8, 14, 0.70) 0%, rgba(6, 6, 10, 0.84) 100%), radial-gradient(ellipse at center, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.72) 100%), url("${currentWallpaper.url}") center/cover no-repeat fixed`
+    : '#000000';
+
+  // Live in-page element inspection for NewTabPage
+  useEffect(() => {
+    if (!isInspectorActive) {
+      setInspectedTarget(null);
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleMouseMove = (e) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (el && container.contains(el) && !el.closest('.dozzo-dev-overlay-ignore')) {
+        setInspectedTarget(el);
+      } else {
+        setInspectedTarget(null);
+      }
+    };
+
+    const handleClick = (e) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (!el || !container.contains(el) || el.closest('.dozzo-dev-overlay-ignore')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      try {
+        const layers = buildLayersHierarchy(el, container);
+        const primaryData = {
+          ...layers[0],
+          layers
+        };
+        onElementInspected?.(primaryData);
+      } catch (err) {
+        const fallback = getElementDetails(el);
+        if (fallback) {
+          onElementInspected?.({
+            ...fallback,
+            layers: [fallback]
+          });
+        }
+      }
+      setInspectedTarget(null);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove, true);
+    window.addEventListener('click', handleClick, true);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      window.removeEventListener('click', handleClick, true);
+      setInspectedTarget(null);
+    };
+  }, [isInspectorActive, onElementInspected]);
 
   return (
     <div
+      ref={containerRef}
       style={{
         ...styles.container,
         background: activeBackground,
-        transition: 'background 0.8s ease-in-out'
+        transition: 'background 1.2s ease-in-out',
+        cursor: isInspectorActive ? 'crosshair' : 'default'
       }}
     >
-      <div style={styles.dashboardContainer} className="custom-scrollbar">
+      <div
+        style={{
+          ...styles.dashboardContainer,
+          paddingTop: isAutoHidden ? '96px' : '30px'
+        }}
+        className="custom-scrollbar"
+      >
         {/* Top Header Row: Weather Pill (Left) + Clock/Greeting (Center) + Status Badge (Right) */}
         <div style={styles.headerRow}>
           {/* Live Weather Widget */}
@@ -483,30 +659,61 @@ export default function NewTabPage({
         </div>
       </div>
 
-      {/* Floating Bottom-Right Wallpaper & Theme Switcher */}
-      <div style={styles.wallpaperFloatingWidget}>
-        <button
-          style={{
-            ...styles.wallpaperModeBtn,
-            background: wallpaperMode === 'abstract' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.06)'
-          }}
-          onClick={toggleWallpaperMode}
-          title={wallpaperMode === 'abstract' ? 'Cambiar a Negro Puro OLED' : 'Activar Fondos Abstractos'}
-        >
-          {wallpaperMode === 'abstract' ? <Palette size={14} color="var(--accent)" /> : <ImageIcon size={14} />}
-          <span>{wallpaperMode === 'abstract' ? currentWallpaper.name : 'Negro OLED Plano'}</span>
-        </button>
+      {/* Dev Mode High-Gloss Highlight Box when inspector is active on New Tab Page */}
+      {isInspectorActive && inspectedTarget && (() => {
+        const rect = inspectedTarget.getBoundingClientRect();
+        const tag = inspectedTarget.tagName.toLowerCase();
+        const id = inspectedTarget.id ? `#${inspectedTarget.id}` : '';
+        const cls = inspectedTarget.className && typeof inspectedTarget.className === 'string'
+          ? `.${inspectedTarget.className.trim().split(/\s+/).slice(0, 2).join('.')}`
+          : '';
+        const dims = `${Math.round(rect.width)} × ${Math.round(rect.height)} px`;
 
-        {wallpaperMode === 'abstract' && (
-          <button
-            style={styles.cycleWallpaperBtn}
-            onClick={cycleWallpaper}
-            title="Siguiente fondo abstracto"
+        return (
+          <div
+            className="dozzo-dev-overlay-ignore"
+            style={{
+              position: 'fixed',
+              top: `${rect.top}px`,
+              left: `${rect.left}px`,
+              width: `${rect.width}px`,
+              height: `${rect.height}px`,
+              border: '2px solid #F0B90B',
+              background: 'rgba(240, 185, 11, 0.15)',
+              borderRadius: '4px',
+              zIndex: 999999,
+              pointerEvents: 'none',
+              boxShadow: '0 0 12px rgba(240, 185, 11, 0.4)',
+              transition: 'all 0.08s ease'
+            }}
           >
-            <RefreshCw size={12} />
-          </button>
-        )}
-      </div>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: 0,
+                marginBottom: '4px',
+                background: '#0f172a',
+                color: '#F0B90B',
+                border: '1px solid rgba(240, 185, 11, 0.4)',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                fontWeight: 700,
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>&lt;{tag}{id}{cls}&gt;</span>
+              <span style={{ color: '#94a3b8', fontWeight: 'normal' }}>{dims}</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -544,18 +751,20 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '10px 16px',
-    borderRadius: '14px',
-    background: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    backdropFilter: 'blur(16px)',
-    minWidth: '170px'
+    padding: '12px 18px',
+    borderRadius: '16px',
+    background: 'rgba(12, 12, 18, 0.72)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
+    minWidth: '175px'
   },
   weatherIconBox: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '10px',
-    background: 'rgba(255, 255, 255, 0.05)',
+    width: '38px',
+    height: '38px',
+    borderRadius: '11px',
+    background: 'rgba(255, 255, 255, 0.08)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -568,16 +777,17 @@ const styles = {
   weatherTemp: {
     fontSize: '15px',
     fontWeight: '800',
-    color: '#ffffff'
+    color: '#ffffff',
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
   },
   weatherCity: {
-    fontSize: '11px',
-    color: 'var(--text-muted)',
+    fontSize: '11.5px',
+    color: 'rgba(255, 255, 255, 0.8)',
     fontWeight: '600'
   },
   weatherDescRow: {
     fontSize: '10.5px',
-    color: 'var(--text-secondary)',
+    color: 'rgba(255, 255, 255, 0.7)',
     display: 'flex',
     gap: '4px',
     marginTop: '2px'
@@ -586,46 +796,58 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    textAlign: 'center'
+    textAlign: 'center',
+    padding: '14px 28px',
+    borderRadius: '24px',
+    background: 'rgba(10, 10, 16, 0.52)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55)'
   },
   greetingText: {
-    fontSize: '12px',
+    fontSize: '11.5px',
     fontWeight: '800',
-    color: 'var(--text-muted)',
+    color: '#d4af37',
     textTransform: 'uppercase',
-    letterSpacing: '2.5px',
-    marginBottom: '2px'
+    letterSpacing: '3px',
+    marginBottom: '3px',
+    textShadow: '0 2px 10px rgba(0, 0, 0, 0.9)'
   },
   clockDisplay: {
-    fontSize: '52px',
+    fontSize: '56px',
     fontWeight: '300',
     color: '#ffffff',
     letterSpacing: '-1.5px',
-    lineHeight: '1'
+    lineHeight: '1',
+    textShadow: '0 4px 24px rgba(0, 0, 0, 0.95), 0 1px 4px rgba(0, 0, 0, 0.9)'
   },
   dateDisplay: {
     fontSize: '13px',
-    fontWeight: '500',
-    color: 'var(--text-secondary)',
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.85)',
     textTransform: 'capitalize',
-    marginTop: '4px'
+    marginTop: '5px',
+    textShadow: '0 2px 10px rgba(0, 0, 0, 0.9)'
   },
   securityPill: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-    padding: '10px 16px',
-    borderRadius: '14px',
-    background: 'rgba(255, 255, 255, 0.04)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    backdropFilter: 'blur(16px)',
-    minWidth: '170px'
+    gap: '12px',
+    padding: '12px 18px',
+    borderRadius: '16px',
+    background: 'rgba(12, 12, 18, 0.72)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
+    minWidth: '175px'
   },
   secShieldDot: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '10px',
-    background: 'rgba(16, 185, 129, 0.12)',
+    width: '38px',
+    height: '38px',
+    borderRadius: '11px',
+    background: 'rgba(16, 185, 129, 0.16)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -633,12 +855,13 @@ const styles = {
   secTitle: {
     fontSize: '12px',
     fontWeight: '700',
-    color: '#ffffff'
+    color: '#ffffff',
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
   },
   secCount: {
     fontSize: '10.5px',
     color: '#10B981',
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: '1px'
   },
   searchForm: {
@@ -648,12 +871,13 @@ const styles = {
   searchBar: {
     display: 'flex',
     alignItems: 'center',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
-    borderRadius: '18px',
-    padding: '6px 8px 6px 14px',
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.15)',
-    backdropFilter: 'blur(20px)',
+    background: 'rgba(12, 12, 20, 0.78)',
+    border: '1px solid rgba(255, 255, 255, 0.16)',
+    borderRadius: '20px',
+    padding: '8px 10px 8px 16px',
+    boxShadow: '0 12px 40px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
     transition: 'all 0.25s ease'
   },
   engineSelectBtn: {
@@ -736,10 +960,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '10px 18px',
-    borderRadius: '14px',
-    background: 'rgba(240, 185, 11, 0.05)',
-    border: '1px solid rgba(240, 185, 11, 0.2)',
+    padding: '12px 20px',
+    borderRadius: '16px',
+    background: 'rgba(15, 14, 20, 0.78)',
+    border: '1px solid rgba(240, 185, 11, 0.35)',
+    boxShadow: '0 8px 28px rgba(0, 0, 0, 0.55)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     flexWrap: 'wrap',
     gap: '10px'
   },
@@ -772,7 +999,7 @@ const styles = {
     fontSize: '12.5px',
     padding: '4px 10px',
     borderRadius: '8px',
-    background: 'rgba(255, 255, 255, 0.03)',
+    background: 'rgba(255, 255, 255, 0.05)',
     transition: 'background 0.15s ease'
   },
   coinSymbol: {
@@ -781,7 +1008,7 @@ const styles = {
   },
   coinPrice: {
     fontFamily: 'JetBrains Mono, monospace',
-    color: 'var(--text-secondary)'
+    color: 'rgba(255, 255, 255, 0.85)'
   },
   coinChange: {
     fontFamily: 'JetBrains Mono, monospace',
@@ -799,11 +1026,13 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '16px 10px',
-    borderRadius: '16px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+    padding: '18px 12px',
+    borderRadius: '18px',
+    background: 'rgba(14, 14, 22, 0.72)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     cursor: 'pointer',
     transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
   },
@@ -820,14 +1049,16 @@ const styles = {
     fontSize: '13px',
     fontWeight: '700',
     color: '#ffffff',
-    textAlign: 'center'
+    textAlign: 'center',
+    textShadow: '0 2px 8px rgba(0, 0, 0, 0.9)'
   },
   shortcutBadge: {
     fontSize: '10.5px',
     fontWeight: '500',
-    color: 'var(--text-muted)',
+    color: 'rgba(255, 255, 255, 0.8)',
     marginTop: '3px',
-    textAlign: 'center'
+    textAlign: 'center',
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.9)'
   },
   shieldBanner: {
     width: '100%',
@@ -836,10 +1067,12 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '16px 22px',
-    borderRadius: '16px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.45)',
+    borderRadius: '18px',
+    background: 'rgba(12, 14, 20, 0.75)',
+    border: '1px solid rgba(16, 185, 129, 0.3)',
+    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.55)',
+    backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     flexWrap: 'wrap',
     gap: '14px'
   },
@@ -852,7 +1085,7 @@ const styles = {
     width: '42px',
     height: '42px',
     borderRadius: '12px',
-    background: 'rgba(16, 185, 129, 0.12)',
+    background: 'rgba(16, 185, 129, 0.16)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
@@ -860,12 +1093,14 @@ const styles = {
   shieldTitle: {
     fontSize: '13.5px',
     fontWeight: '700',
-    color: '#ffffff'
+    color: '#ffffff',
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
   },
   shieldSubtitle: {
     fontSize: '11.5px',
-    color: 'var(--text-muted)',
-    marginTop: '3px'
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: '3px',
+    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
   },
   shieldStatsRight: {
     display: 'flex',
@@ -888,36 +1123,128 @@ const styles = {
     right: '20px',
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    zIndex: 40
+    gap: '8px',
+    zIndex: 60
+  },
+  wallpaperPickerPopup: {
+    position: 'absolute',
+    bottom: '48px',
+    right: '0',
+    width: '360px',
+    maxHeight: '430px',
+    background: 'rgba(15, 17, 26, 0.96)',
+    backdropFilter: 'blur(24px)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: '16px',
+    padding: '16px',
+    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.85)',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  wallpaperPickerHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '4px'
+  },
+  closePickerBtn: {
+    width: '26px',
+    height: '26px',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: 'none',
+    color: 'var(--text-secondary)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  wallpaperGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: '10px',
+    overflowY: 'auto',
+    maxHeight: '330px',
+    paddingRight: '4px'
+  },
+  wallpaperCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    background: 'rgba(255, 255, 255, 0.04)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  wallpaperThumb: {
+    width: '100%',
+    height: '68px',
+    position: 'relative'
+  },
+  selectedBadge: {
+    position: 'absolute',
+    top: '6px',
+    right: '6px',
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    background: 'var(--accent)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.6)'
+  },
+  wallpaperCardInfo: {
+    padding: '8px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+  wallpaperCardName: {
+    fontSize: '11.5px',
+    fontWeight: '700',
+    color: '#ffffff',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  wallpaperCardMeta: {
+    fontSize: '9.5px',
+    color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
   },
   wallpaperModeBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    padding: '6px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
+    gap: '8px',
+    padding: '7px 14px',
+    borderRadius: '12px',
     backdropFilter: 'blur(16px)',
     color: '#ffffff',
-    fontSize: '11.5px',
+    fontSize: '12px',
     fontWeight: '700',
     cursor: 'pointer',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5)',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.5)',
     transition: 'all 0.2s ease'
   },
   cycleWallpaperBtn: {
-    width: '30px',
-    height: '30px',
-    borderRadius: '10px',
-    background: 'rgba(255, 255, 255, 0.08)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
+    width: '34px',
+    height: '34px',
+    borderRadius: '12px',
+    background: 'rgba(20, 20, 30, 0.85)',
+    border: '1px solid rgba(255, 255, 255, 0.16)',
     backdropFilter: 'blur(16px)',
     color: '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
+    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.5)',
     transition: 'all 0.2s ease'
   }
 };

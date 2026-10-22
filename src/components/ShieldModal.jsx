@@ -80,19 +80,27 @@ export default function ShieldModal({ isOpen, onClose, blockedCount, isShieldAct
           </div>
         </div>
 
-        {/* Privacy Guarantees */}
+        {/* Onion-Grade Privacy Guarantees */}
         <div style={styles.guarantees}>
           <div style={styles.guaranteeItem}>
             <CheckCircle size={14} color="var(--success)" />
-            <span>Sin telemetría ni envío de datos a servidores externos</span>
+            <span>Blindaje Onion / Anti-Rastreo total activo por defecto</span>
           </div>
           <div style={styles.guaranteeItem}>
             <CheckCircle size={14} color="var(--success)" />
-            <span>Eliminación automática de scripts invasivos en video</span>
+            <span>Protección contra fuga de IP WebRTC (Sin filtración de red real)</span>
           </div>
           <div style={styles.guaranteeItem}>
             <CheckCircle size={14} color="var(--success)" />
-            <span>Navegación protegida contra huella digital (Anti-fingerprinting)</span>
+            <span>Anti-Fingerprinting: Huella Canvas, Audio y GPU WebGL camufladas</span>
+          </div>
+          <div style={styles.guaranteeItem}>
+            <CheckCircle size={14} color="var(--success)" />
+            <span>Limpieza automática de tokens de rastreo en enlaces (URL Trimming)</span>
+          </div>
+          <div style={styles.guaranteeItem}>
+            <CheckCircle size={14} color="var(--success)" />
+            <span>Cabeceras Global Privacy Control (GPC) y Do-Not-Track (DNT) forzadas</span>
           </div>
         </div>
 

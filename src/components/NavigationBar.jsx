@@ -12,23 +12,21 @@ import {
   Copy,
   Check,
   TrendingUp,
-  Moon,
-  Sun,
   Palette,
   Sliders,
   Download,
   PanelRight,
   Code2,
-  Mic,
   History,
   Clock,
   Globe,
-  ChevronUp,
   ChevronDown,
-  LayoutGrid
+  LayoutGrid,
+  Sparkles
 } from 'lucide-react';
 import { getSearchUrl, getEngine } from '../utils/searchEngines';
 import { BrokerIcon } from './BinanceWidget';
+import { CURATED_THEMES, getTheme, getNextTheme } from '../utils/themes';
 
 export default function NavigationBar({
   currentUrl,
@@ -50,11 +48,10 @@ export default function NavigationBar({
   onToggleBinance,
   isBinanceOpen,
   selectedCryptoBroker = 'binance',
-  theme,
-  onToggleTheme,
-  accentColor,
-  onChangeAccent,
+  theme = 'obsidian-aurora',
+  onChangeTheme,
   onOpenSettings,
+  onCheckUpdates,
   searchEngine,
   isBookmarked,
   onToggleBookmark,
@@ -66,7 +63,6 @@ export default function NavigationBar({
   onToggleInspector,
   isInspectorActive,
   onOpenHistory,
-  onOpenVoiceAssistant,
   history = [],
   isAutoHidden = false,
   onToggleAutoHide
@@ -74,7 +70,11 @@ export default function NavigationBar({
   const [inputValue, setInputValue] = useState(currentUrl || '');
   const [copied, setCopied] = useState(false);
   const [showToolsMenu, setShowToolsMenu] = useState(false);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [isOmniFocused, setIsOmniFocused] = useState(false);
+
+  const currentThemeObj = getTheme(theme);
+
 
   // Sync input value with current URL
   useEffect(() => {
@@ -114,15 +114,6 @@ export default function NavigationBar({
 
   const isHttps = currentUrl?.startsWith('https://');
 
-  const accents = [
-    { id: 'none', name: 'Negro Puro (OLED)', color: '#000000' },
-    { id: 'gold', name: 'Binance Gold', color: '#F0B90B' },
-    { id: 'cyan', name: 'Cyber Cyan', color: '#06B6D4' },
-    { id: 'emerald', name: 'Emerald Green', color: '#10B981' },
-    { id: 'purple', name: 'Royal Violet', color: '#8B5CF6' },
-    { id: 'orange', name: 'Sunset Orange', color: '#F97316' },
-    { id: 'crimson', name: 'Ruby Crimson', color: '#EF4444' }
-  ];
 
   const matchedHistory = (history || [])
     .filter((h) => {
@@ -163,6 +154,18 @@ export default function NavigationBar({
           title={isLoading ? 'Detener carga' : 'Recargar página (Ctrl+R)'}
         >
           {isLoading ? <StopIcon size={16} /> : <RotateCw size={15} />}
+        </button>
+
+        <button
+          style={{
+            ...styles.iconBtn,
+            color: isInspectorActive ? 'var(--accent)' : 'inherit',
+            background: isInspectorActive ? 'rgba(255, 255, 255, 0.08)' : 'transparent'
+          }}
+          onClick={onToggleInspector}
+          title={isInspectorActive ? 'Cerrar Modo Desarrollador (Inspector)' : 'Modo Desarrollador (DevMode)'}
+        >
+          <Code2 size={16} />
         </button>
       </div>
 
@@ -274,22 +277,106 @@ export default function NavigationBar({
         )}
       </div>
 
-      {/* Crypto Hub Broker Button: Dynamic Active Broker Icon (Bitcoin, Binance, Coinbase, OKX, Kraken) + Chevron */}
+      {/* Crypto Hub Broker Button: Minimalist icon button matching navigation controls */}
       <button
         style={{
-          ...styles.brokerIconBtn,
-          ...(isBinanceOpen ? styles.brokerIconBtnActive : {})
+          ...styles.iconBtn,
+          background: isBinanceOpen ? 'var(--bg-hover)' : 'transparent',
+          color: isBinanceOpen ? 'var(--text-primary)' : 'var(--text-secondary)'
         }}
         onClick={onToggleBinance}
-        title={`Crypto Markets Hub (Broker activo: ${selectedCryptoBroker.toUpperCase()}) - Clic para cotizaciones`}
+        title={`Crypto Markets Hub (${selectedCryptoBroker.toUpperCase()}) - Clic para cotizaciones y divisas`}
       >
-        <div style={styles.binanceLogo}>
-          <BrokerIcon brokerId={selectedCryptoBroker || 'binance'} size={15} />
-        </div>
-        <ChevronDown size={12} color={isBinanceOpen ? 'var(--accent)' : 'var(--text-muted)'} />
+        <TrendingUp size={16} />
       </button>
 
-      {/* Utilities Group (Unified Tools Menu & Collapsible Arrow) */}
+      {/* Theme Quick Selector: Pure Palette Icon matching navigation controls (No text, no extra cycle button) */}
+      <div style={{ position: 'relative' }}>
+        <button
+          style={{
+            ...styles.iconBtn,
+            background: showThemeMenu ? 'var(--bg-hover)' : 'transparent',
+            color: showThemeMenu ? 'var(--text-primary)' : 'var(--text-secondary)'
+          }}
+          onClick={() => setShowThemeMenu(!showThemeMenu)}
+          title={`Temas del Explorador (Tema actual: ${currentThemeObj.name}) - Clic para ver los 10 modos`}
+        >
+          <Palette size={16} />
+        </button>
+
+        {/* 10 Curated Themes Popover Dropdown */}
+        {showThemeMenu && (
+          <div style={styles.themesDropdown} className="glass-panel animate-slide-down">
+            <div style={styles.themesHeader}>
+              <span style={styles.themesTitle}>Temas del Explorador</span>
+              <span style={styles.themesCountBadge}>10 Modos</span>
+            </div>
+            <div style={styles.themesList}>
+              {CURATED_THEMES.map((thm) => {
+                const isSelected =
+                  theme === thm.id ||
+                  (theme === 'dark' && thm.id === 'obsidian-aurora') ||
+                  (theme === 'light' && thm.id === 'mac-snow');
+                return (
+                  <button
+                    key={thm.id}
+                    style={{
+                      ...styles.themeOptionItem,
+                      backgroundColor: isSelected ? 'var(--bg-hover)' : 'transparent',
+                      border: isSelected ? '1px solid var(--border-hover)' : '1px solid transparent'
+                    }}
+                    onClick={() => {
+                      if (onChangeTheme) onChangeTheme(thm.id);
+                      setShowThemeMenu(false);
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {/* Half-and-Half 50/50 Diagonal Split Theme Swatch Circle */}
+                      <div
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: `linear-gradient(135deg, ${thm.primaryColor} 50%, ${thm.accentColor} 50%)`,
+                          border: isSelected ? '2px solid var(--text-primary)' : '1.5px solid rgba(255, 255, 255, 0.25)',
+                          boxShadow: isSelected ? `0 0 10px ${thm.accentColor}66` : '0 2px 6px rgba(0,0,0,0.4)',
+                          flexShrink: 0
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: '12.5px',
+                          fontWeight: isSelected ? '700' : '500',
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        {thm.name}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          fontSize: '9.5px',
+                          padding: '2px 5px',
+                          borderRadius: '4px',
+                          background: thm.type === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        {thm.badge}
+                      </span>
+                      {isSelected && <Check size={13} color="var(--accent)" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Utilities Group (Unified Tools Menu) */}
       <div style={styles.navGroup}>
         {/* Unified Tools Hub Button */}
         <div style={{ position: 'relative' }}>
@@ -301,7 +388,7 @@ export default function NavigationBar({
               position: 'relative'
             }}
             onClick={() => setShowToolsMenu(!showToolsMenu)}
-            title="Herramientas Dozzo (Asistente de Voz, IA, Descargas, Historial, Temas, Ajustes)"
+            title="Herramientas Dozzo (Panel Lateral, Descargas, Historial, Ajustes)"
           >
             <LayoutGrid size={16} />
             {downloadsCount > 0 && (
@@ -341,23 +428,6 @@ export default function NavigationBar({
               </div>
 
               <div style={styles.toolsList}>
-                {/* Voice Assistant */}
-                <button
-                  style={styles.toolItem}
-                  onClick={() => {
-                    onOpenVoiceAssistant();
-                    setShowToolsMenu(false);
-                  }}
-                >
-                  <div style={{ ...styles.toolIconBox, background: 'rgba(240, 185, 11, 0.15)', color: '#F0B90B' }}>
-                    <Mic size={15} />
-                  </div>
-                  <div style={styles.toolTexts}>
-                    <div style={styles.toolName}>Asistente de Voz</div>
-                    <div style={styles.toolDesc}>Control por voz y comandos con Dozzo IA</div>
-                  </div>
-                </button>
-
                 {/* Sidebar Apps */}
                 <button
                   style={{
@@ -378,26 +448,6 @@ export default function NavigationBar({
                   </div>
                 </button>
 
-                {/* Dev Studio */}
-                <button
-                  style={{
-                    ...styles.toolItem,
-                    background: isInspectorActive ? 'var(--bg-tertiary)' : 'transparent'
-                  }}
-                  onClick={() => {
-                    onToggleInspector();
-                    setShowToolsMenu(false);
-                  }}
-                >
-                  <div style={{ ...styles.toolIconBox, background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' }}>
-                    <Code2 size={15} />
-                  </div>
-                  <div style={styles.toolTexts}>
-                    <div style={styles.toolName}>Dev Studio</div>
-                    <div style={styles.toolDesc}>Inspeccionar web a React (JSX) o Figma</div>
-                  </div>
-                </button>
-
                 {/* Downloads */}
                 <button
                   style={styles.toolItem}
@@ -406,8 +456,8 @@ export default function NavigationBar({
                     setShowToolsMenu(false);
                   }}
                 >
-                  <div style={{ ...styles.toolIconBox, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
-                    <Download size={15} />
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(240, 185, 11, 0.15)' }}>
+                    <img src="./Logo.svg" alt="Descargas" style={{ width: '16px', height: '16px', borderRadius: '3px', objectFit: 'contain' }} />
                   </div>
                   <div style={styles.toolTexts}>
                     <div style={styles.toolName}>Descargas</div>
@@ -436,48 +486,6 @@ export default function NavigationBar({
 
                 <div style={styles.menuDivider} />
 
-                {/* Theme Mode Toggle */}
-                <button
-                  style={styles.toolItem}
-                  onClick={() => {
-                    onToggleTheme();
-                  }}
-                >
-                  <div style={{ ...styles.toolIconBox, background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
-                    {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
-                  </div>
-                  <div style={styles.toolTexts}>
-                    <div style={styles.toolName}>
-                      {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
-                    </div>
-                    <div style={styles.toolDesc}>Alternar iluminación de la interfaz</div>
-                  </div>
-                </button>
-
-                {/* Accent Color Palette Row */}
-                <div style={styles.accentSection}>
-                  <div style={styles.accentLabel}>
-                    <Palette size={13} style={{ marginRight: '6px' }} />
-                    Color de Acento
-                  </div>
-                  <div style={styles.colorGrid}>
-                    {accents.map((acc) => (
-                      <div
-                        key={acc.id}
-                        onClick={() => onChangeAccent(acc.id)}
-                        style={{
-                          ...styles.colorCircle,
-                          backgroundColor: acc.color,
-                          border: accentColor === acc.id ? '2px solid white' : '2px solid transparent'
-                        }}
-                        title={acc.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div style={styles.menuDivider} />
-
                 {/* Settings & Privacy */}
                 <button
                   style={styles.toolItem}
@@ -494,11 +502,36 @@ export default function NavigationBar({
                     <div style={styles.toolDesc}>Motor de búsqueda, caché y preferencias</div>
                   </div>
                 </button>
+
+                {/* Updates Checker */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    if (onCheckUpdates) {
+                      onCheckUpdates();
+                    } else if (onOpenSettings) {
+                      onOpenSettings();
+                    }
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(212, 175, 55, 0.15)', color: 'var(--accent)' }}>
+                    <Sparkles size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={styles.toolName}>Actualizaciones</span>
+                      <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: '700' }}>v2.0.0</span>
+                    </div>
+                    <div style={styles.toolDesc}>Buscar nuevas versiones en GitHub</div>
+                  </div>
+                </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
     </div>
   );
 }
@@ -510,8 +543,8 @@ const styles = {
     alignItems: 'center',
     gap: '8px',
     padding: '0 12px',
-    background: 'var(--bg-primary)',
-    borderBottom: '1px solid var(--border-subtle)',
+    background: 'transparent',
+    borderBottom: 'none',
     position: 'relative',
     zIndex: 40
   },
@@ -600,216 +633,99 @@ const styles = {
   },
   brokerIconBtnActive: {
     background: 'rgba(240, 185, 11, 0.18)',
-    borderColor: '#F0B90B',
-    boxShadow: '0 0 10px rgba(240, 185, 11, 0.25)'
+    borderColor: '#F0B90B'
   },
-  binanceBtn: {
+  themePillBtn: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
     padding: '0 10px',
     height: '32px',
     borderRadius: '8px',
-    background: 'rgba(240, 185, 11, 0.12)',
-    border: '1px solid rgba(240, 185, 11, 0.3)',
-    color: '#F0B90B',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
     fontSize: '11.5px',
     fontWeight: '700',
+    cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
-  binanceBtnActive: {
-    background: 'rgba(240, 185, 11, 0.25)',
-    borderColor: '#F0B90B',
-    boxShadow: '0 0 12px rgba(240, 185, 11, 0.3)'
+  themePillBtnActive: {
+    background: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'var(--accent)',
+    boxShadow: '0 0 10px var(--accent-glow)'
   },
-  binanceLogo: {
-    display: 'flex',
-    alignItems: 'center'
+  themePillName: {
+    letterSpacing: '0.3px',
+    whiteSpace: 'nowrap'
   },
-  binanceLabel: {
-    letterSpacing: '0.5px'
-  },
-  tickerBadge: {
-    fontSize: '11px',
-    fontFamily: 'JetBrains Mono, monospace',
-    fontWeight: '500',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    background: 'rgba(0,0,0,0.3)',
-    marginLeft: '2px'
-  },
-  palettePopover: {
-    position: 'absolute',
-    top: '40px',
-    right: '0',
-    width: '180px',
-    padding: '12px',
-    borderRadius: '12px',
-    zIndex: 100
-  },
-  paletteTitle: {
-    fontSize: '11px',
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    color: 'var(--text-muted)',
-    marginBottom: '8px'
-  },
-  colorGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '8px'
-  },
-  colorCircle: {
+  themeCycleBtn: {
     width: '32px',
     height: '32px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'transform 0.15s ease',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-  },
-  suggestionsDropdown: {
-    position: 'absolute',
-    top: '38px',
-    left: '0',
-    right: '0',
-    borderRadius: '12px',
-    padding: '6px',
-    zIndex: 999,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    maxHeight: '260px',
-    overflowY: 'auto'
-  },
-  suggestionRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontSize: '12px',
-    transition: 'background 0.12s ease'
-  },
-  suggestionBadge: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: 'var(--text-muted)',
-    background: 'var(--bg-tertiary)',
-    padding: '2px 6px',
-    borderRadius: '4px',
-    textTransform: 'uppercase'
-  },
-  suggTitle: {
-    fontSize: '12.5px',
-    fontWeight: '600',
-    color: 'var(--text-primary)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-  suggUrl: {
-    fontSize: '10.5px',
-    color: 'var(--text-muted)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-  toolsMenuPopover: {
-    position: 'absolute',
-    top: '38px',
-    right: '0',
-    width: '280px',
-    borderRadius: '16px',
-    padding: '10px',
-    background: 'var(--bg-secondary)',
-    border: '1px solid var(--border-hover)',
-    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.55)',
-    zIndex: 100,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px'
-  },
-  toolsMenuHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '4px 8px 8px 8px',
-    borderBottom: '1px solid var(--border-subtle)',
-    marginBottom: '4px'
-  },
-  toolsMenuTitle: {
-    fontSize: '12px',
-    fontWeight: '700',
-    color: 'var(--text-primary)',
-    letterSpacing: '0.3px'
-  },
-  closePopoverBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--text-muted)',
-    fontSize: '18px',
-    cursor: 'pointer',
-    padding: '0 4px',
-    lineHeight: '1'
-  },
-  toolsList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px'
-  },
-  toolItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    padding: '7px 10px',
-    borderRadius: '10px',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left',
-    width: '100%',
-    transition: 'background 0.15s ease'
-  },
-  toolIconBox: {
-    width: '28px',
-    height: '28px',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-secondary)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
   },
-  toolTexts: {
-    flex: 1,
-    minWidth: 0
+  themesDropdown: {
+    position: 'absolute',
+    top: '38px',
+    left: '0',
+    width: '230px',
+    padding: '8px',
+    borderRadius: '14px',
+    zIndex: 110,
+    background: 'var(--glass-bg)',
+    border: '1px solid var(--border-hover)',
+    backdropFilter: 'blur(20px)',
+    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.65)'
   },
-  toolName: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: 'var(--text-primary)'
-  },
-  toolDesc: {
-    fontSize: '10.5px',
-    color: 'var(--text-muted)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-  menuDivider: {
-    height: '1px',
-    background: 'var(--border-subtle)',
-    margin: '4px 0'
-  },
-  accentSection: {
-    padding: '6px 10px'
-  },
-  accentLabel: {
+  themesHeader: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '4px 6px 8px 6px',
+    borderBottom: '1px solid var(--border-subtle)',
+    marginBottom: '6px'
+  },
+  themesTitle: {
     fontSize: '11px',
-    fontWeight: '600',
-    color: 'var(--text-secondary)',
-    marginBottom: '8px'
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    color: 'var(--text-secondary)'
+  },
+  themesCountBadge: {
+    fontSize: '9.5px',
+    fontWeight: '700',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    background: 'var(--bg-hover)',
+    color: 'var(--accent)'
+  },
+  themesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '3px',
+    maxHeight: '300px',
+    overflowY: 'auto'
+  },
+  themeOptionItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '6px 8px',
+    borderRadius: '8px',
+    background: 'transparent',
+    border: '1px solid transparent',
+    cursor: 'pointer',
+    width: '100%',
+    transition: 'all 0.12s ease'
   }
 };
+

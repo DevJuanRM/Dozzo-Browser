@@ -13,7 +13,6 @@ import ContextMenu from './components/ContextMenu';
 import DevInspectorDrawer from './components/DevInspectorDrawer';
 import ErrorBoundary from './components/ErrorBoundary';
 import HistoryModal from './components/HistoryModal';
-import VoiceAssistantModal from './components/VoiceAssistantModal';
 import MobileBrowserUI from './components/MobileBrowserUI';
 import ResponsiveDeviceBar from './components/ResponsiveDeviceBar';
 import UpdateNotificationModal from './components/UpdateNotificationModal';
@@ -55,47 +54,84 @@ export default function App() {
   ]);
   const [activeTabId, setActiveTabId] = useState('tab-1');
 
-  // Appearance & Themes (Default to pure pitch black 'none', zero tint by default)
-  const [theme, setTheme] = useState(() => localStorage.getItem('dozzo_theme') || 'dark');
+  // Appearance & Curated 10 Themes System (Default: 'obsidian-aurora')
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('dozzo_theme');
+    if (!saved || saved === 'dark') return 'obsidian-aurora';
+    if (saved === 'light') return 'mac-snow';
+    return saved;
+  });
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('dozzo_accent') || 'none');
   const [splitMode, setSplitMode] = useState(() => localStorage.getItem('dozzo_split_mode') || 'single');
   const [searchEngine, setSearchEngine] = useState(() => localStorage.getItem('dozzo_engine') || 'duckduckgo');
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
-  const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar') === 'true');
+  // Fixed top bar by default (only hidden if explicitly toggled via the chevron arrow button)
+  const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar_v2') === 'true');
   const [isHoveringTop, setIsHoveringTop] = useState(false);
-  const [showPillHint, setShowPillHint] = useState(false);
-  const [isScrolledHidden, setIsScrolledHidden] = useState(false);
-  const pillTimeoutRef = useRef(null);
+  const topHoverTimerRef = useRef(null);
+
+  const hideTopBarImmediately = () => {
+    if (topHoverTimerRef.current) {
+      clearTimeout(topHoverTimerRef.current);
+      topHoverTimerRef.current = null;
+    }
+    setIsHoveringTop(false);
+  };
+
+  const handleHeaderMouseEnter = () => {
+    if (topHoverTimerRef.current) {
+      clearTimeout(topHoverTimerRef.current);
+      topHoverTimerRef.current = null;
+    }
+    if (isAutoHidden) {
+      setIsHoveringTop(true);
+    }
+  };
+
+  // Note: Top bar now only hides when the user explicitly clicks outside of it,
+  // preventing it from repeatedly popping in and out while moving the mouse.
+  const handleHeaderMouseLeave = () => {
+    // Intentional no-op: dismissed exclusively on click-outside
+  };
+
+  // Global click-outside & webview focus blur listeners:
+  // If top bar is peeking and user clicks anywhere outside the header, hide immediately
+  useEffect(() => {
+    if (!isAutoHidden || !isHoveringTop) return;
+
+    const handleGlobalPointerDown = (e) => {
+      const headerEl = document.querySelector('.top-header-wrapper');
+      if (headerEl && !headerEl.contains(e.target)) {
+        hideTopBarImmediately();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      hideTopBarImmediately();
+    };
+
+    window.addEventListener('pointerdown', handleGlobalPointerDown, true);
+    window.addEventListener('mousedown', handleGlobalPointerDown, true);
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
+      window.removeEventListener('mousedown', handleGlobalPointerDown, true);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isAutoHidden, isHoveringTop]);
 
   const handleSplitModeChange = (mode) => {
     setSplitMode(mode);
     localStorage.setItem('dozzo_split_mode', mode);
   };
 
-  const isHeaderHidden = isAutoHidden || isScrolledHidden;
+  // Fixed by default. Header only collapses if user toggled auto-hide on with the arrow.
+  const isHeaderHidden = isAutoHidden;
 
-  // Auto-hide pill hint fade-out timer
-  useEffect(() => {
-    if (isAutoHidden) {
-      setShowPillHint(true);
-      if (pillTimeoutRef.current) clearTimeout(pillTimeoutRef.current);
-      pillTimeoutRef.current = setTimeout(() => {
-        setShowPillHint(false);
-      }, 2500);
-    } else {
-      setShowPillHint(false);
-    }
-  }, [isAutoHidden]);
-
-  // Handle scroll down inside webview to auto-hide top bar smoothly
+  // Scroll direction handler: kept for future custom behaviors, does not hide fixed top bar
   const handleScrollDirection = (direction) => {
-    if (direction === 'down') {
-      if (!isHoveringTop) {
-        setIsScrolledHidden(true);
-      }
-    } else if (direction === 'up') {
-      setIsScrolledHidden(false);
-    }
+    // Top bar is fixed by default; scroll does not hide it
   };
 
   // Privacy & Adblocker Stats
@@ -116,7 +152,7 @@ export default function App() {
   const [isInspectorActive, setIsInspectorActive] = useState(false);
   const [inspectedElement, setInspectedElement] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+
 
   // Responsive Device Mode state (Chrome DevTools style)
   const [responsiveMode, setResponsiveMode] = useState({
@@ -293,6 +329,20 @@ export default function App() {
       return unsubscribe;
     }
   }, []);
+
+  const handleCheckUpdates = async () => {
+    try {
+      const release = await checkForLatestRelease(true);
+      if (release && release.hasUpdate) {
+        setActiveUpdateData(release);
+        setIsUpdateModalOpen(true);
+      } else {
+        setIsSettingsOpen(true);
+      }
+    } catch (e) {
+      setIsSettingsOpen(true);
+    }
+  };
 
   // Keyboard Shortcuts (Ctrl+T, Ctrl+W, Ctrl+R, Ctrl+J)
   useEffect(() => {
@@ -590,38 +640,54 @@ export default function App() {
           onToggleShieldModal={() => setIsShieldOpen(true)}
           selectedCryptoBroker={selectedCryptoBroker}
           onOpenBinance={() => setIsBinanceOpen(true)}
-          onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
           onOpenDownloads={() => setIsDownloadsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           theme={theme}
-          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onToggleTheme={() => setTheme(theme === 'mac-snow' ? 'obsidian-aurora' : 'mac-snow')}
           isBookmarked={isCurrentBookmarked}
           onToggleBookmark={handleToggleBookmark}
         />
       ) : (
         <>
-          {/* Top Hover Trigger Zone when bar is auto-hidden or scrolled-hidden */}
-          {isHeaderHidden && (
+          {/* Top Hover & Click Trigger Zone when bar is auto-hidden */}
+          {isHeaderHidden && !isHoveringTop && (
             <div
               className="top-hover-trigger"
-              onMouseEnter={() => setIsHoveringTop(true)}
-              title="Pasar el cursor por la parte superior para mostrar la barra del explorador"
-            >
-              {showPillHint && (
-                <div className="top-hover-pill pill-fade-out">
-                  <ChevronDown size={13} />
-                  <span>Barra Oculta</span>
-                </div>
-              )}
-            </div>
+              onMouseEnter={handleHeaderMouseEnter}
+              onClick={handleHeaderMouseEnter}
+              title="Hacer clic o pasar el cursor por la parte superior para mostrar la barra del explorador"
+            />
+          )}
+
+          {/* Transparent Click-Outside Backdrop: catches any click outside the header to dismiss it */}
+          {isHeaderHidden && isHoveringTop && (
+            <div
+              className="top-bar-click-outside-backdrop"
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 95,
+                background: 'transparent',
+                cursor: 'default'
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                hideTopBarImmediately();
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                hideTopBarImmediately();
+              }}
+            />
           )}
 
           {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
           <div
             className={`top-header-wrapper ${isHeaderHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
-            onMouseEnter={() => isHeaderHidden && setIsHoveringTop(true)}
-            onMouseLeave={() => isHeaderHidden && setIsHoveringTop(false)}
           >
             {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
             <TitleBar
@@ -636,9 +702,8 @@ export default function App() {
               onToggleAutoHide={() => {
                 const next = !isAutoHidden;
                 setIsAutoHidden(next);
-                localStorage.setItem('dozzo_autohide_topbar', String(next));
+                localStorage.setItem('dozzo_autohide_topbar_v2', String(next));
                 if (!next) {
-                  setIsScrolledHidden(false);
                   setIsHoveringTop(false);
                 }
               }}
@@ -650,10 +715,13 @@ export default function App() {
                 localStorage.setItem('dozzo_bookmarks_visible', String(next));
               }}
               showBookmarksBar={showBookmarksBar}
-              onPopOutTab={handlePopOutTab}
+              onReorderTabs={(newTabs) => setTabs(newTabs)}
+              isHomeActive={Boolean(activeTab?.isNewTab || !activeTab?.url)}
+              isBookmarked={isCurrentBookmarked}
+              onToggleBookmark={handleToggleBookmark}
             />
 
-            {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
+            {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, 10 Themes Selector, Sidebar) */}
             <NavigationBar
               currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
               isLoading={activeTab?.isLoading}
@@ -679,10 +747,9 @@ export default function App() {
               isBinanceOpen={isBinanceOpen}
               selectedCryptoBroker={selectedCryptoBroker}
               theme={theme}
-              onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              accentColor={accentColor}
-              onChangeAccent={(acc) => setAccentColor(acc)}
+              onChangeTheme={(newTheme) => setTheme(newTheme)}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onCheckUpdates={handleCheckUpdates}
               searchEngine={searchEngine}
               isBookmarked={isCurrentBookmarked}
               onToggleBookmark={handleToggleBookmark}
@@ -694,19 +761,18 @@ export default function App() {
               onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
               isInspectorActive={isInspectorActive}
               onOpenHistory={() => setIsHistoryOpen(true)}
-              onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
               history={history}
               isAutoHidden={isAutoHidden}
               onToggleAutoHide={() => {
                 const next = !isAutoHidden;
                 setIsAutoHidden(next);
-                localStorage.setItem('dozzo_autohide_topbar', String(next));
+                localStorage.setItem('dozzo_autohide_topbar_v2', String(next));
                 if (!next) {
-                  setIsScrolledHidden(false);
                   setIsHoveringTop(false);
                 }
               }}
             />
+
 
             {/* Optional Bookmarks Bar */}
             {showBookmarksBar && (
@@ -744,15 +810,7 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Code2 size={16} color="var(--accent)" />
             <span>
-              {activeTab?.isNewTab ? (
-                <>
-                  <strong>Modo Dev Studio:</strong> Escribe una URL o abre una página web para seleccionar componentes y convertirlos a <strong>React (JSX)</strong> o <strong>Figma</strong>.
-                </>
-              ) : (
-                <>
-                  <strong>Modo Dev Studio Activo:</strong> Mueve el mouse sobre cualquier botón, tarjeta o texto en la página y <strong>haz clic</strong> para clonarlo a <strong>React (JSX)</strong> y <strong>Figma</strong>.
-                </>
-              )}
+              <strong>Modo Dev Studio Activo:</strong> Mueve el mouse sobre cualquier botón, tarjeta o elemento y <strong>haz clic</strong> para inspeccionarlo y clonarlo a <strong>React (JSX)</strong> y <strong>Figma</strong>.
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -918,6 +976,9 @@ export default function App() {
           responsiveMode={responsiveMode}
           isDevInspectorOpen={Boolean(inspectedElement)}
           devDrawerWidth={480}
+          isAutoHidden={isAutoHidden}
+          isHoveringTop={isHoveringTop}
+          onDismissTopBar={hideTopBarImmediately}
         />
       </ErrorBoundary>
 
@@ -1007,27 +1068,6 @@ export default function App() {
         }}
       />
 
-      {/* Dozzo Voice Assistant Modal */}
-      <VoiceAssistantModal
-        isOpen={isVoiceOpen}
-        onClose={() => setIsVoiceOpen(false)}
-        onNavigate={handleNavigate}
-        onNewTab={(url) => handleNewTab(url)}
-        onCloseTab={() => handleCloseTab(activeTabId)}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        onOpenDownloads={() => setIsDownloadsOpen(true)}
-        onOpenSidebar={() => setIsSidebarOpen(true)}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
-        onOpenBinance={() => setIsBinanceOpen(true)}
-        onExecuteInPage={(code) => {
-          const wv = webviewRefs.current.get(activeTabId);
-          if (wv && typeof wv.executeJavaScript === 'function') {
-            return wv.executeJavaScript(code).catch(() => {});
-          }
-        }}
-      />
-
       {/* Shield Details Modal */}
       <ShieldModal
         isOpen={isShieldOpen}
@@ -1038,7 +1078,7 @@ export default function App() {
         onResetStats={handleResetStats}
       />
 
-      {/* Settings Modal */}
+      {/* Settings Modal (10 Themes Included) */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -1048,9 +1088,7 @@ export default function App() {
           localStorage.setItem('dozzo_engine', eng);
         }}
         theme={theme}
-        onToggleTheme={(t) => setTheme(t)}
-        accentColor={accentColor}
-        onChangeAccent={(acc) => setAccentColor(acc)}
+        onSelectTheme={(t) => setTheme(t)}
         showBookmarksBar={showBookmarksBar}
         onToggleBookmarksBar={() => {
           const next = !showBookmarksBar;
@@ -1080,5 +1118,6 @@ export default function App() {
         onClose={() => setIsInstallGuideOpen(false)}
       />
     </div>
+
   );
 }

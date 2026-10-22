@@ -31,7 +31,7 @@ export default function DownloadsModal({ isOpen, onClose, downloads, onClearDown
         <div style={styles.header}>
           <div style={styles.titleGroup}>
             <div style={styles.iconBadge}>
-              <Download size={18} color="var(--accent)" />
+              <img src="./Logo.svg" alt="Dozzo Logo" style={{ width: '22px', height: '22px', borderRadius: '5px', objectFit: 'contain' }} />
             </div>
             <div>
               <div style={styles.title}>Descargas</div>
@@ -58,7 +58,7 @@ export default function DownloadsModal({ isOpen, onClose, downloads, onClearDown
           {downloads.length === 0 ? (
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>
-                <Download size={32} color="var(--text-muted)" />
+                <img src="./Logo.svg" alt="Dozzo Logo" style={{ width: '44px', height: '44px', borderRadius: '10px', objectFit: 'contain', opacity: 0.9 }} />
               </div>
               <div style={styles.emptyTitle}>No hay descargas activas</div>
               <div style={styles.emptySubtitle}>Los archivos que descargues aparecerán aquí automáticamente.</div>
