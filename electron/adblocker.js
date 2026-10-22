@@ -4,21 +4,11 @@ const { session } = require('electron');
 let totalBlockedCount = 0;
 let isShieldActive = true;
 
-// Patterns for ads, trackers, analytics, telemetry, and YouTube ad endpoints
+// Patterns for third-party ads, trackers, analytics, and telemetry
+// Note: YouTube internal playback endpoints are skipped from ERR_BLOCKED_BY_CLIENT
+// to prevent YouTube's videoplayfailed402 anti-adblock detection.
 const AD_URL_PATTERNS = [
-  // Google / YouTube Ad Networks
-  '*://*.doubleclick.net/*',
-  '*://*.googlesyndication.com/*',
-  '*://*.googleadservices.com/*',
-  '*://*.adservice.google.com/*',
-  '*://ad.doubleclick.net/*',
-  '*://*.youtube.com/api/stats/ads*',
-  '*://*.youtube.com/pagead/*',
-  '*://*.youtube.com/ptracking*',
-  '*://*.youtube.com/ad_companion*',
-  '*://*.youtube.com/get_midroll_info*',
-  '*://*.youtube.com/youtubei/v1/att/get*',
-  // Third-party Ad exchanges
+  // Third-party Ad exchanges & banner networks
   '*://*.criteo.com/*',
   '*://*.criteo.net/*',
   '*://*.adnxs.com/*',
@@ -33,7 +23,7 @@ const AD_URL_PATTERNS = [
   '*://*.popads.net/*',
   '*://*.propellerads.com/*',
   '*://*.infolinks.com/*',
-  // Trackers and Telemetry
+  // Trackers, Spyware and Telemetry
   '*://*.google-analytics.com/*',
   '*://*.analytics.google.com/*',
   '*://*.googletagmanager.com/gtag/js*',
@@ -62,9 +52,11 @@ function setupAdBlocker(targetSession, onBlockedCallback) {
     callback({ cancel: true });
   });
 
-  // Strip tracking headers like client-hints or referrer to enhance privacy
+  // Strip tracking headers to enhance user privacy
   targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
-    delete details.requestHeaders['X-Client-Data'];
+    if (details.requestHeaders['X-Client-Data']) {
+      delete details.requestHeaders['X-Client-Data'];
+    }
     callback({ cancel: false, requestHeaders: details.requestHeaders });
   });
 }
