@@ -13,7 +13,8 @@ export default function WebviewContainer({
   onOpenBinance,
   webviewRefs,
   isInspectorActive,
-  onElementInspected
+  onElementInspected,
+  onScrollDirection
 }) {
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
@@ -45,6 +46,7 @@ export default function WebviewContainer({
             webviewRefs={webviewRefs}
             isInspectorActive={isInspectorActive}
             onElementInspected={onElementInspected}
+            onScrollDirection={onScrollDirection}
           />
         );
       })}
@@ -52,7 +54,16 @@ export default function WebviewContainer({
   );
 }
 
-function WebviewItem({ tab, isActive, onUpdateTab, onNewTabWithUrl, webviewRefs, isInspectorActive, onElementInspected }) {
+function WebviewItem({
+  tab,
+  isActive,
+  onUpdateTab,
+  onNewTabWithUrl,
+  webviewRefs,
+  isInspectorActive,
+  onElementInspected,
+  onScrollDirection
+}) {
   const ref = useRef(null);
   const initialUrlRef = useRef(tab.url);
   const lastKnownUrl = useRef(tab.url);
@@ -147,6 +158,14 @@ function WebviewItem({ tab, isActive, onUpdateTab, onNewTabWithUrl, webviewRefs,
     };
 
     const handleConsoleMessage = (e) => {
+      if (e.message && e.message.startsWith('__DOZZO_SCROLL__:')) {
+        const dir = e.message.replace('__DOZZO_SCROLL__:', '');
+        if (isActive && onScrollDirection) {
+          onScrollDirection(dir);
+        }
+        return;
+      }
+
       if (e.message && e.message.startsWith('__DOZZO_DEV_INSPECT__:')) {
         try {
           const raw = e.message.replace('__DOZZO_DEV_INSPECT__:', '');

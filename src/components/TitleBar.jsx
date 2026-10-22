@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, X, Minus, Square, Copy, Volume2, Globe, Shield } from 'lucide-react';
 
 export default function TitleBar({
@@ -9,6 +9,8 @@ export default function TitleBar({
   onNewTab,
   isMaximized
 }) {
+  const [expandedTabId, setExpandedTabId] = useState(null);
+
   const handleMinimize = () => {
     if (window.browserAPI?.minimize) window.browserAPI.minimize();
   };
@@ -34,10 +36,11 @@ export default function TitleBar({
       {/* Left Draggable Spacer */}
       <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
 
-      {/* Centered iOS / macOS Style Dock Tabs */}
+      {/* Centered iOS / macOS Style Dock (Ultra Round Capsule) */}
       <div style={styles.dockWrapper} className="no-drag">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const isExpanded = expandedTabId === tab.id;
           const displayTitle = tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...');
 
           return (
@@ -45,11 +48,19 @@ export default function TitleBar({
               key={tab.id}
               style={{
                 ...styles.dockTab,
-                ...(isActive ? styles.dockTabActive : styles.dockTabCircle)
+                ...(isExpanded
+                  ? styles.dockTabActive
+                  : isActive
+                  ? { ...styles.dockTabCircle, ...styles.dockTabCircleActive }
+                  : styles.dockTabCircle)
               }}
               className={`dock-tab-item ${isActive ? 'active' : ''}`}
-              onClick={() => onSelectTab(tab.id)}
-              title={displayTitle}
+              onClick={() => {
+                onSelectTab(tab.id);
+                // Clicking toggles opening/closing the tab pill name
+                setExpandedTabId((prev) => (prev === tab.id ? null : tab.id));
+              }}
+              title={isExpanded ? 'Clic para colapsar a círculo' : displayTitle}
             >
               {/* Favicon or Loading Spinner */}
               <div style={styles.faviconBox}>
@@ -65,12 +76,12 @@ export default function TitleBar({
                     }}
                   />
                 ) : (
-                  <Globe size={14} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
+                  <Globe size={15} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
                 )}
               </div>
 
-              {/* Smoothly expanded content for active tab */}
-              {isActive && (
+              {/* Expanded content only when clicked to reveal name */}
+              {isExpanded && (
                 <>
                   <span style={styles.tabTitle}>{displayTitle}</span>
 
@@ -85,6 +96,7 @@ export default function TitleBar({
                     onClick={(e) => {
                       e.stopPropagation();
                       onCloseTab(tab.id);
+                      if (isExpanded) setExpandedTabId(null);
                     }}
                     title="Cerrar pestaña"
                   >
@@ -159,12 +171,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    background: 'rgba(15, 23, 42, 0.75)',
+    background: 'rgba(24, 24, 24, 0.88)',
     backdropFilter: 'blur(20px)',
     border: '1px solid var(--border-hover)',
-    borderRadius: '22px',
-    padding: '3px 6px',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+    borderRadius: '9999px',
+    padding: '4px 8px',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
     flexShrink: 0
   },
   dockTab: {
@@ -172,24 +184,29 @@ const styles = {
     alignItems: 'center',
     cursor: 'pointer',
     userSelect: 'none',
-    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
+    transition: 'all 0.35s cubic-bezier(0.2, 0.9, 0.25, 1)'
   },
   dockTabCircle: {
     width: '36px',
     height: '36px',
-    borderRadius: '11px',
+    borderRadius: '50%',
     background: 'rgba(255, 255, 255, 0.05)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     boxShadow: '0 3px 8px rgba(0,0,0,0.25)'
   },
+  dockTabCircleActive: {
+    border: '2px solid var(--accent)',
+    boxShadow: '0 0 12px var(--accent-glow)',
+    background: 'rgba(255, 255, 255, 0.1)'
+  },
   dockTabActive: {
     height: '36px',
     minWidth: '150px',
-    maxWidth: '230px',
+    maxWidth: '240px',
     padding: '0 12px',
-    borderRadius: '13px',
-    background: 'var(--bg-primary)',
+    borderRadius: '9999px',
+    background: 'var(--bg-secondary)',
     border: '1px solid var(--accent)',
     boxShadow: '0 0 14px var(--accent-glow)',
     gap: '7px'
@@ -203,9 +220,9 @@ const styles = {
     flexShrink: 0
   },
   favicon: {
-    width: '17px',
-    height: '17px',
-    borderRadius: '4px'
+    width: '18px',
+    height: '18px',
+    borderRadius: '50%'
   },
   spinner: {
     width: '12px',
@@ -232,7 +249,7 @@ const styles = {
   closeBtn: {
     width: '18px',
     height: '18px',
-    borderRadius: '4px',
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -241,9 +258,9 @@ const styles = {
     flexShrink: 0
   },
   addTabBtn: {
-    width: '30px',
-    height: '30px',
-    borderRadius: '10px',
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

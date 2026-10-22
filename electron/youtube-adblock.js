@@ -199,4 +199,42 @@
       attributeFilter: ['class']
     });
   }
+
+  // Universal scroll detection for auto-hiding top bar
+  try {
+    let lastY = 0;
+    let ticking = false;
+    window.addEventListener(
+      'scroll',
+      function () {
+        if (!ticking) {
+          window.requestAnimationFrame(function () {
+            const currentY = window.scrollY || document.documentElement.scrollTop || 0;
+            const diff = currentY - lastY;
+            if (diff > 18 && currentY > 40) {
+              console.log('__DOZZO_SCROLL__:down');
+            } else if (diff < -18 || currentY <= 15) {
+              console.log('__DOZZO_SCROLL__:up');
+            }
+            lastY = currentY;
+            ticking = false;
+          });
+          ticking = true;
+        }
+      },
+      { passive: true }
+    );
+
+    window.addEventListener(
+      'wheel',
+      function (e) {
+        if (e.deltaY > 20) {
+          console.log('__DOZZO_SCROLL__:down');
+        } else if (e.deltaY < -20) {
+          console.log('__DOZZO_SCROLL__:up');
+        }
+      },
+      { passive: true }
+    );
+  } catch (e) {}
 })();

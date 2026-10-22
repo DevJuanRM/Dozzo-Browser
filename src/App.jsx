@@ -40,7 +40,10 @@ export default function App() {
   const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar') === 'true');
   const [isHoveringTop, setIsHoveringTop] = useState(false);
   const [showPillHint, setShowPillHint] = useState(false);
+  const [isScrolledHidden, setIsScrolledHidden] = useState(false);
   const pillTimeoutRef = useRef(null);
+
+  const isHeaderHidden = isAutoHidden || isScrolledHidden;
 
   // Auto-hide pill hint fade-out timer
   useEffect(() => {
@@ -54,6 +57,17 @@ export default function App() {
       setShowPillHint(false);
     }
   }, [isAutoHidden]);
+
+  // Handle scroll down inside webview to auto-hide top bar smoothly
+  const handleScrollDirection = (direction) => {
+    if (direction === 'down') {
+      if (!isHoveringTop) {
+        setIsScrolledHidden(true);
+      }
+    } else if (direction === 'up') {
+      setIsScrolledHidden(false);
+    }
+  };
 
   // Privacy & Adblocker Stats
   const [blockedCount, setBlockedCount] = useState(0);
@@ -414,8 +428,8 @@ export default function App() {
         }
       }}
     >
-      {/* Top Hover Trigger Zone when bar is auto-hidden */}
-      {isAutoHidden && (
+      {/* Top Hover Trigger Zone when bar is auto-hidden or scrolled-hidden */}
+      {isHeaderHidden && (
         <div
           className="top-hover-trigger"
           onMouseEnter={() => setIsHoveringTop(true)}
@@ -432,9 +446,9 @@ export default function App() {
 
       {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
       <div
-        className={`top-header-wrapper ${isAutoHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
-        onMouseEnter={() => isAutoHidden && setIsHoveringTop(true)}
-        onMouseLeave={() => isAutoHidden && setIsHoveringTop(false)}
+        className={`top-header-wrapper ${isHeaderHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
+        onMouseEnter={() => isHeaderHidden && setIsHoveringTop(true)}
+        onMouseLeave={() => isHeaderHidden && setIsHoveringTop(false)}
       >
         {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
         <TitleBar
@@ -492,7 +506,10 @@ export default function App() {
             const next = !isAutoHidden;
             setIsAutoHidden(next);
             localStorage.setItem('dozzo_autohide_topbar', String(next));
-            if (!next) setIsHoveringTop(false);
+            if (!next) {
+              setIsScrolledHidden(false);
+              setIsHoveringTop(false);
+            }
           }}
         />
 
@@ -580,6 +597,7 @@ export default function App() {
             setInspectedElement(data);
             setIsInspectorActive(false);
           }}
+          onScrollDirection={handleScrollDirection}
         />
       </ErrorBoundary>
 

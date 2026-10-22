@@ -88,7 +88,7 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     frame: false, // Borderless modern browser frame
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0f0f0f',
     title: 'Dozzo Browser',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

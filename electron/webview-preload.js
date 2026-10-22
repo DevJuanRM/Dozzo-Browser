@@ -83,6 +83,43 @@
       }
       return origSend.apply(this, args);
     };
+
+    // Track scrolling to auto-hide navigation bar on scroll down
+    let lastScrollY = 0;
+    let ticking = false;
+
+    window.addEventListener(
+      'scroll',
+      function () {
+        if (!ticking) {
+          window.requestAnimationFrame(function () {
+            const currentScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+            const diff = currentScrollY - lastScrollY;
+            if (diff > 18 && currentScrollY > 40) {
+              console.log('__DOZZO_SCROLL__:down');
+            } else if (diff < -18 || currentScrollY <= 15) {
+              console.log('__DOZZO_SCROLL__:up');
+            }
+            lastScrollY = currentScrollY;
+            ticking = false;
+          });
+          ticking = true;
+        }
+      },
+      { passive: true }
+    );
+
+    window.addEventListener(
+      'wheel',
+      function (e) {
+        if (e.deltaY > 20) {
+          console.log('__DOZZO_SCROLL__:down');
+        } else if (e.deltaY < -20) {
+          console.log('__DOZZO_SCROLL__:up');
+        }
+      },
+      { passive: true }
+    );
   } catch (err) {
     console.warn('[Dozzo Preload] Hook warning:', err);
   }
