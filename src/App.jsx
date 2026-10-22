@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Code2, X } from 'lucide-react';
+import { Code2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import TitleBar from './components/TitleBar';
 import NavigationBar from './components/NavigationBar';
 import BookmarksBar from './components/BookmarksBar';
@@ -37,6 +37,8 @@ export default function App() {
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('dozzo_accent') || 'gold');
   const [searchEngine, setSearchEngine] = useState(() => localStorage.getItem('dozzo_engine') || 'duckduckgo');
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
+  const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar') === 'true');
+  const [isHoveringTop, setIsHoveringTop] = useState(false);
 
   // Privacy & Adblocker Stats
   const [blockedCount, setBlockedCount] = useState(0);
@@ -397,66 +399,95 @@ export default function App() {
         }
       }}
     >
-      {/* Custom Window TitleBar & Tabs */}
-      <TitleBar
-        tabs={tabs}
-        activeTabId={activeTabId}
-        onSelectTab={(id) => setActiveTabId(id)}
-        onCloseTab={handleCloseTab}
-        onNewTab={() => handleNewTab()}
-        isMaximized={isMaximized}
-      />
+      {/* Top Hover Trigger Zone when bar is auto-hidden */}
+      {isAutoHidden && (
+        <div
+          className="top-hover-trigger"
+          onMouseEnter={() => setIsHoveringTop(true)}
+          onClick={() => setIsHoveringTop((prev) => !prev)}
+          title="Pasar el mouse para mostrar la barra del explorador"
+        >
+          <div className="top-hover-pill">
+            <ChevronDown size={13} />
+            <span>Mostrar Barra</span>
+          </div>
+        </div>
+      )}
 
-      {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
-      <NavigationBar
-        currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
-        isLoading={activeTab?.isLoading}
-        canGoBack={activeTab?.canGoBack}
-        canGoForward={activeTab?.canGoForward}
-        onNavigate={handleNavigate}
-        onGoBack={handleGoBack}
-        onGoForward={handleGoForward}
-        onReload={handleReload}
-        onStop={handleStop}
-        onGoHome={handleGoHome}
-        blockedCount={blockedCount}
-        isShieldActive={isShieldActive}
-        onToggleShieldModal={() => setIsShieldOpen(true)}
-        onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
-        isBinanceOpen={isBinanceOpen}
-        theme={theme}
-        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        accentColor={accentColor}
-        onChangeAccent={(acc) => setAccentColor(acc)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        searchEngine={searchEngine}
-        isBookmarked={isCurrentBookmarked}
-        onToggleBookmark={handleToggleBookmark}
-        binanceTicker={binanceTicker}
-        onToggleDownloads={() => setIsDownloadsOpen(!isDownloadsOpen)}
-        downloadsCount={downloads.filter((d) => d.state === 'progressing').length}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        isSidebarOpen={isSidebarOpen}
-        onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
-        isInspectorActive={isInspectorActive}
-        onOpenHistory={() => setIsHistoryOpen(true)}
-        onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
-        history={history}
-      />
+      {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
+      <div
+        className={`top-header-wrapper ${isAutoHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
+        onMouseEnter={() => isAutoHidden && setIsHoveringTop(true)}
+        onMouseLeave={() => isAutoHidden && setIsHoveringTop(false)}
+      >
+        {/* Custom Window TitleBar & Tabs */}
+        <TitleBar
+          tabs={tabs}
+          activeTabId={activeTabId}
+          onSelectTab={(id) => setActiveTabId(id)}
+          onCloseTab={handleCloseTab}
+          onNewTab={() => handleNewTab()}
+          isMaximized={isMaximized}
+        />
 
-      {/* Optional Bookmarks Bar */}
-      {showBookmarksBar && (
-        <BookmarksBar
-          bookmarks={bookmarks}
-          onNavigate={(url) => {
-            if (activeTab?.isNewTab) {
-              handleNavigate(url);
-            } else {
-              handleNewTab(url);
-            }
+        {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
+        <NavigationBar
+          currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
+          isLoading={activeTab?.isLoading}
+          canGoBack={activeTab?.canGoBack}
+          canGoForward={activeTab?.canGoForward}
+          onNavigate={handleNavigate}
+          onGoBack={handleGoBack}
+          onGoForward={handleGoForward}
+          onReload={handleReload}
+          onStop={handleStop}
+          onGoHome={handleGoHome}
+          blockedCount={blockedCount}
+          isShieldActive={isShieldActive}
+          onToggleShieldModal={() => setIsShieldOpen(true)}
+          onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
+          isBinanceOpen={isBinanceOpen}
+          theme={theme}
+          onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          accentColor={accentColor}
+          onChangeAccent={(acc) => setAccentColor(acc)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          searchEngine={searchEngine}
+          isBookmarked={isCurrentBookmarked}
+          onToggleBookmark={handleToggleBookmark}
+          binanceTicker={binanceTicker}
+          onToggleDownloads={() => setIsDownloadsOpen(!isDownloadsOpen)}
+          downloadsCount={downloads.filter((d) => d.state === 'progressing').length}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
+          isInspectorActive={isInspectorActive}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+          history={history}
+          isAutoHidden={isAutoHidden}
+          onToggleAutoHide={() => {
+            const next = !isAutoHidden;
+            setIsAutoHidden(next);
+            localStorage.setItem('dozzo_autohide_topbar', String(next));
+            if (!next) setIsHoveringTop(false);
           }}
         />
-      )}
+
+        {/* Optional Bookmarks Bar */}
+        {showBookmarksBar && (
+          <BookmarksBar
+            bookmarks={bookmarks}
+            onNavigate={(url) => {
+              if (activeTab?.isNewTab) {
+                handleNavigate(url);
+              } else {
+                handleNewTab(url);
+              }
+            }}
+          />
+        )}
+      </div>
 
       {/* Dev Mode Banner when inspector is active */}
       {isInspectorActive && (

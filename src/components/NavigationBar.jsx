@@ -22,8 +22,11 @@ import {
   Mic,
   History,
   Clock,
-  Globe
+  Globe,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
+import { getSearchUrl, getEngine } from '../utils/searchEngines';
 
 export default function NavigationBar({
   currentUrl,
@@ -58,7 +61,9 @@ export default function NavigationBar({
   isInspectorActive,
   onOpenHistory,
   onOpenVoiceAssistant,
-  history = []
+  history = [],
+  isAutoHidden = false,
+  onToggleAutoHide
 }) {
   const [inputValue, setInputValue] = useState(currentUrl || '');
   const [copied, setCopied] = useState(false);
@@ -87,13 +92,7 @@ export default function NavigationBar({
         }
         onNavigate(target);
       } else {
-        // Use configured privacy search engine
-        let searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(target)}`;
-        if (searchEngine === 'brave') {
-          searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(target)}`;
-        } else if (searchEngine === 'startpage') {
-          searchUrl = `https://www.startpage.com/sp/search?query=${encodeURIComponent(target)}`;
-        }
+        const searchUrl = getSearchUrl(searchEngine, target);
         onNavigate(searchUrl);
       }
     }
@@ -242,7 +241,7 @@ export default function NavigationBar({
               >
                 <Search size={14} color="var(--accent)" />
                 <span style={{ flex: 1, color: 'var(--text-primary)', fontWeight: '600' }}>
-                  Buscar "{inputValue}" en DuckDuckGo
+                  Buscar "{inputValue}" en {getEngine(searchEngine).name}
                 </span>
                 <span style={styles.suggestionBadge}>Buscar</span>
               </div>
@@ -425,6 +424,25 @@ export default function NavigationBar({
         <button style={styles.iconBtn} onClick={onOpenSettings} title="Ajustes y Privacidad">
           <Sliders size={16} />
         </button>
+
+        {/* Auto-hide / Collapsible top bar toggle arrow */}
+        {onToggleAutoHide && (
+          <button
+            style={{
+              ...styles.iconBtn,
+              color: isAutoHidden ? 'var(--accent)' : 'var(--text-muted)',
+              background: isAutoHidden ? 'var(--accent-glow)' : 'transparent'
+            }}
+            onClick={onToggleAutoHide}
+            title={
+              isAutoHidden
+                ? 'Fijar barra superior permanentemente'
+                : 'Ocultar barra automáticamente (como barra de Windows al pasar el mouse)'
+            }
+          >
+            {isAutoHidden ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
+          </button>
+        )}
       </div>
     </div>
   );

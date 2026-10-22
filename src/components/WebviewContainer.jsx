@@ -232,6 +232,73 @@ function WebviewItem({ tab, isActive, onUpdateTab, onNewTabWithUrl, webviewRefs,
   const defaultUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
 
+  const isElectron = Boolean(window.browserAPI);
+
+  if (!isElectron) {
+    return (
+      <div
+        style={{
+          display: isActive ? 'flex' : 'none',
+          flexDirection: 'column',
+          width: '100%',
+          height: '100%',
+          flex: 1,
+          background: 'var(--bg-primary)'
+        }}
+      >
+        {/* Mobile in-app navigation helper bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            background: 'var(--bg-secondary)',
+            borderBottom: '1px solid var(--border-subtle)',
+            fontSize: '12px',
+            gap: '8px'
+          }}
+        >
+          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, color: 'var(--text-muted)' }}>
+            <span style={{ color: 'var(--accent)', fontWeight: '700', marginRight: '6px' }}>Dozzo Mobile:</span>
+            {tab.url}
+          </div>
+          <button
+            onClick={() => window.open(tab.url, '_blank')}
+            style={{
+              padding: '4px 10px',
+              borderRadius: '6px',
+              background: 'var(--accent)',
+              color: 'var(--accent-text)',
+              fontSize: '11.5px',
+              fontWeight: '700',
+              flexShrink: 0
+            }}
+          >
+            Abrir Pantalla Completa ↗
+          </button>
+        </div>
+
+        {/* Embedded frame */}
+        <iframe
+          ref={ref}
+          src={tab.url}
+          title={tab.title || 'Dozzo View'}
+          onLoad={() => onUpdateTab(tab.id, { isLoading: false })}
+          onError={() => onUpdateTab(tab.id, { isLoading: false })}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
+          style={{
+            width: '100%',
+            height: '100%',
+            flex: 1,
+            border: 'none',
+            background: '#ffffff'
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <webview
       ref={ref}

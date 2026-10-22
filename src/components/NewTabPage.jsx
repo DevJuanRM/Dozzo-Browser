@@ -8,14 +8,17 @@ import {
   BookOpen,
   Lock,
   ArrowUpRight,
+  ChevronDown,
+  Globe,
   Sparkles,
   Zap
 } from 'lucide-react';
 import { YoutubeIcon, GithubIcon } from './Icons';
+import { SEARCH_ENGINES, getSearchUrl, getEngine } from '../utils/searchEngines';
 
 export default function NewTabPage({
   onNavigate,
-  searchEngine,
+  searchEngine = 'duckduckgo',
   onChangeSearchEngine,
   blockedCount,
   onOpenBinance
@@ -24,12 +27,15 @@ export default function NewTabPage({
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [greeting, setGreeting] = useState('Bienvenido');
+  const [isEngineMenuOpen, setIsEngineMenuOpen] = useState(false);
   const [cryptoData, setCryptoData] = useState([
     { symbol: 'BTC', price: '$68,420', change: '+3.45%', isPositive: true },
     { symbol: 'ETH', price: '$2,640', change: '+2.10%', isPositive: true },
     { symbol: 'BNB', price: '$625', change: '+4.80%', isPositive: true },
     { symbol: 'SOL', price: '$174', change: '+5.60%', isPositive: true }
   ]);
+
+  const currentEngine = getEngine(searchEngine);
 
   // Live Clock & Dynamic Greeting
   useEffect(() => {
@@ -92,12 +98,7 @@ export default function NewTabPage({
     if (isUrl) {
       onNavigate(target.startsWith('http') ? target : `https://${target}`);
     } else {
-      let searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(target)}`;
-      if (searchEngine === 'brave') {
-        searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(target)}`;
-      } else if (searchEngine === 'startpage') {
-        searchUrl = `https://www.startpage.com/sp/search?query=${encodeURIComponent(target)}`;
-      }
+      const searchUrl = getSearchUrl(searchEngine, target);
       onNavigate(searchUrl);
     }
   };
@@ -157,17 +158,53 @@ export default function NewTabPage({
           <div style={styles.date}>{dateStr}</div>
         </div>
 
-        {/* Spacious Privacy Search Bar */}
+        {/* Spacious Search Bar with Engine Switcher */}
         <form onSubmit={handleSearchSubmit} style={styles.searchForm}>
           <div style={styles.searchBar}>
-            <div style={styles.searchEngineBadge} title="Búsqueda privada protegida">
-              <Lock size={14} color="var(--success)" />
-              <span>Privado</span>
+            {/* Interactive Engine Selector Button */}
+            <div style={{ position: 'relative' }}>
+              <div
+                style={styles.searchEngineBadge}
+                onClick={() => setIsEngineMenuOpen((prev) => !prev)}
+                title="Haz clic para cambiar el buscador (Google, Tor, DuckDuckGo...)"
+              >
+                <Globe size={13} color="var(--accent)" />
+                <span>{currentEngine.name}</span>
+                <ChevronDown size={12} color="var(--accent)" />
+              </div>
+
+              {/* Engine Switcher Dropdown */}
+              {isEngineMenuOpen && (
+                <div style={styles.engineDropdown} className="animate-slide-down">
+                  <div style={styles.dropdownHeader}>Elegir buscador:</div>
+                  {SEARCH_ENGINES.map((eng) => (
+                    <div
+                      key={eng.id}
+                      style={{
+                        ...styles.engineOption,
+                        background: searchEngine === eng.id ? 'var(--bg-hover)' : 'transparent',
+                        color: searchEngine === eng.id ? 'var(--accent)' : 'var(--text-primary)'
+                      }}
+                      onClick={() => {
+                        onChangeSearchEngine?.(eng.id);
+                        localStorage.setItem('dozzo_engine', eng.id);
+                        setIsEngineMenuOpen(false);
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: '700', fontSize: '12px' }}>{eng.name}</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{eng.badge}</span>
+                      </div>
+                      {searchEngine === eng.id && <div style={styles.activeDot} />}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <input
               type="text"
-              placeholder={`Buscar en ${searchEngine === 'brave' ? 'Brave Search' : 'DuckDuckGo'} o escribir URL...`}
+              placeholder={`Buscar en ${currentEngine.name} o escribir URL...`}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               style={styles.searchInput}
@@ -263,7 +300,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     background: 'radial-gradient(ellipse at 50% 15%, rgba(240, 185, 11, 0.06) 0%, var(--bg-primary) 65%)',
-    padding: '48px 32px',
+    padding: '36px 16px',
+    boxSizing: 'border-box',
     userSelect: 'none'
   },
   innerWrapper: {
@@ -272,7 +310,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '30px'
+    gap: '24px'
   },
   headerHero: {
     textAlign: 'center',
@@ -282,21 +320,21 @@ const styles = {
     gap: '6px'
   },
   greetingText: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: '400',
     color: 'var(--text-muted)',
     letterSpacing: '0.8px',
     textTransform: 'uppercase'
   },
   clock: {
-    fontSize: '68px',
+    fontSize: 'clamp(44px, 12vw, 68px)',
     fontWeight: '300',
     letterSpacing: '-1px',
     color: 'var(--text-primary)',
     lineHeight: 1
   },
   date: {
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: '400',
     color: 'var(--text-secondary)',
     textTransform: 'capitalize'
@@ -314,7 +352,8 @@ const styles = {
     borderRadius: '16px',
     padding: '0 10px 0 16px',
     boxShadow: '0 8px 30px rgba(0, 0, 0, 0.28)',
-    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+    position: 'relative'
   },
   searchEngineBadge: {
     display: 'flex',
@@ -322,11 +361,53 @@ const styles = {
     gap: '6px',
     fontSize: '12px',
     fontWeight: '700',
-    color: 'var(--success)',
-    background: 'var(--success-glow)',
-    padding: '5px 10px',
+    color: 'var(--accent)',
+    background: 'var(--accent-glow)',
+    padding: '6px 10px',
     borderRadius: '8px',
-    marginRight: '12px'
+    marginRight: '10px',
+    cursor: 'pointer',
+    userSelect: 'none',
+    transition: 'transform 0.15s ease'
+  },
+  engineDropdown: {
+    position: 'absolute',
+    top: '48px',
+    left: '0',
+    width: '230px',
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '12px',
+    padding: '8px',
+    boxShadow: '0 12px 35px rgba(0,0,0,0.6)',
+    zIndex: 100,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  dropdownHeader: {
+    fontSize: '10.5px',
+    fontWeight: '700',
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    padding: '4px 8px',
+    letterSpacing: '0.5px'
+  },
+  engineOption: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '7px 10px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease'
+  },
+  activeDot: {
+    width: '7px',
+    height: '7px',
+    borderRadius: '50%',
+    backgroundColor: 'var(--accent)',
+    boxShadow: '0 0 6px var(--accent)'
   },
   searchInput: {
     flex: 1,
@@ -358,7 +439,9 @@ const styles = {
     padding: '10px 18px',
     borderRadius: '14px',
     background: 'rgba(240, 185, 11, 0.05)',
-    border: '1px solid rgba(240, 185, 11, 0.2)'
+    border: '1px solid rgba(240, 185, 11, 0.2)',
+    flexWrap: 'wrap',
+    gap: '10px'
   },
   cryptoHeader: {
     display: 'flex',
@@ -378,7 +461,8 @@ const styles = {
   },
   cryptoCards: {
     display: 'flex',
-    gap: '16px'
+    gap: '12px',
+    flexWrap: 'wrap'
   },
   cryptoCard: {
     display: 'flex',
@@ -407,14 +491,14 @@ const styles = {
     width: '100%',
     maxWidth: '720px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(6, 1fr)',
-    gap: '14px'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(95px, 1fr))',
+    gap: '12px'
   },
   shortcutCard: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '18px 8px',
+    padding: '16px 6px',
     borderRadius: '16px',
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border-subtle)',
@@ -422,16 +506,16 @@ const styles = {
     transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
   },
   shortcutIconBox: {
-    width: '52px',
-    height: '52px',
+    width: '48px',
+    height: '48px',
     borderRadius: '14px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: '10px'
+    marginBottom: '8px'
   },
   shortcutTitle: {
-    fontSize: '13px',
+    fontSize: '12.5px',
     fontWeight: '700',
     color: 'var(--text-primary)',
     textAlign: 'center'
@@ -453,7 +537,9 @@ const styles = {
     borderRadius: '16px',
     background: 'var(--bg-secondary)',
     border: '1px solid var(--border-subtle)',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+    flexWrap: 'wrap',
+    gap: '14px'
   },
   shieldLeft: {
     display: 'flex',

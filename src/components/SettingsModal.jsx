@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sliders, X, Search, Palette, Moon, Sun, Bookmark, Check, Shield } from 'lucide-react';
+import { SEARCH_ENGINES } from '../utils/searchEngines';
 
 export default function SettingsModal({
   isOpen,
@@ -15,26 +16,7 @@ export default function SettingsModal({
 }) {
   if (!isOpen) return null;
 
-  const engines = [
-    {
-      id: 'duckduckgo',
-      name: 'DuckDuckGo',
-      desc: 'Búsquedas privadas sin rastreo ni perfiles de usuario (Predeterminado)',
-      url: 'https://duckduckgo.com'
-    },
-    {
-      id: 'brave',
-      name: 'Brave Search',
-      desc: 'Índice de búsqueda 100% independiente de Google',
-      url: 'https://search.brave.com'
-    },
-    {
-      id: 'startpage',
-      name: 'Startpage',
-      desc: 'Resultados de calidad con protección de privacidad holandesa',
-      url: 'https://startpage.com'
-    }
-  ];
+  const engines = SEARCH_ENGINES;
 
   const accents = [
     { id: 'gold', name: 'Binance Gold', color: '#F0B90B' },
@@ -86,7 +68,14 @@ export default function SettingsModal({
                     {searchEngine === eng.id && <div style={styles.radioDot} />}
                   </div>
                   <div>
-                    <div style={styles.engineName}>{eng.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={styles.engineName}>{eng.name}</div>
+                      {eng.badge && (
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: '700' }}>
+                          {eng.badge}
+                        </span>
+                      )}
+                    </div>
                     <div style={styles.engineDesc}>{eng.desc}</div>
                   </div>
                 </div>
