@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('browserAPI', {
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
   isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+  openNewWindow: (data) => ipcRenderer.send('open-new-window', data),
 
   // Privacy & Adblocker
   getAdblockStats: () => ipcRenderer.invoke('get-adblock-stats'),

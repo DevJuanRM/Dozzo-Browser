@@ -2,26 +2,26 @@
 
 /* Design Tokens and Root Variables */
 :root {
-  /* Default: Pure Neutral YouTube Dark Theme (True Blacks & Grays, No Blue) */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #181818;
-  --bg-tertiary: #222222;
-  --bg-hover: #2c2c2c;
-  --bg-active: #383838;
+  /* Default: Pure OLED Pitch Black & Chrome Elegance (Zero unwanted tint by default) */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --bg-hover: #1f1f1f;
+  --bg-active: #2a2a2a;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-hover: rgba(255, 255, 255, 0.16);
-  --text-primary: #f1f1f1;
-  --text-secondary: #aaaaaa;
-  --text-muted: #717171;
-  --glass-bg: rgba(24, 24, 24, 0.85);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.65);
+  --text-primary: #f5f5f5;
+  --text-secondary: #a3a3a3;
+  --text-muted: #666666;
+  --glass-bg: rgba(10, 10, 10, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.85);
 
-  /* Accent Color (Defaults to Gold) */
-  --accent: #F0B90B;
-  --accent-hover: #F8D33A;
-  --accent-glow: rgba(240, 185, 11, 0.16);
+  /* Monochrome Pure Silver/White Accent when accent is 'none' or default */
+  --accent: #ffffff;
+  --accent-hover: #e5e5e5;
+  --accent-glow: rgba(255, 255, 255, 0.15);
   --accent-text: #000000;
 
   /* Status Colors */
@@ -59,6 +59,21 @@
 }
 
 /* Subtle, Elegant Dark Tints per Accent (Tinting the pure black subtly without being invasive) */
+[data-theme='dark'][data-accent='none'],
+:root:not([data-theme='light'])[data-accent='none'] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --bg-hover: #1f1f1f;
+  --bg-active: #2a2a2a;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --accent: #ffffff;
+  --accent-hover: #e5e5e5;
+  --accent-glow: rgba(255, 255, 255, 0.15);
+  --accent-text: #000000;
+}
+
 [data-theme='dark'][data-accent='purple'],
 :root:not([data-theme='light'])[data-accent='purple'] {
   --bg-primary: #110d17;
@@ -399,3 +414,100 @@ button {
 button:active {
   transform: scale(0.96);
 }
+
+/* High-Gloss Glass Tabs & Buttons */
+.high-gloss-circle {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(0, 0, 0, 0.3) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45), inset 0 -1.5px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.3s cubic-bezier(0.2, 0.9, 0.25, 1);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.high-gloss-circle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.0) 100%);
+  border-top-left-radius: 50%;
+  border-top-right-radius: 50%;
+  pointer-events: none;
+}
+
+.high-gloss-circle:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.07) 50%, rgba(0, 0, 0, 0.2) 100%);
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.65), 0 6px 18px rgba(0, 0, 0, 0.55);
+  transform: translateY(-1px) scale(1.04);
+}
+
+.high-gloss-circle.active {
+  border-color: var(--accent, rgba(255, 255, 255, 0.85));
+  box-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.7), 0 0 16px var(--accent-glow, rgba(255, 255, 255, 0.28)), 0 5px 18px rgba(0, 0, 0, 0.55);
+}
+
+.high-gloss-capsule {
+  position: relative;
+  height: 38px;
+  min-width: 170px;
+  max-width: 260px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.3) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid var(--accent, rgba(255, 255, 255, 0.6));
+  box-shadow: inset 0 1.5px 2px rgba(255, 255, 255, 0.55), 0 0 18px var(--accent-glow, rgba(255, 255, 255, 0.25)), 0 5px 18px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.25, 1);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.high-gloss-capsule::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.0) 100%);
+  border-top-left-radius: 9999px;
+  border-top-right-radius: 9999px;
+  pointer-events: none;
+}
+
+/* Typewriter Logo Cursor */
+.typewriter-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  font-weight: 300;
+  color: var(--accent);
+  animation: blinkCursor 0.85s steps(2, start) infinite;
+}
+
+@keyframes blinkCursor {
+  to {
+    visibility: hidden;
+  }
+}
+

@@ -16,25 +16,28 @@ import HistoryModal from './components/HistoryModal';
 import VoiceAssistantModal from './components/VoiceAssistantModal';
 
 export default function App() {
+  const initialTabUrl = new URLSearchParams(window.location.search).get('initialUrl') || '';
+
   // Tabs State
   const [tabs, setTabs] = useState([
     {
       id: 'tab-1',
-      title: 'Nueva Pestaña',
-      url: '',
+      title: initialTabUrl ? 'Cargando...' : 'Nueva Pestaña',
+      url: initialTabUrl,
       favicon: null,
-      isLoading: false,
+      isLoading: Boolean(initialTabUrl),
       canGoBack: false,
       canGoForward: false,
       isAudioPlaying: false,
-      isNewTab: true
+      isNewTab: !initialTabUrl
     }
   ]);
   const [activeTabId, setActiveTabId] = useState('tab-1');
 
-  // Appearance & Themes
+  // Appearance & Themes (Default to pure pitch black 'none', zero tint by default)
   const [theme, setTheme] = useState(() => localStorage.getItem('dozzo_theme') || 'dark');
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('dozzo_accent') || 'gold');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('dozzo_accent') || 'none');
+  const [splitMode, setSplitMode] = useState(() => localStorage.getItem('dozzo_split_mode') || 'single');
   const [searchEngine, setSearchEngine] = useState(() => localStorage.getItem('dozzo_engine') || 'duckduckgo');
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
   const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar') === 'true');
@@ -42,6 +45,11 @@ export default function App() {
   const [showPillHint, setShowPillHint] = useState(false);
   const [isScrolledHidden, setIsScrolledHidden] = useState(false);
   const pillTimeoutRef = useRef(null);
+
+  const handleSplitModeChange = (mode) => {
+    setSplitMode(mode);
+    localStorage.setItem('dozzo_split_mode', mode);
+  };
 
   const isHeaderHidden = isAutoHidden || isScrolledHidden;
 
@@ -458,6 +466,8 @@ export default function App() {
           onCloseTab={handleCloseTab}
           onNewTab={() => handleNewTab()}
           isMaximized={isMaximized}
+          splitMode={splitMode}
+          onChangeSplitMode={handleSplitModeChange}
         />
 
         {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
@@ -480,6 +490,7 @@ export default function App() {
           }}
           blockedCount={blockedCount}
           isShieldActive={isShieldActive}
+          isShieldOpen={isShieldOpen}
           onToggleShieldModal={() => setIsShieldOpen(true)}
           onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
           isBinanceOpen={isBinanceOpen}
@@ -584,6 +595,9 @@ export default function App() {
         <WebviewContainer
           tabs={tabs}
           activeTabId={activeTabId}
+          onSelectTab={(id) => setActiveTabId(id)}
+          onCloseTab={handleCloseTab}
+          onNewTab={() => handleNewTab()}
           onUpdateTab={handleUpdateTab}
           onNewTabWithUrl={(url) => handleNewTab(url)}
           onNavigate={handleNavigate}
@@ -598,6 +612,8 @@ export default function App() {
             setIsInspectorActive(false);
           }}
           onScrollDirection={handleScrollDirection}
+          splitMode={splitMode}
+          onChangeSplitMode={handleSplitModeChange}
         />
       </ErrorBoundary>
 

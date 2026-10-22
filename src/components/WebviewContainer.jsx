@@ -1,9 +1,87 @@
 import React, { useEffect, useRef } from 'react';
+import { Maximize2, X, Plus, Globe } from 'lucide-react';
 import NewTabPage from './NewTabPage';
+
+const getSplitCount = (mode) => {
+  switch (mode) {
+    case '2-col':
+    case '2-row':
+      return 2;
+    case '3-grid':
+      return 3;
+    case '4-grid':
+      return 4;
+    case '5-grid':
+      return 5;
+    default:
+      return 1;
+  }
+};
+
+const getGridContainerStyle = (mode) => {
+  switch (mode) {
+    case '2-col':
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '6px',
+        padding: '6px'
+      };
+    case '2-row':
+      return {
+        display: 'grid',
+        gridTemplateRows: 'repeat(2, 1fr)',
+        gap: '6px',
+        padding: '6px'
+      };
+    case '3-grid':
+      return {
+        display: 'grid',
+        gridTemplateColumns: '1.2fr 1fr',
+        gridTemplateRows: 'repeat(2, 1fr)',
+        gap: '6px',
+        padding: '6px'
+      };
+    case '4-grid':
+      return {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateRows: 'repeat(2, 1fr)',
+        gap: '6px',
+        padding: '6px'
+      };
+    case '5-grid':
+      return {
+        display: 'grid',
+        gridTemplateColumns: '1.4fr 1fr 1fr',
+        gridTemplateRows: 'repeat(2, 1fr)',
+        gap: '6px',
+        padding: '6px'
+      };
+    default:
+      return {
+        display: 'flex',
+        flexDirection: 'column'
+      };
+  }
+};
+
+const getPaneAreaStyle = (mode, index) => {
+  if (mode === '3-grid' && index === 0) {
+    return { gridRow: '1 / 3' };
+  }
+  if (mode === '5-grid' && index === 0) {
+    return { gridRow: '1 / 3' };
+  }
+  return {};
+};
 
 export default function WebviewContainer({
   tabs,
   activeTabId,
+  onSelectTab,
+  onCloseTab,
+  onNewTab,
   onUpdateTab,
   onNewTabWithUrl,
   onNavigate,
@@ -14,37 +92,172 @@ export default function WebviewContainer({
   webviewRefs,
   isInspectorActive,
   onElementInspected,
-  onScrollDirection
+  onScrollDirection,
+  splitMode = 'single',
+  onChangeSplitMode
 }) {
-  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const isSplit = splitMode !== 'single';
+  const paneCount = getSplitCount(splitMode);
+
+  // If in single view mode, render traditional standard active-view container
+  if (!isSplit) {
+    const activeTab = tabs.find((t) => t.id === activeTabId);
+
+    return (
+      <div style={styles.container}>
+        {/* If active tab is in New Tab state, show the NewTabPage speed dial */}
+        {activeTab?.isNewTab && (
+          <NewTabPage
+            onNavigate={(url) => onNavigate(url)}
+            searchEngine={searchEngine}
+            onChangeSearchEngine={onChangeSearchEngine}
+            blockedCount={blockedCount}
+            onOpenBinance={onOpenBinance}
+          />
+        )}
+
+        {/* Render persistent Webviews for all non-new-tab tabs */}
+        {tabs.map((tab) => {
+          if (tab.isNewTab) return null;
+          const isActive = tab.id === activeTabId;
+
+          return (
+            <WebviewItem
+              key={tab.id}
+              tab={tab}
+              isActive={isActive}
+              onUpdateTab={onUpdateTab}
+              onNewTabWithUrl={onNewTabWithUrl}
+              webviewRefs={webviewRefs}
+              isInspectorActive={isInspectorActive}
+              onElementInspected={onElementInspected}
+              onScrollDirection={onScrollDirection}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Multi-tab Split Grid Layout (1 to 5 views simultaneously)
+  const visibleTabs = tabs.slice(0, paneCount);
+  const emptySlotsCount = Math.max(0, paneCount - visibleTabs.length);
 
   return (
-    <div style={styles.container}>
-      {/* If active tab is in New Tab state, show the beautiful NewTabPage speed dial */}
-      {activeTab?.isNewTab && (
-        <NewTabPage
-          onNavigate={(url) => onNavigate(url)}
-          searchEngine={searchEngine}
-          onChangeSearchEngine={onChangeSearchEngine}
-          blockedCount={blockedCount}
-          onOpenBinance={onOpenBinance}
-        />
-      )}
+    <div style={{ ...styles.container, ...getGridContainerStyle(splitMode) }}>
+      {visibleTabs.map((tab, idx) => {
+        const isCurrentActive = tab.id === activeTabId;
 
-      {/* Render persistent Webviews for all non-new-tab tabs */}
-      {tabs.map((tab) => {
+        return (
+          <div
+            key={tab.id}
+            style={{
+              ...styles.splitPane,
+              ...getPaneAreaStyle(splitMode, idx),
+              border: isCurrentActive ? '2px solid var(--accent)' : '1px solid rgba(255, 255, 255, 0.12)',
+              boxShadow: isCurrentActive ? '0 0 16px var(--accent-glow)' : '0 4px 16px rgba(0, 0, 0, 0.4)'
+            }}
+            onClick={() => onSelectTab && onSelectTab(tab.id)}
+          >
+            {/* Split Pane Header */}
+            <div style={styles.paneHeader}>
+              <div style={styles.paneFaviconBox}>
+                {tab.favicon ? (
+                  <img src={tab.favicon} alt="" style={{ width: 14, height: 14, borderRadius: '50%' }} />
+                ) : (
+                  <Globe size={13} color="var(--accent)" />
+                )}
+              </div>
+              <span style={styles.paneTitle}>{tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...')}</span>
+
+              <div style={styles.paneActions}>
+                <button
+                  style={styles.paneActionBtn}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onChangeSplitMode) onChangeSplitMode('single');
+                    if (onSelectTab) onSelectTab(tab.id);
+                  }}
+                  title="Maximizar este panel a pantalla completa"
+                >
+                  <Maximize2 size={12} />
+                </button>
+                {tabs.length > 1 && (
+                  <button
+                    style={styles.paneActionBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onCloseTab) onCloseTab(tab.id);
+                    }}
+                    title="Cerrar pestaña de este panel"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Split Pane Body */}
+            <div style={styles.paneBody}>
+              {tab.isNewTab ? (
+                <NewTabPage
+                  onNavigate={(url) => {
+                    if (onUpdateTab) onUpdateTab(tab.id, { url, isNewTab: false });
+                  }}
+                  searchEngine={searchEngine}
+                  onChangeSearchEngine={onChangeSearchEngine}
+                  blockedCount={blockedCount}
+                  onOpenBinance={onOpenBinance}
+                />
+              ) : (
+                <WebviewItem
+                  tab={tab}
+                  isActive={true}
+                  isSplit={true}
+                  onUpdateTab={onUpdateTab}
+                  onNewTabWithUrl={onNewTabWithUrl}
+                  webviewRefs={webviewRefs}
+                  isInspectorActive={isInspectorActive}
+                  onElementInspected={onElementInspected}
+                  onScrollDirection={onScrollDirection}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Empty Placeholder Slots if user requested 3, 4, or 5 panes and has fewer open tabs */}
+      {Array.from({ length: emptySlotsCount }).map((_, i) => (
+        <div
+          key={`empty-${i}`}
+          style={{
+            ...styles.splitPane,
+            ...styles.emptyPane,
+            ...getPaneAreaStyle(splitMode, visibleTabs.length + i)
+          }}
+          onClick={onNewTab}
+          title="Clic para abrir una nueva pestaña en este panel"
+        >
+          <div style={styles.addPaneCircle}>
+            <Plus size={22} color="var(--accent)" />
+          </div>
+          <span style={styles.addPaneText}>Abrir pestaña en panel {visibleTabs.length + i + 1}</span>
+        </div>
+      ))}
+
+      {/* Hidden Webviews for remaining non-visible tabs to keep background state & audio alive */}
+      {tabs.slice(paneCount).map((tab) => {
         if (tab.isNewTab) return null;
-        const isActive = tab.id === activeTabId;
-
         return (
           <WebviewItem
             key={tab.id}
             tab={tab}
-            isActive={isActive}
+            isActive={false}
             onUpdateTab={onUpdateTab}
             onNewTabWithUrl={onNewTabWithUrl}
             webviewRefs={webviewRefs}
-            isInspectorActive={isInspectorActive}
+            isInspectorActive={false}
             onElementInspected={onElementInspected}
             onScrollDirection={onScrollDirection}
           />
@@ -57,6 +270,7 @@ export default function WebviewContainer({
 function WebviewItem({
   tab,
   isActive,
+  isSplit = false,
   onUpdateTab,
   onNewTabWithUrl,
   webviewRefs,
@@ -139,44 +353,6 @@ function WebviewItem({
           })
           .catch(() => {});
       }
-
-      // Inject Chrome-style bright blue text selection styling
-      if (typeof webview.insertCSS === 'function') {
-        webview
-          .insertCSS(`
-            ::selection {
-              background-color: #2563eb !important;
-              color: #ffffff !important;
-            }
-            ::-moz-selection {
-              background-color: #2563eb !important;
-              color: #ffffff !important;
-            }
-          `)
-          .catch(() => {});
-      }
-    };
-
-    const handleConsoleMessage = (e) => {
-      if (e.message && e.message.startsWith('__DOZZO_SCROLL__:')) {
-        const dir = e.message.replace('__DOZZO_SCROLL__:', '');
-        if (isActive && onScrollDirection) {
-          onScrollDirection(dir);
-        }
-        return;
-      }
-
-      if (e.message && e.message.startsWith('__DOZZO_DEV_INSPECT__:')) {
-        try {
-          const raw = e.message.replace('__DOZZO_DEV_INSPECT__:', '');
-          const data = JSON.parse(raw);
-          if (onElementInspected) {
-            onElementInspected(data);
-          }
-        } catch (err) {
-          console.error('Failed to parse inspected element data', err);
-        }
-      }
     };
 
     const handleNewWindow = (e) => {
@@ -185,12 +361,29 @@ function WebviewItem({
       }
     };
 
-    const handleMediaStarted = () => {
+    const handleMediaStartedPlaying = () => {
       onUpdateTab(tab.id, { isAudioPlaying: true });
     };
 
     const handleMediaPaused = () => {
       onUpdateTab(tab.id, { isAudioPlaying: false });
+    };
+
+    const handleConsoleMessage = (e) => {
+      const msg = e.message;
+      if (typeof msg === 'string') {
+        if (msg.startsWith('__DOZZO_INSPECTOR_PAYLOAD__:')) {
+          try {
+            const jsonStr = msg.replace('__DOZZO_INSPECTOR_PAYLOAD__:', '');
+            const parsed = JSON.parse(jsonStr);
+            if (onElementInspected) onElementInspected(parsed);
+          } catch (err) {}
+        } else if (msg === '__DOZZO_SCROLL__:down') {
+          if (onScrollDirection && isActive) onScrollDirection('down');
+        } else if (msg === '__DOZZO_SCROLL__:up') {
+          if (onScrollDirection && isActive) onScrollDirection('up');
+        }
+      }
     };
 
     webview.addEventListener('did-start-loading', handleStartLoading);
@@ -201,11 +394,12 @@ function WebviewItem({
     webview.addEventListener('did-navigate-in-page', handleNavigate);
     webview.addEventListener('dom-ready', handleDomReady);
     webview.addEventListener('new-window', handleNewWindow);
-    webview.addEventListener('media-started-playing', handleMediaStarted);
+    webview.addEventListener('media-started-playing', handleMediaStartedPlaying);
     webview.addEventListener('media-paused', handleMediaPaused);
     webview.addEventListener('console-message', handleConsoleMessage);
 
     return () => {
+      webviewRefs.current.delete(tab.id);
       webview.removeEventListener('did-start-loading', handleStartLoading);
       webview.removeEventListener('did-stop-loading', handleStopLoading);
       webview.removeEventListener('page-title-updated', handleTitleUpdated);
@@ -214,39 +408,11 @@ function WebviewItem({
       webview.removeEventListener('did-navigate-in-page', handleNavigate);
       webview.removeEventListener('dom-ready', handleDomReady);
       webview.removeEventListener('new-window', handleNewWindow);
-      webview.removeEventListener('media-started-playing', handleMediaStarted);
+      webview.removeEventListener('media-started-playing', handleMediaStartedPlaying);
       webview.removeEventListener('media-paused', handleMediaPaused);
       webview.removeEventListener('console-message', handleConsoleMessage);
-      webviewRefs.current.delete(tab.id);
     };
-  }, [tab.id]);
-
-  // Synchronize inspector active state safely
-  useEffect(() => {
-    const webview = ref.current;
-    if (webview && !tab.isNewTab) {
-      try {
-        if (typeof webview.executeJavaScript === 'function') {
-          const enable = Boolean(isActive && isInspectorActive);
-          const inspectorScript = window.browserAPI?.getDevInspectorScript?.();
-          if (enable && inspectorScript) {
-            webview
-              .executeJavaScript(inspectorScript)
-              .then(() => {
-                webview
-                  .executeJavaScript('window.__dozzo_toggle_inspector && window.__dozzo_toggle_inspector(true);')
-                  .catch(() => {});
-              })
-              .catch(() => {});
-          } else {
-            webview
-              .executeJavaScript('window.__dozzo_toggle_inspector && window.__dozzo_toggle_inspector(false);')
-              .catch(() => {});
-          }
-        }
-      } catch (err) {}
-    }
-  }, [isInspectorActive, isActive, tab.id, tab.isNewTab]);
+  }, [tab.id, isActive, isInspectorActive]);
 
   const defaultUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
@@ -265,40 +431,6 @@ function WebviewItem({
           background: 'var(--bg-primary)'
         }}
       >
-        {/* Mobile in-app navigation helper bar */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 12px',
-            background: 'var(--bg-secondary)',
-            borderBottom: '1px solid var(--border-subtle)',
-            fontSize: '12px',
-            gap: '8px'
-          }}
-        >
-          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, color: 'var(--text-muted)' }}>
-            <span style={{ color: 'var(--accent)', fontWeight: '700', marginRight: '6px' }}>Dozzo Mobile:</span>
-            {tab.url}
-          </div>
-          <button
-            onClick={() => window.open(tab.url, '_blank')}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: 'var(--accent)',
-              color: 'var(--accent-text)',
-              fontSize: '11.5px',
-              fontWeight: '700',
-              flexShrink: 0
-            }}
-          >
-            Abrir Pantalla Completa ↗
-          </button>
-        </div>
-
-        {/* Embedded frame */}
         <iframe
           ref={ref}
           src={tab.url}
@@ -331,9 +463,9 @@ function WebviewItem({
       useragent={window.browserAPI?.getUserAgent?.() || defaultUserAgent}
       style={{
         visibility: isActive ? 'visible' : 'hidden',
-        position: isActive ? 'relative' : 'absolute',
-        top: isActive ? 0 : -99999,
-        left: isActive ? 0 : -99999,
+        position: isSplit ? 'relative' : isActive ? 'relative' : 'absolute',
+        top: isSplit ? 0 : isActive ? 0 : -99999,
+        left: isSplit ? 0 : isActive ? 0 : -99999,
         width: '100%',
         height: '100%',
         border: 'none',
@@ -349,8 +481,91 @@ const styles = {
     flex: 1,
     position: 'relative',
     overflow: 'hidden',
+    background: 'var(--bg-primary)'
+  },
+  splitPane: {
+    position: 'relative',
+    borderRadius: '12px',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    background: 'var(--bg-primary)'
+    background: 'var(--bg-secondary)',
+    transition: 'all 0.2s ease',
+    minHeight: 0,
+    minWidth: 0
+  },
+  emptyPane: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    background: 'rgba(255, 255, 255, 0.02)',
+    border: '1.5px dashed rgba(255, 255, 255, 0.15)',
+    cursor: 'pointer'
+  },
+  addPaneCircle: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.06)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  addPaneText: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: 'var(--text-secondary)'
+  },
+  paneHeader: {
+    height: '28px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 8px',
+    background: 'rgba(0, 0, 0, 0.5)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    gap: '6px',
+    flexShrink: 0
+  },
+  paneFaviconBox: {
+    width: '16px',
+    height: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  paneTitle: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '140px'
+  },
+  paneActions: {
+    marginLeft: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  paneActionBtn: {
+    width: '18px',
+    height: '18px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-muted)',
+    transition: 'all 0.15s ease'
+  },
+  paneBody: {
+    flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   }
 };

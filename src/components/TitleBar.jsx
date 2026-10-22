@@ -1,5 +1,50 @@
-import React, { useState } from 'react';
-import { Plus, X, Minus, Square, Copy, Volume2, Globe, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, X, Minus, Square, Copy, Volume2, Globe, LayoutGrid, ExternalLink } from 'lucide-react';
+
+function TypewriterLogo() {
+  const fullText = 'DOZZO';
+  const [displayedText, setDisplayedText] = useState(fullText);
+  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    let typeInterval = null;
+    let cycleInterval = null;
+
+    const startTyping = () => {
+      setIsTyping(true);
+      setDisplayedText('');
+      let index = 0;
+
+      typeInterval = setInterval(() => {
+        index++;
+        setDisplayedText(fullText.slice(0, index));
+        if (index >= fullText.length) {
+          clearInterval(typeInterval);
+          setIsTyping(false);
+        }
+      }, 95);
+    };
+
+    // Repeats typewriter effect smoothly every 10 seconds
+    cycleInterval = setInterval(() => {
+      startTyping();
+    }, 10000);
+
+    return () => {
+      if (typeInterval) clearInterval(typeInterval);
+      if (cycleInterval) clearInterval(cycleInterval);
+    };
+  }, []);
+
+  return (
+    <div style={styles.brand} className="no-drag" title="Dozzo Browser">
+      <span style={styles.brandName}>
+        {displayedText}
+        {isTyping && <span className="typewriter-cursor">|</span>}
+      </span>
+    </div>
+  );
+}
 
 export default function TitleBar({
   tabs,
@@ -7,9 +52,12 @@ export default function TitleBar({
   onSelectTab,
   onCloseTab,
   onNewTab,
-  isMaximized
+  isMaximized,
+  splitMode = 'single',
+  onChangeSplitMode
 }) {
   const [expandedTabId, setExpandedTabId] = useState(null);
+  const [showSplitMenu, setShowSplitMenu] = useState(false);
 
   const handleMinimize = () => {
     if (window.browserAPI?.minimize) window.browserAPI.minimize();
@@ -25,19 +73,14 @@ export default function TitleBar({
 
   return (
     <div style={styles.titlebar} className="titlebar-drag-region" onDoubleClick={handleMaximize}>
-      {/* Brand Icon */}
-      <div style={styles.brand} className="no-drag" onClick={onNewTab} title="Dozzo Browser">
-        <div style={styles.brandIcon}>
-          <Shield size={14} color="var(--accent)" strokeWidth={2.5} />
-        </div>
-        <span style={styles.brandName}>DOZZO</span>
-      </div>
+      {/* Brand: Pure text DOZZO with 10s Typewriter animation (no shield icon) */}
+      <TypewriterLogo />
 
       {/* Left Draggable Spacer */}
       <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
 
-      {/* Centered iOS / macOS Style Dock (Ultra Round Capsule) */}
-      <div style={styles.dockWrapper} className="no-drag">
+      {/* Centered Floating High-Gloss Glass Circles (Zero outer enclosing box) */}
+      <div style={styles.floatingTabsContainer} className="no-drag">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isExpanded = expandedTabId === tab.id;
@@ -46,21 +89,33 @@ export default function TitleBar({
           return (
             <div
               key={tab.id}
-              style={{
-                ...styles.dockTab,
-                ...(isExpanded
-                  ? styles.dockTabActive
-                  : isActive
-                  ? { ...styles.dockTabCircle, ...styles.dockTabCircleActive }
-                  : styles.dockTabCircle)
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', tab.url || '');
+                e.dataTransfer.effectAllowed = 'move';
               }}
-              className={`dock-tab-item ${isActive ? 'active' : ''}`}
+              onDragEnd={(e) => {
+                // Drag out of current window bounds to open on secondary monitor
+                const isOutside =
+                  e.screenX < window.screenX - 25 ||
+                  e.screenX > window.screenX + window.outerWidth + 25 ||
+                  e.screenY < window.screenY - 25 ||
+                  e.screenY > window.screenY + window.outerHeight + 25;
+
+                if (isOutside && window.browserAPI?.openNewWindow) {
+                  window.browserAPI.openNewWindow({ url: tab.url });
+                  if (tabs.length > 1) {
+                    onCloseTab(tab.id);
+                  }
+                }
+              }}
+              className={isExpanded ? 'high-gloss-capsule' : `high-gloss-circle ${isActive ? 'active' : ''}`}
               onClick={() => {
                 onSelectTab(tab.id);
                 // Clicking toggles opening/closing the tab pill name
                 setExpandedTabId((prev) => (prev === tab.id ? null : tab.id));
               }}
-              title={isExpanded ? 'Clic para colapsar a círculo' : displayTitle}
+              title={isExpanded ? 'Clic para colapsar a círculo' : `${displayTitle} (Arrastra fuera para mover a otra pantalla)`}
             >
               {/* Favicon or Loading Spinner */}
               <div style={styles.faviconBox}>
@@ -91,6 +146,21 @@ export default function TitleBar({
                     </div>
                   )}
 
+                  {/* Pop out / tear off to secondary monitor */}
+                  <button
+                    style={styles.tabActionBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.browserAPI?.openNewWindow) {
+                        window.browserAPI.openNewWindow({ url: tab.url });
+                        if (tabs.length > 1) onCloseTab(tab.id);
+                      }
+                    }}
+                    title="Mover a otra pantalla / Nueva ventana"
+                  >
+                    <ExternalLink size={11} />
+                  </button>
+
                   <button
                     style={styles.closeBtn}
                     onClick={(e) => {
@@ -108,14 +178,127 @@ export default function TitleBar({
           );
         })}
 
-        {/* Circular Add Tab Button */}
-        <button style={styles.addTabBtn} onClick={onNewTab} title="Nueva pestaña (Ctrl+T)">
-          <Plus size={15} />
+        {/* Circular Add Tab Button in High Gloss Glass */}
+        <button
+          className="high-gloss-circle"
+          onClick={onNewTab}
+          title="Nueva pestaña (Ctrl+T)"
+          style={{ width: '38px', height: '38px' }}
+        >
+          <Plus size={16} />
         </button>
       </div>
 
       {/* Right Draggable Spacer */}
       <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
+
+      {/* Split Layout Switcher (1 to 5 Views) */}
+      {onChangeSplitMode && (
+        <div style={styles.splitControls} className="no-drag">
+          <button
+            style={{
+              ...styles.splitBtn,
+              color: splitMode !== 'single' ? 'var(--accent)' : 'var(--text-secondary)',
+              background: splitMode !== 'single' ? 'var(--accent-glow)' : 'transparent'
+            }}
+            onClick={() => setShowSplitMenu(!showSplitMenu)}
+            title="Vistas y Pantalla Dividida (1 a 5 pestañas simultáneas)"
+          >
+            <LayoutGrid size={15} />
+            {splitMode !== 'single' && (
+              <span style={styles.splitBadge}>{splitMode.replace('split-', '')}</span>
+            )}
+          </button>
+
+          {showSplitMenu && (
+            <div style={styles.splitPopover} className="glass-panel animate-slide-down">
+              <div style={styles.splitPopoverHeader}>Vistas Divididas (1 a 5)</div>
+              <div style={styles.splitOptionsGrid}>
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === 'single' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('single'); setShowSplitMenu(false); }}
+                  title="1 Pestaña Sola (Pantalla Completa)"
+                >
+                  <div style={styles.splitPreviewBox}>
+                    <div style={{ width: '100%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                  </div>
+                  <span>1 Sola</span>
+                </button>
+
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === '2-col' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('2-col'); setShowSplitMenu(false); }}
+                  title="2 Pestañas en Columnas (Vertical)"
+                >
+                  <div style={styles.splitPreviewBox}>
+                    <div style={{ width: '48%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '48%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                  </div>
+                  <span>2 Col</span>
+                </button>
+
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === '2-row' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('2-row'); setShowSplitMenu(false); }}
+                  title="2 Pestañas Arriba y Abajo (Horizontal)"
+                >
+                  <div style={{ ...styles.splitPreviewBox, flexDirection: 'column' }}>
+                    <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                  </div>
+                  <span>2 Filas</span>
+                </button>
+
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === '3-grid' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('3-grid'); setShowSplitMenu(false); }}
+                  title="3 Vistas (1 Principal + 2 Laterales)"
+                >
+                  <div style={styles.splitPreviewBox}>
+                    <div style={{ width: '56%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '40%', height: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                      <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    </div>
+                  </div>
+                  <span>3 Vistas</span>
+                </button>
+
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === '4-grid' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('4-grid'); setShowSplitMenu(false); }}
+                  title="4 Pestañas en Cuadrícula 2x2"
+                >
+                  <div style={{ ...styles.splitPreviewBox, flexWrap: 'wrap', gap: '2px' }}>
+                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
+                  </div>
+                  <span>4 Grid</span>
+                </button>
+
+                <button
+                  style={{ ...styles.splitOption, ...(splitMode === '5-grid' ? styles.splitOptionActive : {}) }}
+                  onClick={() => { onChangeSplitMode('5-grid'); setShowSplitMenu(false); }}
+                  title="5 Vistas Simultáneas (1 Destacada + 4 Mosaico)"
+                >
+                  <div style={{ ...styles.splitPreviewBox, gap: '2px' }}>
+                    <div style={{ width: '44%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '54%', height: '100%', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    </div>
+                  </div>
+                  <span>5 Vistas</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Window Controls (Minimize, Maximize, Close) */}
       <div style={styles.windowControls} className="no-drag">
@@ -148,68 +331,21 @@ const styles = {
   brand: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
     cursor: 'pointer',
     flexShrink: 0
-  },
-  brandIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '26px',
-    height: '26px',
-    borderRadius: '7px',
-    background: 'var(--bg-tertiary)'
   },
   brandName: {
-    fontSize: '11.5px',
-    fontWeight: '800',
-    letterSpacing: '1px',
-    color: 'var(--text-primary)'
+    fontSize: '12px',
+    fontWeight: '900',
+    letterSpacing: '2px',
+    color: 'var(--text-primary)',
+    textTransform: 'uppercase'
   },
-  dockWrapper: {
+  floatingTabsContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    background: 'rgba(24, 24, 24, 0.88)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid var(--border-hover)',
-    borderRadius: '9999px',
-    padding: '4px 8px',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+    gap: '8px',
     flexShrink: 0
-  },
-  dockTab: {
-    display: 'flex',
-    alignItems: 'center',
-    cursor: 'pointer',
-    userSelect: 'none',
-    transition: 'all 0.35s cubic-bezier(0.2, 0.9, 0.25, 1)'
-  },
-  dockTabCircle: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    boxShadow: '0 3px 8px rgba(0,0,0,0.25)'
-  },
-  dockTabCircleActive: {
-    border: '2px solid var(--accent)',
-    boxShadow: '0 0 12px var(--accent-glow)',
-    background: 'rgba(255, 255, 255, 0.1)'
-  },
-  dockTabActive: {
-    height: '36px',
-    minWidth: '150px',
-    maxWidth: '240px',
-    padding: '0 12px',
-    borderRadius: '9999px',
-    background: 'var(--bg-secondary)',
-    border: '1px solid var(--accent)',
-    boxShadow: '0 0 14px var(--accent-glow)',
-    gap: '7px'
   },
   faviconBox: {
     display: 'flex',
@@ -246,6 +382,17 @@ const styles = {
     alignItems: 'center',
     flexShrink: 0
   },
+  tabActionBtn: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-muted)',
+    transition: 'all 0.15s ease',
+    flexShrink: 0
+  },
   closeBtn: {
     width: '18px',
     height: '18px',
@@ -257,18 +404,80 @@ const styles = {
     transition: 'all 0.15s ease',
     flexShrink: 0
   },
-  addTabBtn: {
-    width: '34px',
-    height: '34px',
-    borderRadius: '50%',
+  splitControls: {
+    position: 'relative',
+    marginRight: '6px'
+  },
+  splitBtn: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    background: 'var(--bg-tertiary)',
+    gap: '4px',
+    padding: '5px 8px',
+    borderRadius: '6px',
+    fontSize: '11px',
+    fontWeight: '700',
+    transition: 'all 0.15s ease'
+  },
+  splitBadge: {
+    fontSize: '10px',
+    fontWeight: '800',
+    color: 'var(--accent)'
+  },
+  splitPopover: {
+    position: 'absolute',
+    top: '36px',
+    right: 0,
+    width: '240px',
+    background: 'rgba(18, 18, 18, 0.95)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '12px',
+    padding: '12px',
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+    zIndex: 100
+  },
+  splitPopoverHeader: {
+    fontSize: '11px',
+    fontWeight: '800',
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.8px',
+    marginBottom: '10px'
+  },
+  splitOptionsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '8px'
+  },
+  splitOption: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 4px',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.04)',
     border: '1px solid var(--border-subtle)',
     color: 'var(--text-secondary)',
-    transition: 'all 0.2s ease',
-    flexShrink: 0
+    fontSize: '11px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+  splitOptionActive: {
+    background: 'var(--accent-glow)',
+    borderColor: 'var(--accent)',
+    color: 'var(--accent)'
+  },
+  splitPreviewBox: {
+    width: '32px',
+    height: '24px',
+    borderRadius: '4px',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    padding: '2px',
+    display: 'flex',
+    gap: '2px',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   windowControls: {
     display: 'flex',

@@ -34,25 +34,27 @@ function configureWidevine() {
   const localAppData = process.env.LOCALAPPDATA || '';
   const candidates = [
     path.join(localAppData, 'Microsoft/Edge/User Data/WidevineCdm/4.10.3112.0/_platform_specific/win_x64/widevinecdm.dll'),
-    path.join(localAppData, 'Google/Chrome/User Data/WidevineCdm/4.10.3112.0/_platform_specific/win_x64/widevinecdm.dll'),
     'C:\\Program Files\\Google\\Chrome\\Application\\155.0.8059.85\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\155.0.4283.62\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll'
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\155.0.4283.62\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll',
+    path.join(localAppData, 'Google/Chrome/User Data/WidevineCdm/4.10.3112.0/_platform_specific/win_x64/widevinecdm.dll')
   ];
 
   for (const cdmPath of candidates) {
     if (fs.existsSync(cdmPath)) {
       app.commandLine.appendSwitch('widevine-cdm-path', cdmPath);
       app.commandLine.appendSwitch('widevine-cdm-version', '4.10.3112.0');
+      app.commandLine.appendSwitch('no-verify-widevine-cdm');
+      app.commandLine.appendSwitch('enable-widevine');
       break;
     }
   }
 }
 configureWidevine();
 
-// Audio, Autoplay & Media Switches
+// Audio, Autoplay & Media Switches (Widevine & Spotify Web Enabled)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
-app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess');
+app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm');
 
 // Modern Chrome User-Agent to avoid Google/Spotify/Cloudflare blocking
 const CHROME_USER_AGENT =
@@ -81,8 +83,8 @@ async function waitForServer(url, timeoutMs = 15000) {
   return false;
 }
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
+function createWindow(initialUrl = '') {
+  const win = new BrowserWindow({
     width: 1300,
     height: 850,
     minWidth: 800,
@@ -99,8 +101,17 @@ function createWindow() {
     }
   });
 
+  if (!mainWindow) {
+    mainWindow = win;
+  }
+
+  // Ensure Widevine plugins and protected media keys are active inside webviews for Spotify
+  win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    webPreferences.plugins = true;
+  });
+
   // Set user agent
-  mainWindow.webContents.setUserAgent(CHROME_USER_AGENT);
+  win.webContents.setUserAgent(CHROME_USER_AGENT);
 
   const browserPartition = session.fromPartition('persist:dozzo-browser');
   browserPartition.setUserAgent(CHROME_USER_AGENT);
@@ -173,55 +184,69 @@ function createWindow() {
   handleDownload(session.defaultSession);
   handleDownload(browserPartition);
 
-  // Determine URL to load
+  // Determine URL to load (with optional initialUrl parameter for detached tabs)
   const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+  const queryParam = initialUrl ? `?initialUrl=${encodeURIComponent(initialUrl)}` : '';
 
   if (devServerUrl) {
     waitForServer(devServerUrl, 4000).then((ready) => {
-      if (ready && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.loadURL(devServerUrl);
-      } else if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+      if (ready && !win.isDestroyed()) {
+        win.loadURL(devServerUrl + queryParam);
+      } else if (!win.isDestroyed()) {
+        win.loadFile(path.join(__dirname, '../dist/index.html'), initialUrl ? { query: { initialUrl } } : undefined);
       }
     });
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    win.loadFile(path.join(__dirname, '../dist/index.html'), initialUrl ? { query: { initialUrl } } : undefined);
   }
 
   // Handle window maximize/unmaximize
-  mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window-state-changed', { isMaximized: true });
+  win.on('maximize', () => {
+    win.webContents.send('window-state-changed', { isMaximized: true });
   });
-  mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window-state-changed', { isMaximized: false });
+  win.on('unmaximize', () => {
+    win.webContents.send('window-state-changed', { isMaximized: false });
   });
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  win.on('closed', () => {
+    if (mainWindow === win) {
+      mainWindow = null;
+    }
   });
+
+  return win;
 }
 
-// Window control IPC
-ipcMain.on('window-minimize', () => {
-  if (mainWindow) mainWindow.minimize();
+// Window control IPC (supports all windows independently)
+ipcMain.on('window-minimize', (event) => {
+  const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (targetWin) targetWin.minimize();
 });
 
-ipcMain.on('window-maximize', () => {
-  if (mainWindow) {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
+ipcMain.on('window-maximize', (event) => {
+  const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (targetWin) {
+    if (targetWin.isMaximized()) {
+      targetWin.unmaximize();
     } else {
-      mainWindow.maximize();
+      targetWin.maximize();
     }
   }
 });
 
-ipcMain.on('window-close', () => {
-  if (mainWindow) mainWindow.close();
+ipcMain.on('window-close', (event) => {
+  const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (targetWin) targetWin.close();
 });
 
-ipcMain.handle('window-is-maximized', () => {
-  return mainWindow ? mainWindow.isMaximized() : false;
+ipcMain.handle('window-is-maximized', (event) => {
+  const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  return targetWin ? targetWin.isMaximized() : false;
+});
+
+// Multi-window: Drag tab out to separate monitor / new window
+ipcMain.on('open-new-window', (event, data) => {
+  createWindow(data?.url || '');
 });
 
 // Adblock IPC

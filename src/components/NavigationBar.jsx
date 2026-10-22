@@ -44,6 +44,7 @@ export default function NavigationBar({
   onToggleBookmarksBar,
   blockedCount,
   isShieldActive,
+  isShieldOpen = false,
   onToggleShieldModal,
   onToggleBinance,
   isBinanceOpen,
@@ -112,6 +113,7 @@ export default function NavigationBar({
   const isHttps = currentUrl?.startsWith('https://');
 
   const accents = [
+    { id: 'none', name: 'Negro Puro (OLED)', color: '#000000' },
     { id: 'gold', name: 'Binance Gold', color: '#F0B90B' },
     { id: 'cyan', name: 'Cyber Cyan', color: '#06B6D4' },
     { id: 'emerald', name: 'Emerald Green', color: '#10B981' },
@@ -180,17 +182,19 @@ export default function NavigationBar({
         )}
       </div>
 
-      {/* Privacy Shield Badge */}
+      {/* Privacy Shield Badge (Muted by default, illuminates in emerald when clicked) */}
       <button
         style={{
           ...styles.shieldBtn,
-          ...(isShieldActive ? styles.shieldBtnActive : styles.shieldBtnInactive)
+          ...(isShieldOpen ? styles.shieldBtnActive : styles.shieldBtnInactive)
         }}
         onClick={onToggleShieldModal}
-        title="Escudo de Privacidad Dozzo (Sin Anuncios / Sin Rastreo)"
+        title="Escudo de Privacidad Dozzo (Clic para abrir y ver rastreadores bloqueados)"
       >
-        <Shield size={14} color={isShieldActive ? 'var(--success)' : 'var(--text-muted)'} />
-        <span style={styles.shieldCount}>{blockedCount}</span>
+        <Shield size={14} color={isShieldOpen ? 'var(--success)' : 'var(--text-muted)'} />
+        <span style={{ color: isShieldOpen ? 'var(--success)' : 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>
+          {blockedCount}
+        </span>
       </button>
 
       {/* Smart Omnibar Container with History Autocomplete */}
@@ -286,24 +290,19 @@ export default function NavigationBar({
         )}
       </div>
 
-      {/* Binance Crypto Widget Button */}
+      {/* Crypto Hub Broker Button: Icon + Chevron Only */}
       <button
         style={{
-          ...styles.binanceBtn,
-          ...(isBinanceOpen ? styles.binanceBtnActive : {})
+          ...styles.brokerIconBtn,
+          ...(isBinanceOpen ? styles.brokerIconBtnActive : {})
         }}
         onClick={onToggleBinance}
-        title="Abrir Binance Crypto Hub"
+        title="Crypto Hub (Binance, Coinbase, OKX, Bybit, Kraken) - Precios y Mercados"
       >
         <div style={styles.binanceLogo}>
-          <TrendingUp size={14} color="#F0B90B" />
+          <TrendingUp size={15} color="#F0B90B" />
         </div>
-        <span style={styles.binanceLabel}>BINANCE</span>
-        {binanceTicker && (
-          <span style={styles.tickerBadge}>
-            {binanceTicker.symbol}: ${parseFloat(binanceTicker.price).toLocaleString()}
-          </span>
-        )}
+        <ChevronDown size={12} color={isBinanceOpen ? '#F0B90B' : 'var(--text-muted)'} />
       </button>
 
       {/* Utilities Group (Unified Tools Menu & Collapsible Arrow) */}
@@ -577,12 +576,14 @@ const styles = {
   shieldBtnActive: {
     background: 'var(--success-glow)',
     color: 'var(--success)',
-    border: '1px solid rgba(16, 185, 129, 0.3)'
+    border: '1px solid rgba(16, 185, 129, 0.4)',
+    boxShadow: '0 0 10px var(--success-glow)'
   },
   shieldBtnInactive: {
-    background: 'var(--bg-secondary)',
+    background: 'transparent',
     color: 'var(--text-muted)',
-    border: '1px solid var(--border-subtle)'
+    border: '1px solid transparent',
+    opacity: 0.75
   },
   shieldCount: {
     fontFamily: 'JetBrains Mono, monospace'
@@ -619,6 +620,23 @@ const styles = {
     borderRadius: '4px',
     color: 'var(--text-muted)',
     marginLeft: '4px'
+  },
+  brokerIconBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '3px',
+    height: '32px',
+    padding: '0 8px',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid var(--border-subtle)',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease'
+  },
+  brokerIconBtnActive: {
+    background: 'rgba(240, 185, 11, 0.18)',
+    borderColor: '#F0B90B',
+    boxShadow: '0 0 10px rgba(240, 185, 11, 0.25)'
   },
   binanceBtn: {
     display: 'flex',
