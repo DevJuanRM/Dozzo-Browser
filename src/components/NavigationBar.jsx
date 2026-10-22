@@ -24,7 +24,8 @@ import {
   Clock,
   Globe,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  LayoutGrid
 } from 'lucide-react';
 import { getSearchUrl, getEngine } from '../utils/searchEngines';
 
@@ -39,6 +40,8 @@ export default function NavigationBar({
   onReload,
   onStop,
   onGoHome,
+  showBookmarksBar = false,
+  onToggleBookmarksBar,
   blockedCount,
   isShieldActive,
   onToggleShieldModal,
@@ -67,7 +70,7 @@ export default function NavigationBar({
 }) {
   const [inputValue, setInputValue] = useState(currentUrl || '');
   const [copied, setCopied] = useState(false);
-  const [showPalette, setShowPalette] = useState(false);
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [isOmniFocused, setIsOmniFocused] = useState(false);
 
   // Sync input value with current URL
@@ -161,6 +164,20 @@ export default function NavigationBar({
         <button style={styles.iconBtn} onClick={onGoHome} title="Página de inicio (Speed Dial)">
           <Home size={16} />
         </button>
+
+        {/* Toggle Bookmarks Bar Button */}
+        {onToggleBookmarksBar && (
+          <button
+            style={{
+              ...styles.iconBtn,
+              color: showBookmarksBar ? 'var(--accent)' : 'var(--text-secondary)'
+            }}
+            onClick={onToggleBookmarksBar}
+            title={showBookmarksBar ? 'Ocultar barra de marcadores/favoritos' : 'Mostrar barra de marcadores/favoritos'}
+          >
+            <Star size={16} fill={showBookmarksBar ? 'currentColor' : 'none'} />
+          </button>
+        )}
       </div>
 
       {/* Privacy Shield Badge */}
@@ -289,143 +306,217 @@ export default function NavigationBar({
         )}
       </button>
 
-      {/* Utilities Group (Theme, Palette, Settings) */}
+      {/* Utilities Group (Unified Tools Menu & Collapsible Arrow) */}
       <div style={styles.navGroup}>
-        {/* Theme Toggle (Dark / Light) */}
-        <button
-          style={styles.iconBtn}
-          onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
-        >
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
-
-        {/* Accent Color Palette Selector */}
+        {/* Unified Tools Hub Button */}
         <div style={{ position: 'relative' }}>
           <button
-            style={styles.iconBtn}
-            onClick={() => setShowPalette(!showPalette)}
-            title="Colores y Temas"
+            style={{
+              ...styles.iconBtn,
+              background: showToolsMenu ? 'var(--accent)' : 'transparent',
+              color: showToolsMenu ? 'var(--accent-text)' : 'var(--text-secondary)',
+              position: 'relative'
+            }}
+            onClick={() => setShowToolsMenu(!showToolsMenu)}
+            title="Herramientas Dozzo (Asistente de Voz, IA, Descargas, Historial, Temas, Ajustes)"
           >
-            <Palette size={16} />
+            <LayoutGrid size={16} />
+            {downloadsCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '2px',
+                  right: '2px',
+                  width: '14px',
+                  height: '14px',
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  color: 'var(--accent-text)',
+                  fontSize: '9px',
+                  fontWeight: '800',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {downloadsCount}
+              </span>
+            )}
           </button>
 
-          {showPalette && (
-            <div style={styles.palettePopover} className="glass-panel animate-slide-down">
-              <div style={styles.paletteTitle}>Personalizar Acento</div>
-              <div style={styles.colorGrid}>
-                {accents.map((acc) => (
-                  <div
-                    key={acc.id}
-                    onClick={() => {
-                      onChangeAccent(acc.id);
-                      setShowPalette(false);
-                    }}
-                    style={{
-                      ...styles.colorCircle,
-                      backgroundColor: acc.color,
-                      border: accentColor === acc.id ? '2px solid white' : '2px solid transparent'
-                    }}
-                    title={acc.name}
-                  />
-                ))}
+          {showToolsMenu && (
+            <div style={styles.toolsMenuPopover} className="glass-panel animate-slide-down">
+              <div style={styles.toolsMenuHeader}>
+                <span style={styles.toolsMenuTitle}>Herramientas Dozzo</span>
+                <button
+                  style={styles.closePopoverBtn}
+                  onClick={() => setShowToolsMenu(false)}
+                  title="Cerrar menú"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div style={styles.toolsList}>
+                {/* Voice Assistant */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    onOpenVoiceAssistant();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(240, 185, 11, 0.15)', color: '#F0B90B' }}>
+                    <Mic size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Asistente de Voz</div>
+                    <div style={styles.toolDesc}>Control por voz y comandos con Dozzo IA</div>
+                  </div>
+                </button>
+
+                {/* Sidebar Apps */}
+                <button
+                  style={{
+                    ...styles.toolItem,
+                    background: isSidebarOpen ? 'var(--bg-tertiary)' : 'transparent'
+                  }}
+                  onClick={() => {
+                    onToggleSidebar();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(6, 182, 212, 0.15)', color: '#06B6D4' }}>
+                    <PanelRight size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Panel Lateral</div>
+                    <div style={styles.toolDesc}>Notas, Conversor Cripto y Chat IA</div>
+                  </div>
+                </button>
+
+                {/* Dev Studio */}
+                <button
+                  style={{
+                    ...styles.toolItem,
+                    background: isInspectorActive ? 'var(--bg-tertiary)' : 'transparent'
+                  }}
+                  onClick={() => {
+                    onToggleInspector();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' }}>
+                    <Code2 size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Dev Studio</div>
+                    <div style={styles.toolDesc}>Inspeccionar web a React (JSX) o Figma</div>
+                  </div>
+                </button>
+
+                {/* Downloads */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    onToggleDownloads();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                    <Download size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Descargas</div>
+                    <div style={styles.toolDesc}>
+                      {downloadsCount > 0 ? `${downloadsCount} descarga(s) activa(s)` : 'Ver archivos descargados'}
+                    </div>
+                  </div>
+                </button>
+
+                {/* History */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    onOpenHistory();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'rgba(249, 115, 22, 0.15)', color: '#F97316' }}>
+                    <History size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Historial</div>
+                    <div style={styles.toolDesc}>Páginas visitadas recientemente (Ctrl+H)</div>
+                  </div>
+                </button>
+
+                <div style={styles.menuDivider} />
+
+                {/* Theme Mode Toggle */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    onToggleTheme();
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
+                    {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>
+                      {theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+                    </div>
+                    <div style={styles.toolDesc}>Alternar iluminación de la interfaz</div>
+                  </div>
+                </button>
+
+                {/* Accent Color Palette Row */}
+                <div style={styles.accentSection}>
+                  <div style={styles.accentLabel}>
+                    <Palette size={13} style={{ marginRight: '6px' }} />
+                    Color de Acento
+                  </div>
+                  <div style={styles.colorGrid}>
+                    {accents.map((acc) => (
+                      <div
+                        key={acc.id}
+                        onClick={() => onChangeAccent(acc.id)}
+                        style={{
+                          ...styles.colorCircle,
+                          backgroundColor: acc.color,
+                          border: accentColor === acc.id ? '2px solid white' : '2px solid transparent'
+                        }}
+                        title={acc.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div style={styles.menuDivider} />
+
+                {/* Settings & Privacy */}
+                <button
+                  style={styles.toolItem}
+                  onClick={() => {
+                    onOpenSettings();
+                    setShowToolsMenu(false);
+                  }}
+                >
+                  <div style={{ ...styles.toolIconBox, background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                    <Sliders size={15} />
+                  </div>
+                  <div style={styles.toolTexts}>
+                    <div style={styles.toolName}>Ajustes y Privacidad</div>
+                    <div style={styles.toolDesc}>Motor de búsqueda, caché y preferencias</div>
+                  </div>
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Downloads Button */}
-        <button
-          style={{
-            ...styles.iconBtn,
-            position: 'relative'
-          }}
-          onClick={onToggleDownloads}
-          title="Ver Descargas"
-        >
-          <Download size={16} />
-          {downloadsCount > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '2px',
-                right: '2px',
-                width: '14px',
-                height: '14px',
-                borderRadius: '50%',
-                background: 'var(--accent)',
-                color: 'var(--accent-text)',
-                fontSize: '9px',
-                fontWeight: '800',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {downloadsCount}
-            </span>
-          )}
-        </button>
-
-        {/* History Button */}
-        <button
-          style={styles.iconBtn}
-          onClick={onOpenHistory}
-          title="Historial de Navegación (Ctrl+H)"
-        >
-          <History size={16} />
-        </button>
-
-        {/* Voice Assistant Button */}
-        <button
-          style={{
-            ...styles.iconBtn,
-            color: 'var(--accent)',
-            background: 'rgba(240, 185, 11, 0.12)'
-          }}
-          onClick={onOpenVoiceAssistant}
-          title="Dozzo Asistente de Voz (Hablar con micrófono)"
-        >
-          <Mic size={16} />
-        </button>
-
-        {/* Sidebar Apps (Notes / AI / Calc) Button */}
-        <button
-          style={{
-            ...styles.iconBtn,
-            background: isSidebarOpen ? 'var(--bg-tertiary)' : 'transparent',
-            color: isSidebarOpen ? 'var(--accent)' : 'var(--text-secondary)'
-          }}
-          onClick={onToggleSidebar}
-          title="Herramientas Laterales (Notas / Conversor Cripto / IA)"
-        >
-          <PanelRight size={16} />
-        </button>
-
-        {/* Dev Studio: Inspect element to React / Figma */}
-        <button
-          style={{
-            ...styles.iconBtn,
-            background: isInspectorActive ? 'var(--accent)' : 'transparent',
-            color: isInspectorActive ? 'var(--accent-text)' : 'var(--text-secondary)',
-            boxShadow: isInspectorActive ? '0 0 10px var(--accent-glow)' : 'none'
-          }}
-          onClick={onToggleInspector}
-          title={
-            isInspectorActive
-              ? 'Inspector activo: haz clic en cualquier elemento de la web'
-              : 'Dozzo Dev Studio: Convertir elemento web a React (JSX) o Figma'
-          }
-        >
-          <Code2 size={16} />
-        </button>
-
-        {/* Settings Button */}
-        <button style={styles.iconBtn} onClick={onOpenSettings} title="Ajustes y Privacidad">
-          <Sliders size={16} />
-        </button>
-
-        {/* Auto-hide / Collapsible top bar toggle arrow */}
+        {/* Auto-hide / Collapsible top bar toggle arrow (Kept outside menu as requested!) */}
         {onToggleAutoHide && (
           <button
             style={{
@@ -640,5 +731,102 @@ const styles = {
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
+  },
+  toolsMenuPopover: {
+    position: 'absolute',
+    top: '38px',
+    right: '0',
+    width: '280px',
+    borderRadius: '16px',
+    padding: '10px',
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-hover)',
+    boxShadow: '0 16px 40px rgba(0, 0, 0, 0.55)',
+    zIndex: 100,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  },
+  toolsMenuHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '4px 8px 8px 8px',
+    borderBottom: '1px solid var(--border-subtle)',
+    marginBottom: '4px'
+  },
+  toolsMenuTitle: {
+    fontSize: '12px',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    letterSpacing: '0.3px'
+  },
+  closePopoverBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: '0 4px',
+    lineHeight: '1'
+  },
+  toolsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px'
+  },
+  toolItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '7px 10px',
+    borderRadius: '10px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'left',
+    width: '100%',
+    transition: 'background 0.15s ease'
+  },
+  toolIconBox: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0
+  },
+  toolTexts: {
+    flex: 1,
+    minWidth: 0
+  },
+  toolName: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--text-primary)'
+  },
+  toolDesc: {
+    fontSize: '10.5px',
+    color: 'var(--text-muted)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  menuDivider: {
+    height: '1px',
+    background: 'var(--border-subtle)',
+    margin: '4px 0'
+  },
+  accentSection: {
+    padding: '6px 10px'
+  },
+  accentLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: '11px',
+    fontWeight: '600',
+    color: 'var(--text-secondary)',
+    marginBottom: '8px'
   }
 };

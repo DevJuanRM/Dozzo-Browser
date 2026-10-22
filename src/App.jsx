@@ -39,6 +39,21 @@ export default function App() {
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
   const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar') === 'true');
   const [isHoveringTop, setIsHoveringTop] = useState(false);
+  const [showPillHint, setShowPillHint] = useState(false);
+  const pillTimeoutRef = useRef(null);
+
+  // Auto-hide pill hint fade-out timer
+  useEffect(() => {
+    if (isAutoHidden) {
+      setShowPillHint(true);
+      if (pillTimeoutRef.current) clearTimeout(pillTimeoutRef.current);
+      pillTimeoutRef.current = setTimeout(() => {
+        setShowPillHint(false);
+      }, 2500);
+    } else {
+      setShowPillHint(false);
+    }
+  }, [isAutoHidden]);
 
   // Privacy & Adblocker Stats
   const [blockedCount, setBlockedCount] = useState(0);
@@ -404,13 +419,14 @@ export default function App() {
         <div
           className="top-hover-trigger"
           onMouseEnter={() => setIsHoveringTop(true)}
-          onClick={() => setIsHoveringTop((prev) => !prev)}
-          title="Pasar el mouse para mostrar la barra del explorador"
+          title="Pasar el cursor por la parte superior para mostrar la barra del explorador"
         >
-          <div className="top-hover-pill">
-            <ChevronDown size={13} />
-            <span>Mostrar Barra</span>
-          </div>
+          {showPillHint && (
+            <div className="top-hover-pill pill-fade-out">
+              <ChevronDown size={13} />
+              <span>Barra Oculta</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -420,7 +436,7 @@ export default function App() {
         onMouseEnter={() => isAutoHidden && setIsHoveringTop(true)}
         onMouseLeave={() => isAutoHidden && setIsHoveringTop(false)}
       >
-        {/* Custom Window TitleBar & Tabs */}
+        {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
         <TitleBar
           tabs={tabs}
           activeTabId={activeTabId}
@@ -442,6 +458,12 @@ export default function App() {
           onReload={handleReload}
           onStop={handleStop}
           onGoHome={handleGoHome}
+          showBookmarksBar={showBookmarksBar}
+          onToggleBookmarksBar={() => {
+            const next = !showBookmarksBar;
+            setShowBookmarksBar(next);
+            localStorage.setItem('dozzo_bookmarks_visible', String(next));
+          }}
           blockedCount={blockedCount}
           isShieldActive={isShieldActive}
           onToggleShieldModal={() => setIsShieldOpen(true)}

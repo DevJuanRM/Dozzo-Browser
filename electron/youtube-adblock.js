@@ -1,9 +1,9 @@
-// Injected into webviews to instantly skip and hide YouTube ads without breaking video playback
+// Injected into webviews: Complete, silent YouTube AdBlock (uBlock-style API ad-stripper + DOM skipper)
 (function () {
   if (window.__dozzo_adblock_injected) return;
   window.__dozzo_adblock_injected = true;
 
-  // 1. Inject CSS only for promotional banners, NOT player video containers
+  // 1. Inject CSS for banner and promotional ads
   const style = document.createElement('style');
   style.id = '__dozzo_adblock_style';
   style.textContent = `
@@ -35,13 +35,93 @@
   `;
   (document.head || document.documentElement).appendChild(style);
 
-  // 2. High-speed, non-disruptive YouTube Video Ad Skipper
+  // 2. YouTube Ad-Free Engine (Only on youtube.com)
   if (location.hostname.includes('youtube.com')) {
+    // A. Strip ad metadata from ytInitialPlayerResponse so YouTube never schedules ads
+    try {
+      let initialResponse = window.ytInitialPlayerResponse;
+      Object.defineProperty(window, 'ytInitialPlayerResponse', {
+        get() {
+          if (initialResponse) {
+            delete initialResponse.adPlacements;
+            delete initialResponse.adSlots;
+            delete initialResponse.playerAds;
+          }
+          return initialResponse;
+        },
+        set(val) {
+          if (val) {
+            delete val.adPlacements;
+            delete val.adSlots;
+            delete val.playerAds;
+          }
+          initialResponse = val;
+        },
+        configurable: true
+      });
+    } catch (e) {}
+
+    // B. Intercept fetch for /player API requests and sanitize ad placements
+    try {
+      const origFetch = window.fetch;
+      window.fetch = async function (...args) {
+        const response = await origFetch.apply(this, args);
+        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+        if (url.includes('/youtubei/v1/player')) {
+          try {
+            const clone = response.clone();
+            const data = await clone.json();
+            if (data.adPlacements || data.adSlots || data.playerAds) {
+              delete data.adPlacements;
+              delete data.adSlots;
+              delete data.playerAds;
+              return new Response(JSON.stringify(data), {
+                status: response.status,
+                statusText: response.statusText,
+                headers: response.headers
+              });
+            }
+          } catch (err) {}
+        }
+        return response;
+      };
+    } catch (e) {}
+
+    // C. Intercept XMLHttpRequest for YouTube internal player calls
+    try {
+      const origOpen = XMLHttpRequest.prototype.open;
+      const origSend = XMLHttpRequest.prototype.send;
+      XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+        this._ytUrl = url;
+        return origOpen.apply(this, [method, url, ...rest]);
+      };
+      XMLHttpRequest.prototype.send = function (...args) {
+        if (typeof this._ytUrl === 'string' && this._ytUrl.includes('/youtubei/v1/player')) {
+          this.addEventListener('readystatechange', function () {
+            if (this.readyState === 4 && this.status === 200) {
+              try {
+                const data = JSON.parse(this.responseText);
+                if (data.adPlacements || data.adSlots || data.playerAds) {
+                  delete data.adPlacements;
+                  delete data.adSlots;
+                  delete data.playerAds;
+                  Object.defineProperty(this, 'responseText', { value: JSON.stringify(data), writable: false });
+                  Object.defineProperty(this, 'response', { value: JSON.stringify(data), writable: false });
+                }
+              } catch (e) {}
+            }
+          });
+        }
+        return origSend.apply(this, args);
+      };
+    } catch (e) {}
+
+    // D. Non-destructive In-Player Auto-Skipper
+    let wasAdMuted = false;
     function skipYouTubeAds() {
       const moviePlayer = document.querySelector('#movie_player, .html5-video-player');
       if (!moviePlayer) return;
 
-      // Strictly verify if YouTube's player is currently in ad-showing mode
       const isAdActive =
         moviePlayer.classList.contains('ad-showing') ||
         moviePlayer.classList.contains('ad-interrupting');
@@ -49,12 +129,15 @@
       const video = moviePlayer.querySelector('video.html5-main-video') || moviePlayer.querySelector('video');
 
       if (isAdActive) {
-        // An ad is playing: mute and fast-forward it
         if (video) {
           try {
-            video.muted = true;
+            if (!video.muted) {
+              video.muted = true;
+              wasAdMuted = true;
+            }
             video.playbackRate = 16.0;
-            if (isFinite(video.duration) && video.duration > 0) {
+            // Only jump to end if it's an actual AD video (under 120s), never user's video
+            if (video.duration && video.duration < 120 && video.currentTime < video.duration - 0.1) {
               video.currentTime = video.duration - 0.05;
             }
           } catch (e) {}
@@ -64,16 +147,16 @@
           }
         }
 
-        // Try native internal skip method
+        // Native skip call on player
         if (typeof moviePlayer.skipAd === 'function') {
           try {
             moviePlayer.skipAd();
           } catch (e) {}
         }
 
-        // Click skip buttons immediately
+        // Click all skip button variants immediately
         const skipButtons = document.querySelectorAll(
-          '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot, button.ytp-ad-skip-button-modern'
+          '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-text'
         );
         skipButtons.forEach((btn) => {
           try {
@@ -81,15 +164,23 @@
           } catch (e) {}
         });
       } else {
-        // Normal video is active: ensure playbackRate is 1.0 (not stuck at 16x)
-        if (video && video.playbackRate > 2) {
-          try {
-            video.playbackRate = 1.0;
-          } catch (e) {}
+        // Normal video: restore normal playback rate and unmute if we muted it for an ad
+        if (video) {
+          if (video.playbackRate > 2) {
+            try {
+              video.playbackRate = 1.0;
+            } catch (e) {}
+          }
+          if (wasAdMuted) {
+            try {
+              video.muted = false;
+              wasAdMuted = false;
+            } catch (e) {}
+          }
         }
       }
 
-      // Dismiss overlay close button if present
+      // Close banner overlays
       const overlayClose = document.querySelector('.ytp-ad-overlay-close-button');
       if (overlayClose) {
         try {
@@ -98,7 +189,6 @@
       }
     }
 
-    // Run periodically
     setInterval(skipYouTubeAds, 100);
 
     const observer = new MutationObserver(skipYouTubeAds);

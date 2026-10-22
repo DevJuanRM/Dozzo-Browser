@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 let adblockScriptContent = '';
 let devInspectorScriptContent = '';
@@ -35,9 +36,16 @@ contextBridge.exposeInMainWorld('browserAPI', {
     return () => ipcRenderer.removeListener('adblock-update', subscription);
   },
 
-  // Helper scripts
+  // Helper scripts & Webview Preload
   getAdblockScript: () => adblockScriptContent,
   getDevInspectorScript: () => devInspectorScriptContent,
+  getWebviewPreloadUrl: () => {
+    try {
+      return pathToFileURL(path.join(__dirname, 'webview-preload.js')).href;
+    } catch (e) {
+      return '';
+    }
+  },
   getUserAgent: () =>
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
 

@@ -299,11 +299,14 @@ function WebviewItem({ tab, isActive, onUpdateTab, onNewTabWithUrl, webviewRefs,
     );
   }
 
+  const webviewPreload = window.browserAPI?.getWebviewPreloadUrl?.();
+
   return (
     <webview
       ref={ref}
       src={initialUrlRef.current}
       partition="persist:dozzo-browser"
+      preload={webviewPreload || undefined}
       allowpopups="true"
       plugins="true"
       useragent={window.browserAPI?.getUserAgent?.() || defaultUserAgent}

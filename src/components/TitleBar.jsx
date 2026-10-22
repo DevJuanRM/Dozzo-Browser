@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, Minus, Square, Copy, Volume2, VolumeX, Shield, Globe } from 'lucide-react';
+import { Plus, X, Minus, Square, Copy, Volume2, Globe, Shield } from 'lucide-react';
 
 export default function TitleBar({
   tabs,
@@ -31,22 +31,28 @@ export default function TitleBar({
         <span style={styles.brandName}>DOZZO</span>
       </div>
 
-      {/* Tabs Container */}
-      <div style={styles.tabsStrip} className="titlebar-drag-region">
+      {/* Left Draggable Spacer */}
+      <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
+
+      {/* Centered iOS / macOS Style Dock Tabs */}
+      <div style={styles.dockWrapper} className="no-drag">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
+          const displayTitle = tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...');
+
           return (
             <div
               key={tab.id}
               style={{
-                ...styles.tab,
-                ...(isActive ? styles.tabActive : styles.tabInactive)
+                ...styles.dockTab,
+                ...(isActive ? styles.dockTabActive : styles.dockTabCircle)
               }}
-              className="no-drag"
+              className={`dock-tab-item ${isActive ? 'active' : ''}`}
               onClick={() => onSelectTab(tab.id)}
+              title={displayTitle}
             >
-              {/* Tab Favicon or Spinner */}
-              <div style={styles.faviconContainer}>
+              {/* Favicon or Loading Spinner */}
+              <div style={styles.faviconBox}>
                 {tab.isLoading ? (
                   <div style={styles.spinner} />
                 ) : tab.favicon ? (
@@ -59,46 +65,45 @@ export default function TitleBar({
                     }}
                   />
                 ) : (
-                  <Globe size={13} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
+                  <Globe size={14} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
                 )}
               </div>
 
-              {/* Tab Title */}
-              <span style={styles.tabTitle} title={tab.title || 'Nueva Pestaña'}>
-                {tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...')}
-              </span>
+              {/* Smoothly expanded content for active tab */}
+              {isActive && (
+                <>
+                  <span style={styles.tabTitle}>{displayTitle}</span>
 
-              {/* Audio Indicator */}
-              {tab.isAudioPlaying && (
-                <div style={styles.audioIcon} title="Reproduciendo audio">
-                  <Volume2 size={12} color="var(--accent)" />
-                </div>
+                  {tab.isAudioPlaying && (
+                    <div style={styles.audioIcon} title="Reproduciendo audio">
+                      <Volume2 size={12} color="var(--accent)" />
+                    </div>
+                  )}
+
+                  <button
+                    style={styles.closeBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onCloseTab(tab.id);
+                    }}
+                    title="Cerrar pestaña"
+                  >
+                    <X size={12} />
+                  </button>
+                </>
               )}
-
-              {/* Close Button */}
-              <button
-                style={styles.tabCloseBtn}
-                className="no-drag"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseTab(tab.id);
-                }}
-                title="Cerrar pestaña"
-              >
-                <X size={12} />
-              </button>
             </div>
           );
         })}
 
-        {/* Add Tab Button */}
-        <button style={styles.addTabBtn} className="no-drag" onClick={onNewTab} title="Nueva pestaña (Ctrl+T)">
+        {/* Circular Add Tab Button */}
+        <button style={styles.addTabBtn} onClick={onNewTab} title="Nueva pestaña (Ctrl+T)">
           <Plus size={15} />
         </button>
-
-        {/* Draggable TitleBar Spacer to drag window across monitors */}
-        <div style={{ flex: 1, height: '100%', minWidth: '40px' }} className="titlebar-drag-region" onDoubleClick={handleMaximize} />
       </div>
+
+      {/* Right Draggable Spacer */}
+      <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
 
       {/* Window Controls (Minimize, Maximize, Close) */}
       <div style={styles.windowControls} className="no-drag">
@@ -108,11 +113,7 @@ export default function TitleBar({
         <button style={styles.winBtn} onClick={handleMaximize} title="Maximizar / Restaurar">
           {isMaximized ? <Copy size={11} /> : <Square size={11} />}
         </button>
-        <button
-          style={{ ...styles.winBtn, ...styles.closeBtn }}
-          onClick={handleClose}
-          title="Cerrar"
-        >
+        <button style={{ ...styles.winBtn, ...styles.winCloseBtn }} onClick={handleClose} title="Cerrar">
           <X size={14} />
         </button>
       </div>
@@ -122,86 +123,89 @@ export default function TitleBar({
 
 const styles = {
   titlebar: {
-    height: 'var(--titlebar-height)',
+    height: '48px',
     display: 'flex',
     alignItems: 'center',
     background: 'var(--bg-secondary)',
     borderBottom: '1px solid var(--border-subtle)',
-    paddingLeft: '10px',
+    padding: '0 12px',
     userSelect: 'none',
-    zIndex: 50
+    zIndex: 50,
+    position: 'relative'
   },
   brand: {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    paddingRight: '12px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    flexShrink: 0
   },
   brandIcon: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '24px',
-    height: '24px',
-    borderRadius: '6px',
+    width: '26px',
+    height: '26px',
+    borderRadius: '7px',
     background: 'var(--bg-tertiary)'
   },
   brandName: {
-    fontSize: '11px',
+    fontSize: '11.5px',
     fontWeight: '800',
     letterSpacing: '1px',
     color: 'var(--text-primary)'
   },
-  tabsStrip: {
-    flex: 1,
+  dockWrapper: {
     display: 'flex',
     alignItems: 'center',
-    gap: '4px',
-    overflowX: 'auto',
-    overflowY: 'hidden',
-    height: '100%',
-    paddingTop: '6px'
+    gap: '6px',
+    background: 'rgba(15, 23, 42, 0.75)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '22px',
+    padding: '3px 6px',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+    flexShrink: 0
   },
-  tab: {
+  dockTab: {
     display: 'flex',
     alignItems: 'center',
-    height: '32px',
-    minWidth: '120px',
-    maxWidth: '220px',
-    flex: '0 1 180px',
-    padding: '0 8px',
-    borderRadius: '8px 8px 0 0',
-    fontSize: '12px',
-    fontWeight: '500',
     cursor: 'pointer',
-    position: 'relative',
-    transition: 'all 0.15s ease'
+    userSelect: 'none',
+    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
   },
-  tabActive: {
+  dockTabCircle: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '11px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    boxShadow: '0 3px 8px rgba(0,0,0,0.25)'
+  },
+  dockTabActive: {
+    height: '36px',
+    minWidth: '150px',
+    maxWidth: '230px',
+    padding: '0 12px',
+    borderRadius: '13px',
     background: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
-    borderTop: '2px solid var(--accent)',
-    boxShadow: '0 -2px 8px rgba(0,0,0,0.2)'
+    border: '1px solid var(--accent)',
+    boxShadow: '0 0 14px var(--accent-glow)',
+    gap: '7px'
   },
-  tabInactive: {
-    background: 'transparent',
-    color: 'var(--text-secondary)',
-    borderTop: '2px solid transparent'
-  },
-  faviconContainer: {
+  faviconBox: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '16px',
-    height: '16px',
-    marginRight: '6px',
+    width: '18px',
+    height: '18px',
     flexShrink: 0
   },
   favicon: {
-    width: '14px',
-    height: '14px',
-    borderRadius: '2px'
+    width: '17px',
+    height: '17px',
+    borderRadius: '4px'
   },
   spinner: {
     width: '12px',
@@ -213,49 +217,60 @@ const styles = {
   },
   tabTitle: {
     flex: 1,
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--text-primary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    marginRight: '4px'
+    textOverflow: 'ellipsis'
   },
   audioIcon: {
     display: 'flex',
     alignItems: 'center',
-    marginRight: '4px'
+    flexShrink: 0
   },
-  tabCloseBtn: {
+  closeBtn: {
     width: '18px',
     height: '18px',
     borderRadius: '4px',
-    opacity: 0.6,
-    transition: 'all 0.1s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-muted)',
+    transition: 'all 0.15s ease',
     flexShrink: 0
   },
   addTabBtn: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '6px',
+    width: '30px',
+    height: '30px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-subtle)',
     color: 'var(--text-secondary)',
-    margin: '0 4px',
-    flexShrink: 0,
-    background: 'transparent'
+    transition: 'all 0.2s ease',
+    flexShrink: 0
   },
   windowControls: {
     display: 'flex',
     alignItems: 'center',
     height: '100%',
-    marginLeft: 'auto'
+    marginLeft: 'auto',
+    flexShrink: 0
   },
   winBtn: {
-    width: '42px',
-    height: '100%',
+    width: '38px',
+    height: '28px',
+    borderRadius: '6px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: 'var(--text-secondary)',
     transition: 'background 0.15s ease'
   },
-  closeBtn: {
+  winCloseBtn: {
     color: 'var(--text-secondary)'
   }
 };
