@@ -1,6 +1,24 @@
-import React from 'react';
-import { Sliders, X, Search, Palette, Moon, Sun, Bookmark, Check, Shield } from 'lucide-react';
+import React, { useState } from 'react';
+import {
+  Sliders,
+  X,
+  Search,
+  Palette,
+  Moon,
+  Sun,
+  Bookmark,
+  Check,
+  Shield,
+  RefreshCw,
+  Sparkles,
+  Download,
+  HelpCircle,
+  ExternalLink,
+  CheckCircle2,
+  Monitor
+} from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/searchEngines';
+import { CURRENT_VERSION, checkForLatestRelease, GITHUB_REPO } from '../utils/updateChecker';
 
 export default function SettingsModal({
   isOpen,
@@ -12,8 +30,26 @@ export default function SettingsModal({
   accentColor,
   onChangeAccent,
   showBookmarksBar,
-  onToggleBookmarksBar
+  onToggleBookmarksBar,
+  onOpenInstallGuide
 }) {
+  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
+
+  const handleCheckUpdates = async () => {
+    setIsCheckingUpdates(true);
+    try {
+      const res = await checkForLatestRelease(true);
+      setUpdateStatus({ checked: true, ...res });
+    } catch (e) {
+      setUpdateStatus({ checked: true, hasUpdate: false });
+    } finally {
+      setIsCheckingUpdates(false);
+    }
+  };
+
+  const downloadUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
+
   if (!isOpen) return null;
 
   const engines = SEARCH_ENGINES;
@@ -158,6 +194,97 @@ export default function SettingsModal({
               >
                 {showBookmarksBar ? 'Activada' : 'Oculta'}
               </button>
+            </div>
+          </div>
+
+          {/* Section: System Version & Updates */}
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>
+              <Sparkles size={14} color="var(--accent)" />
+              <span>Versión y Actualizaciones</span>
+            </div>
+
+            <div style={styles.updateCard}>
+              <div style={styles.updateHeaderRow}>
+                <div>
+                  <div style={styles.versionLabel}>Dozzo Browser v{CURRENT_VERSION}</div>
+                  <div style={styles.versionSub}>Canal Oficial de Actualizaciones GitHub</div>
+                </div>
+
+                <button
+                  style={{
+                    ...styles.checkUpdateBtn,
+                    opacity: isCheckingUpdates ? 0.7 : 1
+                  }}
+                  onClick={handleCheckUpdates}
+                  disabled={isCheckingUpdates}
+                >
+                  <RefreshCw size={13} className={isCheckingUpdates ? 'animate-spin' : ''} />
+                  <span>{isCheckingUpdates ? 'Comprobando...' : 'Comprobar Actualizaciones'}</span>
+                </button>
+              </div>
+
+              {/* Status Banner when checked */}
+              {updateStatus?.checked && (
+                <div style={styles.statusResultBox}>
+                  {updateStatus.hasUpdate ? (
+                    <div style={styles.updateAvailableNotice}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sparkles size={15} color="var(--accent)" />
+                        <span style={{ fontWeight: '700', fontSize: '12.5px' }}>
+                          ¡Nueva versión disponible: v{updateStatus.latestVersion}!
+                        </span>
+                      </div>
+                      <p style={{ margin: '6px 0', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                        Hay una actualización con mejoras de rendimiento y correcciones para ti.
+                      </p>
+                      <button
+                        style={styles.downloadUpdateBtn}
+                        onClick={() => {
+                          if (window.browserAPI?.openExternal) {
+                            window.browserAPI.openExternal(updateStatus.downloadUrl || downloadUrl);
+                          } else {
+                            window.open(updateStatus.downloadUrl || downloadUrl, '_blank');
+                          }
+                        }}
+                      >
+                        <Download size={13} />
+                        <span>Descargar Dozzo v{updateStatus.latestVersion} (.exe)</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={styles.upToDateNotice}>
+                      <CheckCircle2 size={15} color="var(--success)" />
+                      <span>¡Tienes la versión más reciente instalada! (v{CURRENT_VERSION})</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Windows Install Guide Button */}
+              <div style={styles.guideActionRow}>
+                <button
+                  style={styles.guideBtn}
+                  onClick={() => {
+                    if (onOpenInstallGuide) onOpenInstallGuide();
+                  }}
+                >
+                  <Monitor size={14} color="var(--accent)" />
+                  <span>Guía e Instrucciones de Instalación en PC (.exe)</span>
+                </button>
+
+                <button
+                  style={styles.releasesLinkBtn}
+                  onClick={() => {
+                    if (window.browserAPI?.openExternal) window.browserAPI.openExternal(downloadUrl);
+                    else window.open(downloadUrl, '_blank');
+                  }}
+                  title="Ver todas las versiones en GitHub Releases"
+                >
+                  <ExternalLink size={13} />
+                  <span>Releases GitHub</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -342,6 +469,117 @@ const styles = {
     fontSize: '11px',
     fontWeight: '600',
     border: '1px solid var(--border-subtle)'
+  },
+  updateCard: {
+    backgroundColor: 'var(--bg-tertiary)',
+    border: '1px solid var(--border-subtle)',
+    borderRadius: '10px',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  updateHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px'
+  },
+  versionLabel: {
+    fontSize: '13.5px',
+    fontWeight: '700',
+    color: 'var(--text-primary)'
+  },
+  versionSub: {
+    fontSize: '11px',
+    color: 'var(--text-muted)',
+    marginTop: '2px'
+  },
+  checkUpdateBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 12px',
+    borderRadius: '7px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: '11.5px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  statusResultBox: {
+    marginTop: '4px'
+  },
+  updateAvailableNotice: {
+    padding: '12px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(240, 185, 11, 0.12)',
+    border: '1px solid rgba(240, 185, 11, 0.35)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px'
+  },
+  downloadUpdateBtn: {
+    alignSelf: 'flex-start',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '6px 14px',
+    borderRadius: '7px',
+    backgroundColor: 'var(--accent)',
+    border: 'none',
+    color: '#000000',
+    fontSize: '11.5px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    marginTop: '4px'
+  },
+  upToDateNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 12px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(38, 166, 91, 0.12)',
+    border: '1px solid rgba(38, 166, 91, 0.3)',
+    color: 'var(--text-primary)',
+    fontSize: '12px'
+  },
+  guideActionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    borderTop: '1px solid var(--border-subtle)',
+    paddingTop: '10px',
+    marginTop: '2px'
+  },
+  guideBtn: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '7px 10px',
+    borderRadius: '7px',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-primary)',
+    fontSize: '11px',
+    fontWeight: '600',
+    cursor: 'pointer'
+  },
+  releasesLinkBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    padding: '7px 10px',
+    borderRadius: '7px',
+    backgroundColor: 'transparent',
+    border: '1px solid var(--border-subtle)',
+    color: 'var(--text-muted)',
+    fontSize: '11px',
+    fontWeight: '500',
+    cursor: 'pointer'
   },
   footer: {
     display: 'flex',

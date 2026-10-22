@@ -13,7 +13,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-const BROKERS = [
+export const BROKERS = [
   {
     id: 'binance',
     name: 'Binance',
@@ -58,8 +58,115 @@ const BROKERS = [
     badge: 'Seguridad Máxima',
     url: 'https://www.kraken.com/es/prices',
     pairUrl: (sym) => `https://www.kraken.com/es/prices/${sym.replace('USDT', '').toLowerCase()}`
+  },
+  {
+    id: 'btc',
+    name: 'Bitcoin',
+    color: '#F7931A',
+    accentBg: 'rgba(247, 147, 26, 0.15)',
+    badge: 'Spot Primario',
+    url: 'https://www.binance.com/es/trade/BTC_USDT',
+    pairUrl: () => `https://www.binance.com/es/trade/BTC_USDT`
   }
 ];
+
+export function BrokerIcon({ brokerId = 'binance', size = 15 }) {
+  switch (brokerId) {
+    case 'btc':
+      return (
+        <div
+          style={{
+            width: size + 2,
+            height: size + 2,
+            borderRadius: '50%',
+            background: '#F7931A',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.round(size * 0.72)}px`,
+            fontWeight: '900',
+            lineHeight: 1
+          }}
+        >
+          ₿
+        </div>
+      );
+    case 'coinbase':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="#0052FF">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6.5C8.96 6.5 6.5 8.96 6.5 12C6.5 15.04 8.96 17.5 12 17.5C15.04 17.5 17.5 15.04 17.5 12C17.5 8.96 15.04 6.5 12 6.5ZM10 13.5V10.5H14V13.5H10Z" fill="#ffffff" />
+        </svg>
+      );
+    case 'okx':
+      return (
+        <div
+          style={{
+            width: size + 2,
+            height: size - 1,
+            borderRadius: '3px',
+            background: '#ffffff',
+            color: '#000000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.round(size * 0.52)}px`,
+            fontWeight: '900',
+            letterSpacing: '-0.5px'
+          }}
+        >
+          OKX
+        </div>
+      );
+    case 'bybit':
+      return (
+        <div
+          style={{
+            width: size + 2,
+            height: size - 1,
+            borderRadius: '3px',
+            background: '#F7A600',
+            color: '#000000',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.round(size * 0.52)}px`,
+            fontWeight: '900'
+          }}
+        >
+          BY
+        </div>
+      );
+    case 'kraken':
+      return (
+        <div
+          style={{
+            width: size + 2,
+            height: size + 2,
+            borderRadius: '50%',
+            background: '#8A63FF',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: `${Math.round(size * 0.65)}px`,
+            fontWeight: '900',
+            lineHeight: 1
+          }}
+        >
+          🐙
+        </div>
+      );
+    case 'binance':
+    default:
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="#F0B90B">
+          <path d="M12 2L6.5 7.5L8.6 9.6L12 6.2L15.4 9.6L17.5 7.5L12 2ZM2 12L7.5 6.5L9.6 8.6L6.2 12L9.6 15.4L7.5 17.5L2 12ZM12 22L17.5 16.5L15.4 14.4L12 17.8L8.6 14.4L6.5 16.5L12 22ZM22 12L16.5 17.5L14.4 15.4L17.8 12L14.4 8.6L16.5 6.5L22 12ZM12 9.5L9.5 12L12 14.5L14.5 12L12 9.5Z" />
+        </svg>
+      );
+  }
+}
 
 const COIN_METADATA = {
   BTCUSDT: { name: 'Bitcoin', icon: '₿', color: '#F7931A' },
@@ -97,12 +204,24 @@ function MiniSparkline({ isPositive }) {
   );
 }
 
-export default function BinanceWidget({ isOpen, onClose, onOpenTradePair }) {
-  const [activeBrokerId, setActiveBrokerId] = useState('binance');
+export default function BinanceWidget({
+  isOpen,
+  onClose,
+  onOpenTradePair,
+  selectedBrokerId = 'binance',
+  onSelectBroker
+}) {
+  const [activeBrokerId, setActiveBrokerId] = useState(selectedBrokerId);
   const [tickers, setTickers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  useEffect(() => {
+    if (selectedBrokerId) {
+      setActiveBrokerId(selectedBrokerId);
+    }
+  }, [selectedBrokerId]);
 
   const activeBroker = BROKERS.find((b) => b.id === activeBrokerId) || BROKERS[0];
 
@@ -214,9 +333,12 @@ export default function BinanceWidget({ isOpen, onClose, onOpenTradePair }) {
                     boxShadow: `0 0 10px ${broker.accentBg}`
                   } : {})
                 }}
-                onClick={() => setActiveBrokerId(broker.id)}
+                onClick={() => {
+                  setActiveBrokerId(broker.id);
+                  if (onSelectBroker) onSelectBroker(broker.id);
+                }}
               >
-                <span style={{ ...styles.brokerDot, backgroundColor: broker.color }} />
+                <BrokerIcon brokerId={broker.id} size={13} />
                 <span>{broker.name}</span>
                 {isSelected && <span style={styles.brokerMiniBadge}>{broker.badge}</span>}
               </button>
@@ -338,22 +460,20 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    background: 'rgba(0, 0, 0, 0.65)',
-    backdropFilter: 'blur(8px)',
-    zIndex: 9999,
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    paddingTop: '65px'
+    background: 'transparent',
+    zIndex: 9990
   },
   drawer: {
-    width: '460px',
+    position: 'absolute',
+    top: '92px',
+    right: '16px',
+    width: '385px',
     maxWidth: '92vw',
-    maxHeight: '82vh',
-    background: 'rgba(14, 14, 14, 0.94)',
-    border: '1px solid rgba(255, 255, 255, 0.14)',
-    borderRadius: '16px',
-    boxShadow: '0 20px 48px rgba(0, 0, 0, 0.85), inset 0 1px 1px rgba(255, 255, 255, 0.15)',
+    maxHeight: 'calc(100vh - 110px)',
+    background: 'var(--bg-secondary)',
+    border: '1px solid var(--border-hover)',
+    borderRadius: '14px',
+    boxShadow: '0 16px 45px rgba(0, 0, 0, 0.75)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden'

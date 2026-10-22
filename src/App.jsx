@@ -14,9 +14,30 @@ import DevInspectorDrawer from './components/DevInspectorDrawer';
 import ErrorBoundary from './components/ErrorBoundary';
 import HistoryModal from './components/HistoryModal';
 import VoiceAssistantModal from './components/VoiceAssistantModal';
+import MobileBrowserUI from './components/MobileBrowserUI';
+import ResponsiveDeviceBar from './components/ResponsiveDeviceBar';
+import UpdateNotificationModal from './components/UpdateNotificationModal';
+import InstallGuideModal from './components/InstallGuideModal';
+import { checkForLatestRelease } from './utils/updateChecker';
 
 export default function App() {
   const initialTabUrl = new URLSearchParams(window.location.search).get('initialUrl') || '';
+
+  // Responsive Mobile Detection (Dedicated Mobile Experience)
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const isTouchMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return window.innerWidth <= 768 || isTouchMobile;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const isTouchMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      setIsMobile(window.innerWidth <= 768 || isTouchMobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Tabs State
   const [tabs, setTabs] = useState([
@@ -83,6 +104,8 @@ export default function App() {
 
   // Modals & Panels
   const [isBinanceOpen, setIsBinanceOpen] = useState(false);
+  const [selectedCryptoBroker, setSelectedCryptoBroker] = useState(() => localStorage.getItem('dozzo_crypto_broker') || 'bitcoin');
+  const [isSpotifyDismissed, setIsSpotifyDismissed] = useState(false);
   const [isShieldOpen, setIsShieldOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false);
@@ -94,6 +117,17 @@ export default function App() {
   const [inspectedElement, setInspectedElement] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+
+  // Responsive Device Mode state (Chrome DevTools style)
+  const [responsiveMode, setResponsiveMode] = useState({
+    enabled: false,
+    preset: 'iPhone 15 Pro',
+    width: 393,
+    height: 852,
+    scale: 1,
+    isRotated: false,
+    showFrame: true
+  });
 
   // History State
   const [history, setHistory] = useState(() => {
@@ -206,13 +240,54 @@ export default function App() {
     }
   }, []);
 
-  // Listen for background auto-updater events
+  // Auto-updater and Version Management
   const [updateInfo, setUpdateInfo] = useState(null);
+  const [activeUpdateData, setActiveUpdateData] = useState(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
+  const [isElectronDownloaded, setIsElectronDownloaded] = useState(false);
+
+  // 1. Proactive GitHub Releases check on launch
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const release = await checkForLatestRelease();
+        if (release && release.hasUpdate) {
+          const dismissedVer = localStorage.getItem(`dozzo_dismissed_v${release.latestVersion}`);
+          if (!dismissedVer) {
+            setActiveUpdateData(release);
+            setIsUpdateModalOpen(true);
+          }
+        }
+      } catch (e) {}
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // 2. Electron background updater listener
   useEffect(() => {
     if (window.browserAPI?.onUpdaterMessage) {
       const unsubscribe = window.browserAPI.onUpdaterMessage((data) => {
-        if (data && data.status === 'update-downloaded') {
+        if (!data) return;
+        if (data.status === 'update-available') {
+          setActiveUpdateData((prev) => ({
+            ...prev,
+            hasUpdate: true,
+            latestVersion: data.version,
+            releaseNotes: data.releaseNotes || prev?.releaseNotes || 'Mejoras continuas y parches de seguridad.',
+            releaseDate: data.releaseDate || prev?.releaseDate || ''
+          }));
+          setIsUpdateModalOpen(true);
+        } else if (data.status === 'update-downloaded') {
+          setIsElectronDownloaded(true);
           setUpdateInfo(data);
+          setActiveUpdateData((prev) => ({
+            ...prev,
+            hasUpdate: true,
+            latestVersion: data.version
+          }));
+          setIsUpdateModalOpen(true);
         }
       });
       return unsubscribe;
@@ -316,6 +391,67 @@ export default function App() {
     setTabs(newTabs);
   };
 
+  const handleCloseAllTabs = () => {
+    const newId = `tab-${Date.now()}`;
+    setTabs([
+      {
+        id: newId,
+        title: 'Nueva Pestaña',
+        url: '',
+        favicon: null,
+        isLoading: false,
+        canGoBack: false,
+        canGoForward: false,
+        isAudioPlaying: false,
+        isNewTab: true
+      }
+    ]);
+    setActiveTabId(newId);
+  };
+
+  const handlePopOutTab = async (tabIdToPop) => {
+    const tabToPop = tabs.find((t) => t.id === tabIdToPop);
+    if (!tabToPop || tabToPop.isNewTab || !tabToPop.url) return;
+
+    let targetUrl = tabToPop.url;
+    const wv = webviewRefs.current.get(tabIdToPop);
+    if (wv && typeof wv.executeJavaScript === 'function') {
+      try {
+        const timeSec = await wv.executeJavaScript(`
+          (() => {
+            const v = document.querySelector('video');
+            if (v && v.currentTime > 0) {
+              return Math.floor(v.currentTime);
+            }
+            return 0;
+          })()
+        `);
+        if (timeSec && timeSec > 0) {
+          try {
+            const urlObj = new URL(targetUrl);
+            if (urlObj.hostname.includes('youtube.com')) {
+              urlObj.searchParams.set('t', `${timeSec}s`);
+              targetUrl = urlObj.toString();
+            } else if (urlObj.hostname.includes('youtu.be')) {
+              urlObj.searchParams.set('t', String(timeSec));
+              targetUrl = urlObj.toString();
+            } else {
+              urlObj.searchParams.set('t', String(timeSec));
+              targetUrl = urlObj.toString();
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
+    }
+
+    if (window.browserAPI?.openNewWindow) {
+      window.browserAPI.openNewWindow(targetUrl);
+    } else {
+      window.open(targetUrl, '_blank');
+    }
+    handleCloseTab(tabIdToPop);
+  };
+
   const handleUpdateTab = (tabId, updates) => {
     setTabs((prev) =>
       prev.map((t) => {
@@ -337,10 +473,6 @@ export default function App() {
     setTabs((prev) =>
       prev.map((t) => {
         if (t.id === activeTabId) {
-          const webview = webviewRefs.current.get(activeTabId);
-          if (webview && !t.isNewTab) {
-            webview.loadURL(url);
-          }
           return {
             ...t,
             url,
@@ -436,125 +568,162 @@ export default function App() {
         }
       }}
     >
-      {/* Top Hover Trigger Zone when bar is auto-hidden or scrolled-hidden */}
-      {isHeaderHidden && (
-        <div
-          className="top-hover-trigger"
-          onMouseEnter={() => setIsHoveringTop(true)}
-          title="Pasar el cursor por la parte superior para mostrar la barra del explorador"
-        >
-          {showPillHint && (
-            <div className="top-hover-pill pill-fade-out">
-              <ChevronDown size={13} />
-              <span>Barra Oculta</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
-      <div
-        className={`top-header-wrapper ${isHeaderHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
-        onMouseEnter={() => isHeaderHidden && setIsHoveringTop(true)}
-        onMouseLeave={() => isHeaderHidden && setIsHoveringTop(false)}
-      >
-        {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
-        <TitleBar
+      {/* Responsive Header: Dedicated Mobile Browser UI vs Desktop TitleBar & NavigationBar */}
+      {isMobile ? (
+        <MobileBrowserUI
           tabs={tabs}
           activeTabId={activeTabId}
           onSelectTab={(id) => setActiveTabId(id)}
           onCloseTab={handleCloseTab}
           onNewTab={() => handleNewTab()}
-          isMaximized={isMaximized}
-          splitMode={splitMode}
-          onChangeSplitMode={handleSplitModeChange}
-          onToggleAutoHide={() => {
-            const next = !isAutoHidden;
-            setIsAutoHidden(next);
-            localStorage.setItem('dozzo_autohide_topbar', String(next));
-            if (!next) {
-              setIsScrolledHidden(false);
-              setIsHoveringTop(false);
-            }
-          }}
-          isAutoHidden={isAutoHidden}
-          onGoHome={handleGoHome}
-          onToggleBookmarksBar={() => {
-            const next = !showBookmarksBar;
-            setShowBookmarksBar(next);
-            localStorage.setItem('dozzo_bookmarks_visible', String(next));
-          }}
-          showBookmarksBar={showBookmarksBar}
-        />
-
-        {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
-        <NavigationBar
+          onCloseAllTabs={handleCloseAllTabs}
           currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
           isLoading={activeTab?.isLoading}
           canGoBack={activeTab?.canGoBack}
           canGoForward={activeTab?.canGoForward}
-          onNavigate={handleNavigate}
           onGoBack={handleGoBack}
           onGoForward={handleGoForward}
           onReload={handleReload}
           onStop={handleStop}
-          onGoHome={handleGoHome}
-          showBookmarksBar={showBookmarksBar}
-          onToggleBookmarksBar={() => {
-            const next = !showBookmarksBar;
-            setShowBookmarksBar(next);
-            localStorage.setItem('dozzo_bookmarks_visible', String(next));
-          }}
+          onNavigate={handleNavigate}
           blockedCount={blockedCount}
-          isShieldActive={isShieldActive}
-          isShieldOpen={isShieldOpen}
           onToggleShieldModal={() => setIsShieldOpen(true)}
-          onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
-          isBinanceOpen={isBinanceOpen}
+          selectedCryptoBroker={selectedCryptoBroker}
+          onOpenBinance={() => setIsBinanceOpen(true)}
+          onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+          onOpenDownloads={() => setIsDownloadsOpen(true)}
+          onOpenHistory={() => setIsHistoryOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           theme={theme}
           onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          accentColor={accentColor}
-          onChangeAccent={(acc) => setAccentColor(acc)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          searchEngine={searchEngine}
           isBookmarked={isCurrentBookmarked}
           onToggleBookmark={handleToggleBookmark}
-          binanceTicker={binanceTicker}
-          onToggleDownloads={() => setIsDownloadsOpen(!isDownloadsOpen)}
-          downloadsCount={downloads.filter((d) => d.state === 'progressing').length}
-          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-          isSidebarOpen={isSidebarOpen}
-          onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
-          isInspectorActive={isInspectorActive}
-          onOpenHistory={() => setIsHistoryOpen(true)}
-          onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
-          history={history}
-          isAutoHidden={isAutoHidden}
-          onToggleAutoHide={() => {
-            const next = !isAutoHidden;
-            setIsAutoHidden(next);
-            localStorage.setItem('dozzo_autohide_topbar', String(next));
-            if (!next) {
-              setIsScrolledHidden(false);
-              setIsHoveringTop(false);
-            }
-          }}
         />
+      ) : (
+        <>
+          {/* Top Hover Trigger Zone when bar is auto-hidden or scrolled-hidden */}
+          {isHeaderHidden && (
+            <div
+              className="top-hover-trigger"
+              onMouseEnter={() => setIsHoveringTop(true)}
+              title="Pasar el cursor por la parte superior para mostrar la barra del explorador"
+            >
+              {showPillHint && (
+                <div className="top-hover-pill pill-fade-out">
+                  <ChevronDown size={13} />
+                  <span>Barra Oculta</span>
+                </div>
+              )}
+            </div>
+          )}
 
-        {/* Optional Bookmarks Bar */}
-        {showBookmarksBar && (
-          <BookmarksBar
-            bookmarks={bookmarks}
-            onNavigate={(url) => {
-              if (activeTab?.isNewTab) {
-                handleNavigate(url);
-              } else {
-                handleNewTab(url);
-              }
-            }}
-          />
-        )}
-      </div>
+          {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
+          <div
+            className={`top-header-wrapper ${isHeaderHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
+            onMouseEnter={() => isHeaderHidden && setIsHoveringTop(true)}
+            onMouseLeave={() => isHeaderHidden && setIsHoveringTop(false)}
+          >
+            {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
+            <TitleBar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={(id) => setActiveTabId(id)}
+              onCloseTab={handleCloseTab}
+              onNewTab={() => handleNewTab()}
+              isMaximized={isMaximized}
+              splitMode={splitMode}
+              onChangeSplitMode={handleSplitModeChange}
+              onToggleAutoHide={() => {
+                const next = !isAutoHidden;
+                setIsAutoHidden(next);
+                localStorage.setItem('dozzo_autohide_topbar', String(next));
+                if (!next) {
+                  setIsScrolledHidden(false);
+                  setIsHoveringTop(false);
+                }
+              }}
+              isAutoHidden={isAutoHidden}
+              onGoHome={handleGoHome}
+              onToggleBookmarksBar={() => {
+                const next = !showBookmarksBar;
+                setShowBookmarksBar(next);
+                localStorage.setItem('dozzo_bookmarks_visible', String(next));
+              }}
+              showBookmarksBar={showBookmarksBar}
+              onPopOutTab={handlePopOutTab}
+            />
+
+            {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}
+            <NavigationBar
+              currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
+              isLoading={activeTab?.isLoading}
+              canGoBack={activeTab?.canGoBack}
+              canGoForward={activeTab?.canGoForward}
+              onNavigate={handleNavigate}
+              onGoBack={handleGoBack}
+              onGoForward={handleGoForward}
+              onReload={handleReload}
+              onStop={handleStop}
+              onGoHome={handleGoHome}
+              showBookmarksBar={showBookmarksBar}
+              onToggleBookmarksBar={() => {
+                const next = !showBookmarksBar;
+                setShowBookmarksBar(next);
+                localStorage.setItem('dozzo_bookmarks_visible', String(next));
+              }}
+              blockedCount={blockedCount}
+              isShieldActive={isShieldActive}
+              isShieldOpen={isShieldOpen}
+              onToggleShieldModal={() => setIsShieldOpen(true)}
+              onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
+              isBinanceOpen={isBinanceOpen}
+              selectedCryptoBroker={selectedCryptoBroker}
+              theme={theme}
+              onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              accentColor={accentColor}
+              onChangeAccent={(acc) => setAccentColor(acc)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              searchEngine={searchEngine}
+              isBookmarked={isCurrentBookmarked}
+              onToggleBookmark={handleToggleBookmark}
+              binanceTicker={binanceTicker}
+              onToggleDownloads={() => setIsDownloadsOpen(!isDownloadsOpen)}
+              downloadsCount={downloads.filter((d) => d.state === 'progressing').length}
+              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+              isSidebarOpen={isSidebarOpen}
+              onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
+              isInspectorActive={isInspectorActive}
+              onOpenHistory={() => setIsHistoryOpen(true)}
+              onOpenVoiceAssistant={() => setIsVoiceOpen(true)}
+              history={history}
+              isAutoHidden={isAutoHidden}
+              onToggleAutoHide={() => {
+                const next = !isAutoHidden;
+                setIsAutoHidden(next);
+                localStorage.setItem('dozzo_autohide_topbar', String(next));
+                if (!next) {
+                  setIsScrolledHidden(false);
+                  setIsHoveringTop(false);
+                }
+              }}
+            />
+
+            {/* Optional Bookmarks Bar */}
+            {showBookmarksBar && (
+              <BookmarksBar
+                bookmarks={bookmarks}
+                onNavigate={(url) => {
+                  if (activeTab?.isNewTab) {
+                    handleNavigate(url);
+                  } else {
+                    handleNewTab(url);
+                  }
+                }}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       {/* Dev Mode Banner when inspector is active */}
       {isInspectorActive && (
@@ -586,30 +755,145 @@ export default function App() {
               )}
             </span>
           </div>
-          <button
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              background: 'var(--bg-tertiary)',
-              color: 'var(--text-primary)',
-              fontSize: '11.5px',
-              fontWeight: '700',
-              border: '1px solid var(--border-subtle)'
-            }}
-            onClick={() => setIsInspectorActive(false)}
-          >
-            <X size={14} />
-            <span>Cerrar Inspector</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: responsiveMode.enabled ? 'var(--accent)' : 'var(--bg-tertiary)',
+                color: responsiveMode.enabled ? '#000000' : 'var(--text-primary)',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                border: '1px solid var(--border-subtle)',
+                cursor: 'pointer'
+              }}
+              onClick={() => setResponsiveMode((prev) => ({ ...prev, enabled: !prev.enabled }))}
+            >
+              <span>{responsiveMode.enabled ? 'Cerrar Modo Responsive' : 'Modo Responsive (Móvil / Tablet)'}</span>
+            </button>
+            <button
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                border: '1px solid var(--border-subtle)',
+                cursor: 'pointer'
+              }}
+              onClick={() => setIsInspectorActive(false)}
+            >
+              <X size={14} />
+              <span>Cerrar Inspector</span>
+            </button>
+          </div>
         </div>
+      )}
+
+      {/* Spotify DRM Helper banner when on Spotify Web */}
+      {activeTab?.url && activeTab.url.includes('spotify.com') && !isSpotifyDismissed && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '7px 16px',
+            background: 'linear-gradient(90deg, rgba(29, 185, 84, 0.16), rgba(12, 12, 14, 0.95))',
+            borderBottom: '1px solid rgba(29, 185, 84, 0.35)',
+            color: '#fff',
+            fontSize: '12px',
+            zIndex: 44
+          }}
+          className="animate-slide-down"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '15px' }}>🎵</span>
+            <span>
+              <strong>Spotify Web Playback:</strong> Spotify Web requiere firma propietaria VMP de Google para reproducir audio DRM. Puedes reproducir al instante en la App de Spotify (1-Click) o usar YouTube Music sin restricciones.
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => {
+                if (window.browserAPI?.openExternal) {
+                  window.browserAPI.openExternal('spotify:');
+                } else {
+                  window.open('spotify:');
+                }
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: '#1DB954',
+                color: '#000',
+                fontSize: '11px',
+                fontWeight: '700',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Abrir App de Spotify
+            </button>
+            <button
+              onClick={() => handleNavigate('https://music.youtube.com')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: '600',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer'
+              }}
+            >
+              Usar YouTube Music
+            </button>
+            <button
+              onClick={() => setIsSpotifyDismissed(true)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255, 255, 255, 0.6)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '2px'
+              }}
+              title="Cerrar aviso"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Chrome DevTools Responsive Device Toolbar */}
+      {responsiveMode.enabled && !isMobile && (
+        <ResponsiveDeviceBar
+          responsiveMode={responsiveMode}
+          onChangeResponsiveMode={(upd) => setResponsiveMode((prev) => ({ ...prev, ...upd }))}
+          onClose={() => setResponsiveMode((prev) => ({ ...prev, enabled: false }))}
+        />
       )}
 
       {/* Main Webviews & New Tab Pages Viewport */}
       <ErrorBoundary>
         <WebviewContainer
+          isMobile={isMobile}
           tabs={tabs}
           activeTabId={activeTabId}
           onSelectTab={(id) => setActiveTabId(id)}
@@ -631,6 +915,9 @@ export default function App() {
           onScrollDirection={handleScrollDirection}
           splitMode={splitMode}
           onChangeSplitMode={handleSplitModeChange}
+          responsiveMode={responsiveMode}
+          isDevInspectorOpen={Boolean(inspectedElement)}
+          devDrawerWidth={480}
         />
       </ErrorBoundary>
 
@@ -638,6 +925,11 @@ export default function App() {
       <BinanceWidget
         isOpen={isBinanceOpen}
         onClose={() => setIsBinanceOpen(false)}
+        selectedBrokerId={selectedCryptoBroker}
+        onSelectBroker={(brokerId) => {
+          setSelectedCryptoBroker(brokerId);
+          localStorage.setItem('dozzo_crypto_broker', brokerId);
+        }}
         onOpenTradePair={(url) => {
           handleNewTab(url);
           setIsBinanceOpen(false);
@@ -669,6 +961,8 @@ export default function App() {
             setInspectedElement(null);
             setIsInspectorActive(true);
           }}
+          isResponsiveActive={responsiveMode.enabled}
+          onToggleResponsive={() => setResponsiveMode((prev) => ({ ...prev, enabled: !prev.enabled }))}
         />
       </ErrorBoundary>
 
@@ -763,51 +1057,28 @@ export default function App() {
           setShowBookmarksBar(next);
           localStorage.setItem('dozzo_bookmarks_visible', String(next));
         }}
+        onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
       />
 
-      {/* Auto-update available notification toast */}
-      {updateInfo && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--accent)',
-            borderRadius: '12px',
-            padding: '14px 18px',
-            boxShadow: '0 12px 35px rgba(0,0,0,0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            zIndex: 9999
-          }}
-          className="animate-slide-down"
-        >
-          <div>
-            <div style={{ fontWeight: '700', fontSize: '13px', color: 'var(--text-primary)' }}>
-              🚀 Actualización v{updateInfo.version} Lista
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-              Se descargó en segundo plano automáticamente.
-            </div>
-          </div>
-          <button
-            style={{
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: 'var(--accent)',
-              color: 'var(--accent-text)',
-              fontWeight: '700',
-              fontSize: '12px',
-              cursor: 'pointer'
-            }}
-            onClick={() => window.browserAPI?.installUpdate?.()}
-          >
-            Reiniciar y Actualizar
-          </button>
-        </div>
-      )}
+      {/* Proactive Update Notification Modal */}
+      <UpdateNotificationModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => {
+          setIsUpdateModalOpen(false);
+          if (activeUpdateData?.latestVersion) {
+            localStorage.setItem(`dozzo_dismissed_v${activeUpdateData.latestVersion}`, 'true');
+          }
+        }}
+        updateData={activeUpdateData}
+        isElectronDownloaded={isElectronDownloaded}
+        onInstallElectronUpdate={() => window.browserAPI?.installUpdate?.()}
+      />
+
+      {/* Windows PC Installation Guide Modal */}
+      <InstallGuideModal
+        isOpen={isInstallGuideOpen}
+        onClose={() => setIsInstallGuideOpen(false)}
+      />
     </div>
   );
 }

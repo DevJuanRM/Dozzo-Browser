@@ -325,7 +325,12 @@
     }
 
     // Generate comprehensive recursive Figma SVG component
-    const visualSvg = serializeToFigmaComponentSvg(el);
+    let visualSvg = '';
+    try {
+      visualSvg = serializeToFigmaComponentSvg(el);
+    } catch (e) {
+      visualSvg = svgTarget ? svgTarget.outerHTML : '';
+    }
 
     return {
       tagName: el.tagName.toLowerCase(),
@@ -336,8 +341,43 @@
       svg: svgTarget ? svgTarget.outerHTML : null,
       figmaSvg: visualSvg,
       styles,
+      rect: { width: Math.round(rect.width), height: Math.round(rect.height) },
       text: el.innerText ? el.innerText.trim().substring(0, 80) : ''
     };
+  }
+
+  function buildLayersHierarchy(target) {
+    const layers = [];
+    let current = target;
+    let idx = 0;
+
+    const layerLabels = [
+      'Capa 1: Elemento',
+      'Capa 2: Contenedor',
+      'Capa 3: Tarjeta / Componente',
+      'Capa 4: Bloque / Sección',
+      'Capa 5: Estructura Raíz'
+    ];
+
+    while (current && current !== document.body && current !== document.documentElement && idx < 5) {
+      try {
+        const details = getElementDetails(current);
+        details.layerIndex = idx;
+        details.layerName = layerLabels[idx] || `Capa ${idx + 1}`;
+        layers.push(details);
+      } catch (err) {}
+      current = current.parentElement;
+      idx++;
+    }
+
+    if (layers.length === 0) {
+      const fallback = getElementDetails(target);
+      fallback.layerIndex = 0;
+      fallback.layerName = 'Capa 1: Elemento';
+      layers.push(fallback);
+    }
+
+    return layers;
   }
 
   function handleMouseMove(e) {
@@ -357,10 +397,16 @@
     const target = e.target;
     if (!target) return;
 
-    const data = getElementDetails(target);
+    const layers = buildLayersHierarchy(target);
+    const primaryData = {
+      ...layers[0],
+      layers: layers
+    };
 
-    // Send payload through console hook captured by Electron webview
-    console.log('__DOZZO_DEV_INSPECT__:' + JSON.stringify(data));
+    // Send payload through console hook captured by Electron webview with both prefixes
+    const payloadStr = JSON.stringify(primaryData);
+    console.log('__DOZZO_DEV_INSPECT__:' + payloadStr);
+    console.log('__DOZZO_INSPECTOR_PAYLOAD__:' + payloadStr);
 
     // Turn off inspector after element is captured
     window.__dozzo_toggle_inspector(false);

@@ -15,47 +15,99 @@ import {
   ChevronUp
 } from 'lucide-react';
 
-function TypewriterLogo() {
-  const fullText = 'DOZZO';
-  const [displayedText, setDisplayedText] = useState(fullText);
-  const [isTyping, setIsTyping] = useState(false);
+function CalligraphyLogo() {
+  const [animKey, setAnimKey] = useState(0);
 
   useEffect(() => {
-    let typeInterval = null;
-    let cycleInterval = null;
+    // Initial cursive plumilla ink stroke animation
+    setAnimKey(1);
 
-    const startTyping = () => {
-      setIsTyping(true);
-      setDisplayedText('');
-      let index = 0;
-
-      typeInterval = setInterval(() => {
-        index++;
-        setDisplayedText(fullText.slice(0, index));
-        if (index >= fullText.length) {
-          clearInterval(typeInterval);
-          setIsTyping(false);
-        }
-      }, 95);
-    };
-
-    // Repeats typewriter effect smoothly every 10 seconds
-    cycleInterval = setInterval(() => {
-      startTyping();
+    // Repeats calligraphy fountain pen drawing effect smoothly every 10 seconds
+    const interval = setInterval(() => {
+      setAnimKey((prev) => prev + 1);
     }, 10000);
 
-    return () => {
-      if (typeInterval) clearInterval(typeInterval);
-      if (cycleInterval) clearInterval(cycleInterval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   return (
-    <div style={styles.brand} className="no-drag" title="Dozzo Browser">
-      <span style={styles.brandName}>
-        {displayedText}
-        {isTyping && <span className="typewriter-cursor">|</span>}
-      </span>
+    <div
+      style={styles.brand}
+      className="no-drag"
+      title="Dozzo Browser - Clic para volver a escribir"
+      onClick={() => setAnimKey((k) => k + 1)}
+    >
+      <svg
+        key={animKey}
+        viewBox="0 0 138 25"
+        width="132"
+        height="24"
+        className="dozzo-calligraphy-svg"
+      >
+        <defs>
+          <linearGradient id="dozzoGoldInk" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#FFF4A3" />
+            <stop offset="25%" stopColor="#F0B90B" />
+            <stop offset="65%" stopColor="#FFD700" />
+            <stop offset="88%" stopColor="#E09000" />
+            <stop offset="100%" stopColor="#FFF8C4" />
+          </linearGradient>
+          <filter id="dozzoGoldLuster" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1" stdDeviation="1" floodColor="rgba(240, 185, 11, 0.45)" />
+          </filter>
+        </defs>
+
+        <g className="dozzo-handwriting-group" filter="url(#dozzoGoldLuster)">
+          {/* Cursive D - Slender stem & wide oval loop */}
+          <path
+            className="callig-stroke callig-d1"
+            d="M 11 5 C 8.5 8, 6.5 13, 6.5 17 C 6.5 19.5, 8.5 20.5, 10.5 19.8 C 12 19.2, 11.5 17.5, 9.5 17 C 8 16.5, 6.5 18, 7.5 19.8 C 8.5 21, 11.5 21.2, 15.5 20.5 C 24 19, 31 15, 31 10 C 31 6, 26 3.5, 19 3.5 C 13.5 3.5, 9 6.5, 9 8.5"
+          />
+          <path
+            className="callig-stroke callig-d2"
+            d="M 11.5 19.5 C 18 19.5, 27 17.5, 36 14.5"
+          />
+
+          {/* Lowercase o */}
+          <path
+            className="callig-stroke callig-o1"
+            d="M 37 14 C 35 11.5, 38 9.5, 41.5 9.5 C 45 9.5, 47 12, 47 14.5 C 47 17.5, 44 19.5, 40.5 19.5 C 37 19.5, 35 17, 37 14 C 39 11.5, 43 11, 47 12"
+          />
+
+          {/* First z with cursive lower loop */}
+          <path
+            className="callig-stroke callig-z1"
+            d="M 47 12 C 50 11.5, 54 11.5, 56 12.2 C 55 13.8, 52.5 15.5, 50.5 16.8 C 54 16.5, 57.5 16.2, 57.5 18.2 C 57.5 20.5, 54.5 23.5, 52.5 23.5 C 51 23.5, 51.5 21.5, 53.5 19.8 C 55.5 18.2, 58 16.8, 61 14.2"
+          />
+
+          {/* Second z with cursive lower loop */}
+          <path
+            className="callig-stroke callig-z2"
+            d="M 61 14.2 C 64 11.5, 68 11.5, 70 12.2 C 69 13.8, 66.5 15.5, 64.5 16.8 C 68 16.5, 71.5 16.2, 71.5 18.2 C 71.5 20.5, 68.5 23.5, 66.5 23.5 C 65 23.5, 65.5 21.5, 67.5 19.8 C 69.5 18.2, 72 16.8, 75 14.2"
+          />
+
+          {/* Final o */}
+          <path
+            className="callig-stroke callig-o2"
+            d="M 75 14 C 73 11.5, 76 9.5, 79.5 9.5 C 83 9.5, 85 12, 85 14.5 C 85 17.5, 82 19.5, 78.5 19.5 C 75 19.5, 73 17, 75 14 C 77 11.5, 81 11, 85 12"
+          />
+
+          {/* Cursive finishing tail flourish */}
+          <path
+            className="callig-stroke callig-tail"
+            d="M 85 12 C 92 13.5, 102 15.5, 114 15 C 122 14.5, 128 13, 134 11.5"
+          />
+
+          {/* Subtle underline stroke */}
+          <path
+            className="callig-stroke callig-underline"
+            d="M 16 22.5 C 45 23.5, 85 23, 128 20.5"
+          />
+
+          {/* Luminous Fountain Pen Nib Sparkle Particle */}
+          <circle r="1.8" fill="#FFF8C4" className="pen-nib-dot" />
+        </g>
+      </svg>
     </div>
   );
 }
@@ -87,35 +139,18 @@ function TabCircleItem({
       if (i >= len) {
         clearInterval(timer);
       }
-    }, 22);
+    }, 20);
     return () => clearInterval(timer);
   }, [isExpanded, fullTitle]);
 
   return (
     <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('text/plain', tab.url || '');
-        e.dataTransfer.effectAllowed = 'move';
-      }}
-      onDragEnd={(e) => {
-        const isOutside =
-          e.screenX < window.screenX - 25 ||
-          e.screenX > window.screenX + window.outerWidth + 25 ||
-          e.screenY < window.screenY - 25 ||
-          e.screenY > window.screenY + window.outerHeight + 25;
-
-        if (isOutside && window.browserAPI?.openNewWindow) {
-          window.browserAPI.openNewWindow({ url: tab.url });
-          onClose();
-        }
-      }}
       className={`high-gloss-tab-item ${isExpanded ? 'expanded' : ''} ${isActive ? 'active' : ''}`}
       onClick={() => {
         onSelect();
         onToggleExpand();
       }}
-      title={isExpanded ? 'Clic para colapsar a círculo' : `${fullTitle} (Arrastra fuera para mover a otra pantalla)`}
+      title={isExpanded ? 'Clic para colapsar a círculo' : fullTitle}
     >
       {/* Pinned Favicon (Anchored on the left at 0px, NEVER shifts or moves) */}
       <div className="tab-pinned-icon">
@@ -156,7 +191,7 @@ function TabCircleItem({
             e.stopPropagation();
             onPopOut();
           }}
-          title="Mover a otra pantalla / Nueva ventana"
+          title="Mover a otra pantalla / Nueva ventana sin reiniciar video"
         >
           <ExternalLink size={11} />
         </button>
@@ -189,7 +224,8 @@ export default function TitleBar({
   isAutoHidden,
   onGoHome,
   onToggleBookmarksBar,
-  showBookmarksBar
+  showBookmarksBar,
+  onPopOutTab
 }) {
   const [expandedTabId, setExpandedTabId] = useState(null);
   const [showSplitMenu, setShowSplitMenu] = useState(false);
@@ -207,21 +243,26 @@ export default function TitleBar({
   };
 
   return (
-    <div style={styles.titlebar} className="titlebar-drag-region" onDoubleClick={handleMaximize}>
-      {/* Brand: Pure text DOZZO with 10s Typewriter animation (no shield icon) */}
-      <TypewriterLogo />
+    <div style={styles.titlebar} onDoubleClick={handleMaximize}>
+      {/* Brand: Cursive Plumilla Handwriting Effect with 10s Cycle */}
+      <CalligraphyLogo />
 
-      <div style={styles.dockSeparator} />
+      {/* Left Draggable Spacer between Brand and Dock */}
+      <div style={{ flex: 1, height: '100%', minWidth: '16px' }} className="titlebar-drag-region" />
 
-      {/* Mac Dock-Style Circles (Home, Star, divider, tab circles, add button) */}
-      <div style={styles.floatingTabsContainer} className="no-drag">
+      {/* Mac Dock-Style Centered Circles (Home, Star, divider, tab circles, add button) */}
+      <div
+        style={styles.floatingTabsContainer}
+        className="no-drag floating-tabs-dock"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         {/* Pinned Quick Circles (Mac Menu / Dock Style): Home & Favoritos */}
         <div style={styles.pinnedDockGroup}>
           <button
             className="high-gloss-circle"
             onClick={onGoHome}
             title="Página de inicio (Speed Dial)"
-            style={{ width: '38px', height: '38px' }}
+            style={{ width: '36px', height: '36px' }}
           >
             <Home size={15} />
           </button>
@@ -230,7 +271,7 @@ export default function TitleBar({
             className={`high-gloss-circle ${showBookmarksBar ? 'active' : ''}`}
             onClick={onToggleBookmarksBar}
             title={showBookmarksBar ? 'Ocultar barra de marcadores/favoritos' : 'Mostrar barra de marcadores/favoritos'}
-            style={{ width: '38px', height: '38px' }}
+            style={{ width: '36px', height: '36px' }}
           >
             <Star size={15} fill={showBookmarksBar ? 'currentColor' : 'none'} />
           </button>
@@ -256,7 +297,9 @@ export default function TitleBar({
                 if (isExpanded) setExpandedTabId(null);
               }}
               onPopOut={() => {
-                if (window.browserAPI?.openNewWindow) {
+                if (onPopOutTab) {
+                  onPopOutTab(tab.id);
+                } else if (window.browserAPI?.openNewWindow) {
                   window.browserAPI.openNewWindow({ url: tab.url });
                   if (tabs.length > 1) onCloseTab(tab.id);
                 }
@@ -265,21 +308,21 @@ export default function TitleBar({
           );
         })}
 
-        {/* Circular Add Tab Button in High Gloss Glass */}
+        {/* Circular Add Tab Button in Minimalist Dark Circle */}
         <button
           className="high-gloss-circle"
           onClick={onNewTab}
           title="Nueva pestaña (Ctrl+T)"
-          style={{ width: '38px', height: '38px' }}
+          style={{ width: '36px', height: '36px' }}
         >
           <Plus size={16} />
         </button>
       </div>
 
-      {/* Large Draggable Region spanning the rest of the titlebar towards the right */}
-      <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
+      {/* Right Draggable Spacer between Dock and Controls */}
+      <div style={{ flex: 1, height: '100%', minWidth: '16px' }} className="titlebar-drag-region" />
 
-      {/* Split Layout Switcher (1 to 5 Views) */}
+      {/* Split Layout Switcher (Max 4 Views) */}
       {onChangeSplitMode && (
         <div style={styles.splitControls} className="no-drag">
           <button
@@ -289,7 +332,7 @@ export default function TitleBar({
               background: splitMode !== 'single' ? 'var(--accent-glow)' : 'transparent'
             }}
             onClick={() => setShowSplitMenu(!showSplitMenu)}
-            title="Vistas y Pantalla Dividida (1 a 5 pestañas simultáneas)"
+            title="Vistas y Pantalla Dividida (Hasta 4 pestañas simultáneas)"
           >
             <LayoutGrid size={15} />
             {splitMode !== 'single' && (
@@ -299,7 +342,7 @@ export default function TitleBar({
 
           {showSplitMenu && (
             <div style={styles.splitPopover} className="glass-panel animate-slide-down">
-              <div style={styles.splitPopoverHeader}>Vistas Divididas (1 a 5)</div>
+              <div style={styles.splitPopoverHeader}>Vistas Divididas (Máx. 4)</div>
               <div style={styles.splitOptionsGrid}>
                 <button
                   style={{ ...styles.splitOption, ...(splitMode === 'single' ? styles.splitOptionActive : {}) }}
@@ -321,7 +364,7 @@ export default function TitleBar({
                     <div style={{ width: '48%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
                     <div style={{ width: '48%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
                   </div>
-                  <span>2 Col</span>
+                  <span>2 Columnas</span>
                 </button>
 
                 <button
@@ -342,8 +385,8 @@ export default function TitleBar({
                   title="3 Vistas (1 Principal + 2 Laterales)"
                 >
                   <div style={styles.splitPreviewBox}>
-                    <div style={{ width: '56%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
-                    <div style={{ width: '40%', height: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ width: '54%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '42%', height: '100%', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
                       <div style={{ width: '100%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
                     </div>
@@ -357,29 +400,12 @@ export default function TitleBar({
                   title="4 Pestañas en Cuadrícula 2x2"
                 >
                   <div style={{ ...styles.splitPreviewBox, flexWrap: 'wrap', gap: '2px' }}>
-                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
-                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
-                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
-                    <div style={{ width: '47%', height: '47%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
+                    <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
                   </div>
-                  <span>4 Grid</span>
-                </button>
-
-                <button
-                  style={{ ...styles.splitOption, ...(splitMode === '5-grid' ? styles.splitOptionActive : {}) }}
-                  onClick={() => { onChangeSplitMode('5-grid'); setShowSplitMenu(false); }}
-                  title="5 Vistas Simultáneas (1 Destacada + 4 Mosaico)"
-                >
-                  <div style={{ ...styles.splitPreviewBox, gap: '2px' }}>
-                    <div style={{ width: '44%', height: '100%', background: 'currentColor', borderRadius: '2px' }} />
-                    <div style={{ width: '54%', height: '100%', display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
-                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
-                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
-                      <div style={{ width: '46%', height: '46%', background: 'currentColor', borderRadius: '2px' }} />
-                    </div>
-                  </div>
-                  <span>5 Vistas</span>
+                  <span>4 Cuadrícula</span>
                 </button>
               </div>
             </div>
@@ -435,19 +461,32 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     cursor: 'pointer',
-    flexShrink: 0
+    flexShrink: 0,
+    marginLeft: '6px',
+    padding: '0 8px 0 2px'
   },
   brandName: {
-    fontSize: '12px',
+    fontFamily: "'Syne', 'Space Grotesk', -apple-system, sans-serif",
+    fontSize: '13px',
     fontWeight: '900',
-    letterSpacing: '2px',
+    letterSpacing: '2.5px',
     color: 'var(--text-primary)',
-    textTransform: 'uppercase'
+    background: 'linear-gradient(135deg, var(--text-primary) 55%, var(--accent) 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    textTransform: 'uppercase',
+    display: 'inline-flex',
+    alignItems: 'center'
   },
   floatingTabsContainer: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    maxWidth: 'calc(100vw - 320px)',
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    scrollbarWidth: 'none',
+    zIndex: 10,
     flexShrink: 0
   },
   pinnedDockGroup: {
@@ -540,14 +579,14 @@ const styles = {
   },
   splitPopover: {
     position: 'absolute',
-    top: '36px',
+    top: '38px',
     right: 0,
-    width: '240px',
-    background: 'rgba(18, 18, 18, 0.95)',
+    width: '270px',
+    background: 'var(--bg-secondary)',
     border: '1px solid var(--border-hover)',
     borderRadius: '12px',
     padding: '12px',
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
     zIndex: 100
   },
   splitPopoverHeader: {
@@ -560,7 +599,7 @@ const styles = {
   },
   splitOptionsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '8px'
   },
   splitOption: {

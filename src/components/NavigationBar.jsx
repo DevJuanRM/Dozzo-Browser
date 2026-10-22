@@ -28,6 +28,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { getSearchUrl, getEngine } from '../utils/searchEngines';
+import { BrokerIcon } from './BinanceWidget';
 
 export default function NavigationBar({
   currentUrl,
@@ -48,6 +49,7 @@ export default function NavigationBar({
   onToggleShieldModal,
   onToggleBinance,
   isBinanceOpen,
+  selectedCryptoBroker = 'binance',
   theme,
   onToggleTheme,
   accentColor,
@@ -272,19 +274,19 @@ export default function NavigationBar({
         )}
       </div>
 
-      {/* Crypto Hub Broker Button: Icon + Chevron Only */}
+      {/* Crypto Hub Broker Button: Dynamic Active Broker Icon (Bitcoin, Binance, Coinbase, OKX, Kraken) + Chevron */}
       <button
         style={{
           ...styles.brokerIconBtn,
           ...(isBinanceOpen ? styles.brokerIconBtnActive : {})
         }}
         onClick={onToggleBinance}
-        title="Crypto Hub (Binance, Coinbase, OKX, Bybit, Kraken) - Precios y Mercados"
+        title={`Crypto Markets Hub (Broker activo: ${selectedCryptoBroker.toUpperCase()}) - Clic para cotizaciones`}
       >
         <div style={styles.binanceLogo}>
-          <TrendingUp size={15} color="#F0B90B" />
+          <BrokerIcon brokerId={selectedCryptoBroker || 'binance'} size={15} />
         </div>
-        <ChevronDown size={12} color={isBinanceOpen ? '#F0B90B' : 'var(--text-muted)'} />
+        <ChevronDown size={12} color={isBinanceOpen ? 'var(--accent)' : 'var(--text-muted)'} />
       </button>
 
       {/* Utilities Group (Unified Tools Menu & Collapsible Arrow) */}

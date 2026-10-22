@@ -32,21 +32,37 @@ const fs = require('fs');
 // Register Widevine CDM for DRM audio/video streaming (Spotify Web, Netflix, etc.)
 function configureWidevine() {
   const localAppData = process.env.LOCALAPPDATA || '';
-  const candidates = [
-    path.join(localAppData, 'Microsoft/Edge/User Data/WidevineCdm/4.10.3112.0/_platform_specific/win_x64/widevinecdm.dll'),
-    'C:\\Program Files\\Google\\Chrome\\Application\\155.0.8059.85\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\155.0.4283.62\\WidevineCdm\\_platform_specific\\win_x64\\widevinecdm.dll',
-    path.join(localAppData, 'Google/Chrome/User Data/WidevineCdm/4.10.3112.0/_platform_specific/win_x64/widevinecdm.dll')
+  const searchRoots = [
+    path.join(localAppData, 'Microsoft/Edge/User Data/WidevineCdm'),
+    path.join(localAppData, 'Google/Chrome/User Data/WidevineCdm'),
+    'C:\\Program Files\\Google\\Chrome\\Application',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application'
   ];
 
-  for (const cdmPath of candidates) {
-    if (fs.existsSync(cdmPath)) {
-      app.commandLine.appendSwitch('widevine-cdm-path', cdmPath);
-      app.commandLine.appendSwitch('widevine-cdm-version', '4.10.3112.0');
-      app.commandLine.appendSwitch('no-verify-widevine-cdm');
-      app.commandLine.appendSwitch('enable-widevine');
-      break;
-    }
+  for (const root of searchRoots) {
+    if (!fs.existsSync(root)) continue;
+    try {
+      const items = fs.readdirSync(root);
+      for (const item of items) {
+        const candidateDll = path.join(root, item, '_platform_specific/win_x64/widevinecdm.dll');
+        if (fs.existsSync(candidateDll)) {
+          let version = item;
+          try {
+            const manifestPath = path.join(root, item, 'manifest.json');
+            if (fs.existsSync(manifestPath)) {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+              if (manifest.version) version = manifest.version;
+            }
+          } catch (e) {}
+
+          app.commandLine.appendSwitch('widevine-cdm-path', candidateDll);
+          app.commandLine.appendSwitch('widevine-cdm-version', version);
+          app.commandLine.appendSwitch('no-verify-widevine-cdm');
+          app.commandLine.appendSwitch('enable-widevine');
+          return;
+        }
+      }
+    } catch (e) {}
   }
 }
 configureWidevine();
@@ -352,7 +368,7 @@ try {
 } catch (e) {}
 
 function setupAutoUpdater() {
-  if (!autoUpdater || !app.isPackaged) return;
+  if (!autoUpdater) return;
 
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -361,7 +377,9 @@ function setupAutoUpdater() {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('updater-message', {
         status: 'update-available',
-        version: info.version
+        version: info.version,
+        releaseNotes: info.releaseNotes || '',
+        releaseDate: info.releaseDate || ''
       });
     }
   });
@@ -375,14 +393,46 @@ function setupAutoUpdater() {
     }
   });
 
-  autoUpdater.on('error', (err) => {
-    console.warn('AutoUpdater warning:', err?.message || err);
+  autoUpdater.on('update-not-available', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-message', {
+        status: 'update-not-available'
+      });
+    }
   });
 
-  setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-  }, 6000);
+  autoUpdater.on('error', (err) => {
+    console.warn('AutoUpdater warning:', err?.message || err);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('updater-message', {
+        status: 'error',
+        error: err?.message || String(err)
+      });
+    }
+  });
+
+  // Check 5 seconds after startup if packaged
+  if (app.isPackaged) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    }, 5000);
+
+    // Periodic check every 30 minutes
+    setInterval(() => {
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+    }, 30 * 60 * 1000);
+  }
 }
+
+ipcMain.handle('check-for-updates', async () => {
+  if (!autoUpdater) return { success: false, reason: 'autoUpdater not available' };
+  try {
+    const res = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: res?.updateInfo };
+  } catch (err) {
+    return { success: false, error: err?.message || String(err) };
+  }
+});
 
 ipcMain.on('install-update', () => {
   if (autoUpdater) {

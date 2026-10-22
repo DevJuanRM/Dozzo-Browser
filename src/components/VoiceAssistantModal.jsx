@@ -27,6 +27,7 @@ export default function VoiceAssistantModal({
   const mediaStreamRef = useRef(null);
   const audioContextRef = useRef(null);
   const animFrameRef = useRef(null);
+  const interimDebounceRef = useRef(null);
 
   // Text to speech response
   const speak = (text) => {
@@ -44,6 +45,10 @@ export default function VoiceAssistantModal({
   // Hardware Microphone access and Speech recognition
   useEffect(() => {
     if (!isOpen) {
+      if (interimDebounceRef.current) {
+        clearTimeout(interimDebounceRef.current);
+        interimDebounceRef.current = null;
+      }
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
@@ -127,13 +132,32 @@ export default function VoiceAssistantModal({
         };
 
         recognition.onresult = (event) => {
-          let current = '';
+          let interimText = '';
+          let finalText = '';
+
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            current += event.results[i][0].transcript;
+            const item = event.results[i];
+            if (item.isFinal) {
+              finalText += item[0].transcript;
+            } else {
+              interimText += item[0].transcript;
+            }
           }
-          setTranscript(current);
-          const latest = current.toLowerCase().trim();
-          processCommand(latest);
+
+          const currentTranscript = (finalText || interimText).trim();
+          if (currentTranscript) {
+            setTranscript(currentTranscript);
+          }
+
+          if (finalText.trim()) {
+            if (interimDebounceRef.current) clearTimeout(interimDebounceRef.current);
+            processCommand(finalText.toLowerCase().trim());
+          } else if (interimText.trim()) {
+            if (interimDebounceRef.current) clearTimeout(interimDebounceRef.current);
+            interimDebounceRef.current = setTimeout(() => {
+              processCommand(interimText.toLowerCase().trim());
+            }, 900);
+          }
         };
 
         recognition.onerror = (e) => {
@@ -161,6 +185,10 @@ export default function VoiceAssistantModal({
     }
 
     return () => {
+      if (interimDebounceRef.current) {
+        clearTimeout(interimDebounceRef.current);
+        interimDebounceRef.current = null;
+      }
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       }
@@ -179,66 +207,150 @@ export default function VoiceAssistantModal({
   }, [isOpen]);
 
   const processCommand = (cmd) => {
-    // Check for trigger words like 'dozzo' or direct commands
-    const clean = cmd.replace(/^dozzo\s*/i, '').trim();
+    if (!cmd || !cmd.trim()) return;
 
-    // YouTube specific searches (e.g. "buscar en youtube fifa", "youtube fifa", "buscar fifa en youtube")
-    const ytMatch = clean.match(/(?:buscar\s+en\s+youtube|busca\s+en\s+youtube|youtube\s+buscar|abrir\s+youtube\s+y\s+buscar)\s+(.+)/i) ||
-                   clean.match(/(?:buscar|busca)\s+(.+)\s+en\s+youtube/i);
+    // Clean trigger words and punctuation
+    const clean = cmd
+      .toLowerCase()
+      .replace(/^(dozzo|oye dozzo|hey dozzo|ok dozzo|por favor)\s*/i, '')
+      .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, '')
+      .trim();
+
+    if (!clean) return;
+
+    // 1. YouTube specific searches
+    const ytMatch =
+      clean.match(/(?:buscar\s+en\s+youtube|busca\s+en\s+youtube|youtube\s+buscar|abrir\s+youtube\s+y\s+buscar)\s+(.+)/i) ||
+      clean.match(/(?:buscar|busca)\s+(.+)\s+en\s+youtube/i);
     if (ytMatch && ytMatch[1]) {
       const q = ytMatch[1].trim();
       executeAction(`Buscando "${q}" en YouTube`, `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`);
       return;
     }
 
-    // Figma search
-    const figmaMatch = clean.match(/(?:buscar\s+en\s+figma|busca\s+en\s+figma)\s+(.+)/i);
-    if (figmaMatch && figmaMatch[1]) {
-      const q = figmaMatch[1].trim();
-      executeAction(`Buscando "${q}" en Figma`, `https://www.figma.com/search?q=${encodeURIComponent(q)}`);
+    // 2. Direct Known Websites Map
+    const KNOWN_SITES = {
+      google: 'https://www.google.com',
+      youtube: 'https://www.youtube.com',
+      spotify: 'https://open.spotify.com',
+      figma: 'https://www.figma.com',
+      binance: 'https://www.binance.com',
+      github: 'https://github.com',
+      twitter: 'https://x.com',
+      x: 'https://x.com',
+      instagram: 'https://www.instagram.com',
+      facebook: 'https://www.facebook.com',
+      reddit: 'https://www.reddit.com',
+      twitch: 'https://www.twitch.tv',
+      netflix: 'https://www.netflix.com',
+      tiktok: 'https://www.tiktok.com',
+      wikipedia: 'https://es.wikipedia.org',
+      chatgpt: 'https://chatgpt.com',
+      whatsapp: 'https://web.whatsapp.com',
+      mercadolibre: 'https://www.mercadolibre.com',
+      amazon: 'https://www.amazon.com',
+      yahoo: 'https://www.yahoo.com',
+      gmail: 'https://mail.google.com'
+    };
+
+    for (const [key, siteUrl] of Object.entries(KNOWN_SITES)) {
+      if (
+        clean === key ||
+        clean === `abrir ${key}` ||
+        clean === `ir a ${key}` ||
+        clean === `abre ${key}` ||
+        clean === `entra a ${key}`
+      ) {
+        executeAction(`Abriendo ${key.toUpperCase()}`, siteUrl);
+        return;
+      }
+    }
+
+    // 3. Domain or full URL pattern (e.g. "marca.com", "google.es")
+    if (
+      clean.includes('.com') ||
+      clean.includes('.org') ||
+      clean.includes('.net') ||
+      clean.includes('.es') ||
+      clean.includes('.co') ||
+      clean.includes('.io') ||
+      clean.includes('.tv') ||
+      clean.includes('.app') ||
+      clean.includes('.ai')
+    ) {
+      const cleanUrl = clean.replace(/^(abrir|abre|ir a|entra a)\s+/i, '').trim();
+      const targetUrl = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+      executeAction(`Navegando a ${cleanUrl}`, targetUrl);
       return;
     }
 
-    if (clean.includes('abrir youtube') || clean === 'youtube') {
-      executeAction('Abriendo YouTube', 'https://www.youtube.com');
-    } else if (clean.includes('abrir figma') || clean === 'figma') {
-      executeAction('Abriendo Figma', 'https://www.figma.com');
-    } else if (clean.includes('abrir spotify') || clean === 'spotify') {
-      executeAction('Abriendo Spotify', 'https://open.spotify.com');
-    } else if (clean.includes('abrir binance') || clean === 'binance') {
-      setLastAction('✓ Abriendo Binance');
-      speak('Abriendo Binance Crypto Hub');
-      if (onOpenBinance) onOpenBinance();
-    } else if (clean.includes('nueva pestaña')) {
+    // 4. Browser internal actions (always close modal seamlessly after trigger)
+    if (clean.includes('nueva pestaña') || clean === 'nueva tab' || clean === 'abrir pestaña') {
       setLastAction('✓ Creando nueva pestaña');
       speak('Nueva pestaña abierta');
       if (onNewTab) onNewTab();
-    } else if (clean.includes('cerrar pestaña')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('cerrar pestaña') || clean === 'cierra pestaña' || clean === 'cerrar tab') {
       setLastAction('✓ Cerrando pestaña');
       speak('Cerrando pestaña');
       if (onCloseTab) onCloseTab();
-    } else if (clean.includes('modo oscuro') || clean.includes('modo claro') || clean.includes('cambiar tema')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('modo oscuro') || clean.includes('modo claro') || clean.includes('cambiar tema') || clean === 'tema') {
       setLastAction('✓ Cambiando tema');
       speak('Tema cambiado');
       if (onToggleTheme) onToggleTheme();
-    } else if (clean.includes('descargas') || clean.includes('abrir descargas')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('descargas') || clean.includes('abrir descargas')) {
       setLastAction('✓ Abriendo descargas');
       speak('Abriendo descargas');
       if (onOpenDownloads) onOpenDownloads();
-    } else if (clean.includes('historial') || clean.includes('abrir historial')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('historial') || clean.includes('abrir historial')) {
       setLastAction('✓ Abriendo historial');
       speak('Abriendo historial de navegación');
       if (onOpenHistory) onOpenHistory();
-    } else if (clean.includes('notas') || clean.includes('abrir notas')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('binance') || clean.includes('cripto') || clean.includes('mercado') || clean.includes('precios')) {
+      setLastAction('✓ Abriendo Cripto Hub');
+      speak('Abriendo Cripto Hub');
+      if (onOpenBinance) onOpenBinance();
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('notas') || clean.includes('abrir notas')) {
       setLastAction('✓ Abriendo panel de notas');
       speak('Abriendo notas');
       if (onOpenSidebar) onOpenSidebar();
-    } else if (clean.includes('modo dev') || clean.includes('inspeccionar') || clean.includes('abrir dev')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    if (clean.includes('modo dev') || clean.includes('inspeccionar') || clean.includes('abrir dev')) {
       setLastAction('✓ Activando Dev Studio');
       speak('Modo Dev Studio activado');
       if (onToggleInspector) onToggleInspector();
-      onClose();
-    } else if (clean.includes('primer video') || clean.includes('primer resultado') || clean.includes('abre el primer video')) {
+      setTimeout(onClose, 500);
+      return;
+    }
+
+    // 5. In-Page Controls (YouTube & Video Player)
+    if (clean.includes('primer video') || clean.includes('primer resultado') || clean.includes('abre el primer video')) {
       setLastAction('✓ Abriendo primer video');
       speak('Abriendo primer video');
       if (onExecuteInPage) {
@@ -250,8 +362,11 @@ export default function VoiceAssistantModal({
           })()
         `);
       }
-      setTimeout(onClose, 800);
-    } else if (clean.includes('pantalla completa') || clean.includes('pantalla grande') || clean.includes('fullscreen')) {
+      setTimeout(onClose, 600);
+      return;
+    }
+
+    if (clean.includes('pantalla completa') || clean.includes('pantalla grande') || clean.includes('fullscreen')) {
       setLastAction('✓ Pantalla completa');
       speak('Pantalla completa');
       if (onExecuteInPage) {
@@ -266,7 +381,10 @@ export default function VoiceAssistantModal({
         `);
       }
       setTimeout(onClose, 600);
-    } else if (clean.includes('reproducir') || clean.includes('pausar') || clean.includes('play') || clean.includes('pausa')) {
+      return;
+    }
+
+    if (clean.includes('reproducir') || clean.includes('pausar') || clean.includes('play') || clean.includes('pausa')) {
       setLastAction('✓ Play / Pausa');
       speak('Reproducir o pausar');
       if (onExecuteInPage) {
@@ -278,7 +396,10 @@ export default function VoiceAssistantModal({
         `);
       }
       setTimeout(onClose, 600);
-    } else if (clean.includes('silenciar') || clean.includes('mutear') || clean.includes('quitar sonido')) {
+      return;
+    }
+
+    if (clean.includes('silenciar') || clean.includes('mutear') || clean.includes('quitar sonido')) {
       setLastAction('✓ Silenciar');
       speak('Silenciar');
       if (onExecuteInPage) {
@@ -290,21 +411,38 @@ export default function VoiceAssistantModal({
         `);
       }
       setTimeout(onClose, 600);
-    } else if (clean.includes('bajar') || clean.includes('desplazar abajo') || clean.includes('scroll abajo')) {
+      return;
+    }
+
+    if (clean.includes('bajar') || clean.includes('desplazar abajo') || clean.includes('scroll abajo')) {
       setLastAction('✓ Desplazando hacia abajo');
       if (onExecuteInPage) {
         onExecuteInPage('window.scrollBy({ top: 550, behavior: "smooth" });');
       }
-    } else if (clean.includes('subir') || clean.includes('desplazar arriba') || clean.includes('scroll arriba')) {
+      setTimeout(onClose, 600);
+      return;
+    }
+
+    if (clean.includes('subir') || clean.includes('desplazar arriba') || clean.includes('scroll arriba')) {
       setLastAction('✓ Desplazando hacia arriba');
       if (onExecuteInPage) {
         onExecuteInPage('window.scrollBy({ top: -550, behavior: "smooth" });');
       }
-    } else if (clean.startsWith('buscar ') || clean.startsWith('busca ') || clean.startsWith('escribe ') || clean.startsWith('escribir ')) {
-      const query = clean.replace(/^(buscar|busca|escribe|escribir)\s+/i, '').trim();
-      if (query) {
-        executeAction(`Buscando "${query}"`, `https://duckduckgo.com/?q=${encodeURIComponent(query)}`);
-      }
+      setTimeout(onClose, 600);
+      return;
+    }
+
+    // 6. Explicit search prefixes
+    const searchMatch = clean.match(/^(?:buscar|busca|encuentra|investiga|google|consultar)\s+(.+)/i);
+    if (searchMatch && searchMatch[1]) {
+      const q = searchMatch[1].trim();
+      executeAction(`Buscando "${q}"`, `https://duckduckgo.com/?q=${encodeURIComponent(q)}`);
+      return;
+    }
+
+    // 7. General search fallback: whatever the user said is executed!
+    if (clean.length > 1) {
+      executeAction(`Buscando "${clean}"`, `https://duckduckgo.com/?q=${encodeURIComponent(clean)}`);
     }
   };
 

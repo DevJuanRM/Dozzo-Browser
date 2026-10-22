@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('browserAPI', {
   },
 
   // Auto-updater
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   installUpdate: () => ipcRenderer.send('install-update'),
   onUpdaterMessage: (callback) => {
     const subscription = (event, data) => callback(data);

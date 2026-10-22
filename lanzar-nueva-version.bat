@@ -46,7 +46,7 @@ echo.
 echo ==========================================================
 echo  3. Guardando cambios y creando etiqueta v%NUEVA_VERSION%...
 echo ==========================================================
-git add package.json
+git add -A
 git commit -m "chore(release): v%NUEVA_VERSION%"
 git tag -f v%NUEVA_VERSION%
 
