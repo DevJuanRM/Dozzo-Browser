@@ -443,7 +443,9 @@ function WebviewItem({
             height: '100%',
             flex: 1,
             border: 'none',
-            background: '#ffffff'
+            outline: 'none',
+            background: '#000000',
+            backgroundColor: '#000000'
           }}
         />
       </div>
@@ -469,8 +471,10 @@ function WebviewItem({
         width: '100%',
         height: '100%',
         border: 'none',
+        outline: 'none',
         flex: 1,
-        pointerEvents: isActive ? 'auto' : 'none'
+        pointerEvents: isActive ? 'auto' : 'none',
+        backgroundColor: '#000000'
       }}
     />
   );

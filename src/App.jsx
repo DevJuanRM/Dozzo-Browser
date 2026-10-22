@@ -468,6 +468,23 @@ export default function App() {
           isMaximized={isMaximized}
           splitMode={splitMode}
           onChangeSplitMode={handleSplitModeChange}
+          onToggleAutoHide={() => {
+            const next = !isAutoHidden;
+            setIsAutoHidden(next);
+            localStorage.setItem('dozzo_autohide_topbar', String(next));
+            if (!next) {
+              setIsScrolledHidden(false);
+              setIsHoveringTop(false);
+            }
+          }}
+          isAutoHidden={isAutoHidden}
+          onGoHome={handleGoHome}
+          onToggleBookmarksBar={() => {
+            const next = !showBookmarksBar;
+            setShowBookmarksBar(next);
+            localStorage.setItem('dozzo_bookmarks_visible', String(next));
+          }}
+          showBookmarksBar={showBookmarksBar}
         />
 
         {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, Downloads, Sidebar) */}

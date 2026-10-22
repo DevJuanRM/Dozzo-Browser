@@ -162,24 +162,6 @@ export default function NavigationBar({
         >
           {isLoading ? <StopIcon size={16} /> : <RotateCw size={15} />}
         </button>
-
-        <button style={styles.iconBtn} onClick={onGoHome} title="Página de inicio (Speed Dial)">
-          <Home size={16} />
-        </button>
-
-        {/* Toggle Bookmarks Bar Button */}
-        {onToggleBookmarksBar && (
-          <button
-            style={{
-              ...styles.iconBtn,
-              color: showBookmarksBar ? 'var(--accent)' : 'var(--text-secondary)'
-            }}
-            onClick={onToggleBookmarksBar}
-            title={showBookmarksBar ? 'Ocultar barra de marcadores/favoritos' : 'Mostrar barra de marcadores/favoritos'}
-          >
-            <Star size={16} fill={showBookmarksBar ? 'currentColor' : 'none'} />
-          </button>
-        )}
       </div>
 
       {/* Privacy Shield Badge (Muted by default, illuminates in emerald when clicked) */}
@@ -514,25 +496,6 @@ export default function NavigationBar({
             </div>
           )}
         </div>
-
-        {/* Auto-hide / Collapsible top bar toggle arrow (Kept outside menu as requested!) */}
-        {onToggleAutoHide && (
-          <button
-            style={{
-              ...styles.iconBtn,
-              color: isAutoHidden ? 'var(--accent)' : 'var(--text-muted)',
-              background: isAutoHidden ? 'var(--accent-glow)' : 'transparent'
-            }}
-            onClick={onToggleAutoHide}
-            title={
-              isAutoHidden
-                ? 'Fijar barra superior permanentemente'
-                : 'Ocultar barra automáticamente (como barra de Windows al pasar el mouse)'
-            }
-          >
-            {isAutoHidden ? <ChevronDown size={17} /> : <ChevronUp size={17} />}
-          </button>
-        )}
       </div>
     </div>
   );

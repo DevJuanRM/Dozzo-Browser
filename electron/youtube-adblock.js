@@ -3,37 +3,53 @@
   if (window.__dozzo_adblock_injected) return;
   window.__dozzo_adblock_injected = true;
 
-  // 1. Inject CSS for banner and promotional ads
-  const style = document.createElement('style');
-  style.id = '__dozzo_adblock_style';
-  style.textContent = `
-    /* Universal Ad blocking styles */
-    ins.adsbygoogle,
-    .adsbygoogle,
-    [id^="google_ads_"],
-    [id^="div-gpt-ad"],
-    .ad-container,
-    .ad-slot,
-    .ad-banner,
-    .taboola,
-    .outbrain,
-    .trc_related_container,
-    /* YouTube static banner ads (never hide player internal elements) */
-    ytd-ad-slot-renderer,
-    ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
-    ytd-banner-promo-renderer,
-    #masthead-ad,
-    ytd-statement-banner-renderer,
-    ytd-in-feed-ad-layout-renderer,
-    .ytp-ad-overlay-container,
-    .ytp-ad-message-container {
-      display: none !important;
-      visibility: hidden !important;
-      height: 0 !important;
-      pointer-events: none !important;
-    }
-  `;
-  (document.head || document.documentElement).appendChild(style);
+    // 1. Inject CSS for banner and promotional ads
+    const style = document.createElement('style');
+    style.id = '__dozzo_adblock_style';
+    style.textContent = `
+      /* Universal Ad blocking styles */
+      ins.adsbygoogle,
+      .adsbygoogle,
+      [id^="google_ads_"],
+      [id^="div-gpt-ad"],
+      .ad-container,
+      .ad-slot,
+      .ad-banner,
+      .taboola,
+      .outbrain,
+      .trc_related_container,
+      /* YouTube static banner ads & in-player ad overlays */
+      ytd-ad-slot-renderer,
+      ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+      ytd-banner-promo-renderer,
+      #masthead-ad,
+      ytd-statement-banner-renderer,
+      ytd-in-feed-ad-layout-renderer,
+      [class*="ytp-ad-"],
+      [id*="ytp-ad-"],
+      .ytp-ad-module,
+      .ytp-ad-player-overlay,
+      .ytp-ad-player-overlay-layout,
+      .ytp-ad-skip-button-slot,
+      .ytp-ad-skip-button-container,
+      .ytp-skip-ad-button,
+      .ytp-ad-skip-button,
+      .ytp-ad-skip-button-modern,
+      .ytp-ad-preview-container,
+      .ytp-ad-text,
+      .ytp-ad-overlay-container,
+      .ytp-ad-message-container,
+      .video-ads,
+      #player-ads {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        width: 0 !important;
+        height: 0 !important;
+        pointer-events: none !important;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
 
   // 2. YouTube Ad-Free Engine (Only on youtube.com)
   if (location.hostname.includes('youtube.com')) {
@@ -129,32 +145,20 @@
       const video = moviePlayer.querySelector('video.html5-main-video') || moviePlayer.querySelector('video');
 
       if (isAdActive) {
-        if (video) {
-          try {
-            if (!video.muted) {
-              video.muted = true;
-              wasAdMuted = true;
-            }
-            video.playbackRate = 16.0;
-            // Only jump to end if it's an actual AD video (under 120s), never user's video
-            if (video.duration && video.duration < 120 && video.currentTime < video.duration - 0.1) {
-              video.currentTime = video.duration - 0.05;
-            }
-          } catch (e) {}
-
-          if (video.paused) {
-            video.play().catch(() => {});
-          }
+        // 1. Mute ad immediately to prevent audio burst
+        if (video && !video.muted) {
+          video.muted = true;
+          wasAdMuted = true;
         }
 
-        // Native skip call on player
+        // 2. Call YouTube native player skipAd API directly
         if (typeof moviePlayer.skipAd === 'function') {
           try {
             moviePlayer.skipAd();
           } catch (e) {}
         }
 
-        // Click all skip button variants immediately
+        // 3. Click all skip button variants immediately
         const skipButtons = document.querySelectorAll(
           '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-text'
         );
@@ -163,8 +167,18 @@
             btn.click();
           } catch (e) {}
         });
+
+        // 4. If ad is still showing and unskippable preroll, fast-forward cleanly at 16x speed
+        if (video && !isNaN(video.duration) && video.duration > 0 && isFinite(video.duration)) {
+          video.playbackRate = 16.0;
+          if (video.currentTime < video.duration - 0.1) {
+            try {
+              video.currentTime = Math.max(0, video.duration - 0.1);
+            } catch (e) {}
+          }
+        }
       } else {
-        // Normal video: restore normal playback rate and unmute if we muted it for an ad
+        // Normal video: restore normal audio state if we muted it for an ad
         if (video) {
           if (video.playbackRate > 2) {
             try {
@@ -176,6 +190,10 @@
               video.muted = false;
               wasAdMuted = false;
             } catch (e) {}
+          }
+          // Ensure main video continues playing seamlessly
+          if (video.paused && video.currentTime > 0 && video.currentTime < video.duration - 1) {
+            video.play().catch(() => {});
           }
         }
       }
@@ -189,7 +207,8 @@
       }
     }
 
-    setInterval(skipYouTubeAds, 100);
+    // Fast-poll every 25ms to skip prerolls before the first frame renders
+    setInterval(skipYouTubeAds, 25);
 
     const observer = new MutationObserver(skipYouTubeAds);
     observer.observe(document.documentElement || document.body, {

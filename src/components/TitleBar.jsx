@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, X, Minus, Square, Copy, Volume2, Globe, LayoutGrid, ExternalLink } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Minus,
+  Square,
+  Copy,
+  Volume2,
+  Globe,
+  LayoutGrid,
+  ExternalLink,
+  Home,
+  Star,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react';
 
 function TypewriterLogo() {
   const fullText = 'DOZZO';
@@ -54,7 +68,12 @@ export default function TitleBar({
   onNewTab,
   isMaximized,
   splitMode = 'single',
-  onChangeSplitMode
+  onChangeSplitMode,
+  onToggleAutoHide,
+  isAutoHidden,
+  onGoHome,
+  onToggleBookmarksBar,
+  showBookmarksBar
 }) {
   const [expandedTabId, setExpandedTabId] = useState(null);
   const [showSplitMenu, setShowSplitMenu] = useState(false);
@@ -79,8 +98,32 @@ export default function TitleBar({
       {/* Left Draggable Spacer */}
       <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
 
-      {/* Centered Floating High-Gloss Glass Circles (Zero outer enclosing box) */}
+      {/* Centered Floating High-Gloss Glass Circles (Zero outer enclosing box, Mac Dock style) */}
       <div style={styles.floatingTabsContainer} className="no-drag">
+        {/* Pinned Quick Circles (Mac Menu / Dock Style): Home & Favoritos */}
+        <div style={styles.pinnedDockGroup}>
+          <button
+            className="high-gloss-circle"
+            onClick={onGoHome}
+            title="Página de inicio (Speed Dial)"
+            style={{ width: '38px', height: '38px' }}
+          >
+            <Home size={15} />
+          </button>
+
+          <button
+            className={`high-gloss-circle ${showBookmarksBar ? 'active' : ''}`}
+            onClick={onToggleBookmarksBar}
+            title={showBookmarksBar ? 'Ocultar barra de marcadores/favoritos' : 'Mostrar barra de marcadores/favoritos'}
+            style={{ width: '38px', height: '38px' }}
+          >
+            <Star size={15} fill={showBookmarksBar ? 'currentColor' : 'none'} />
+          </button>
+        </div>
+
+        <div style={styles.dockSeparator} />
+
+        {/* Dynamic Tab Circles */}
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isExpanded = expandedTabId === tab.id;
@@ -300,8 +343,24 @@ export default function TitleBar({
         </div>
       )}
 
-      {/* Window Controls (Minimize, Maximize, Close) */}
+      {/* Window Controls (Auto-hide Toggle, Minimize, Maximize, Close) */}
       <div style={styles.windowControls} className="no-drag">
+        {onToggleAutoHide && (
+          <button
+            style={{
+              ...styles.winBtn,
+              color: isAutoHidden ? 'var(--accent)' : 'var(--text-secondary)'
+            }}
+            onClick={onToggleAutoHide}
+            title={
+              isAutoHidden
+                ? 'Fijar barra superior permanentemente'
+                : 'Ocultar barra automáticamente (al pasar el mouse)'
+            }
+          >
+            {isAutoHidden ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+          </button>
+        )}
         <button style={styles.winBtn} onClick={handleMinimize} title="Minimizar">
           <Minus size={13} />
         </button>
@@ -345,6 +404,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    flexShrink: 0
+  },
+  pinnedDockGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  dockSeparator: {
+    width: '1px',
+    height: '22px',
+    background: 'rgba(255, 255, 255, 0.15)',
+    margin: '0 4px',
     flexShrink: 0
   },
   faviconBox: {
