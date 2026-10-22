@@ -60,6 +60,122 @@ function TypewriterLogo() {
   );
 }
 
+function TabCircleItem({
+  tab,
+  isActive,
+  isExpanded,
+  onSelect,
+  onToggleExpand,
+  onClose,
+  onPopOut
+}) {
+  const fullTitle = tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...');
+  const [typedTitle, setTypedTitle] = useState(isExpanded ? fullTitle : '');
+
+  // Silky smooth typewriter animation when opening tab pill towards the right
+  useEffect(() => {
+    if (!isExpanded) {
+      setTypedTitle('');
+      return;
+    }
+    setTypedTitle('');
+    let i = 0;
+    const len = fullTitle.length;
+    const timer = setInterval(() => {
+      i++;
+      setTypedTitle(fullTitle.slice(0, i));
+      if (i >= len) {
+        clearInterval(timer);
+      }
+    }, 22);
+    return () => clearInterval(timer);
+  }, [isExpanded, fullTitle]);
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', tab.url || '');
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragEnd={(e) => {
+        const isOutside =
+          e.screenX < window.screenX - 25 ||
+          e.screenX > window.screenX + window.outerWidth + 25 ||
+          e.screenY < window.screenY - 25 ||
+          e.screenY > window.screenY + window.outerHeight + 25;
+
+        if (isOutside && window.browserAPI?.openNewWindow) {
+          window.browserAPI.openNewWindow({ url: tab.url });
+          onClose();
+        }
+      }}
+      className={`high-gloss-tab-item ${isExpanded ? 'expanded' : ''} ${isActive ? 'active' : ''}`}
+      onClick={() => {
+        onSelect();
+        onToggleExpand();
+      }}
+      title={isExpanded ? 'Clic para colapsar a círculo' : `${fullTitle} (Arrastra fuera para mover a otra pantalla)`}
+    >
+      {/* Pinned Favicon (Anchored on the left at 0px, NEVER shifts or moves) */}
+      <div className="tab-pinned-icon">
+        {tab.isLoading ? (
+          <div style={styles.spinner} />
+        ) : tab.favicon ? (
+          <img
+            src={tab.favicon}
+            alt=""
+            style={styles.favicon}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          <Globe size={15} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
+        )}
+      </div>
+
+      {/* Smoothly expanding title & actions towards the right */}
+      <div className="tab-expanding-content">
+        <span style={styles.tabTitle}>
+          {typedTitle}
+          {isExpanded && typedTitle.length < fullTitle.length && (
+            <span className="typewriter-cursor">|</span>
+          )}
+        </span>
+
+        {tab.isAudioPlaying && (
+          <div style={styles.audioIcon} title="Reproduciendo audio">
+            <Volume2 size={12} color="var(--accent)" />
+          </div>
+        )}
+
+        <button
+          style={styles.tabActionBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPopOut();
+          }}
+          title="Mover a otra pantalla / Nueva ventana"
+        >
+          <ExternalLink size={11} />
+        </button>
+
+        <button
+          style={styles.closeBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          title="Cerrar pestaña"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function TitleBar({
   tabs,
   activeTabId,
@@ -95,10 +211,9 @@ export default function TitleBar({
       {/* Brand: Pure text DOZZO with 10s Typewriter animation (no shield icon) */}
       <TypewriterLogo />
 
-      {/* Left Draggable Spacer */}
-      <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
+      <div style={styles.dockSeparator} />
 
-      {/* Centered Floating High-Gloss Glass Circles (Zero outer enclosing box, Mac Dock style) */}
+      {/* Mac Dock-Style Circles (Home, Star, divider, tab circles, add button) */}
       <div style={styles.floatingTabsContainer} className="no-drag">
         {/* Pinned Quick Circles (Mac Menu / Dock Style): Home & Favoritos */}
         <div style={styles.pinnedDockGroup}>
@@ -127,97 +242,26 @@ export default function TitleBar({
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           const isExpanded = expandedTabId === tab.id;
-          const displayTitle = tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Cargando...');
 
           return (
-            <div
+            <TabCircleItem
               key={tab.id}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', tab.url || '');
-                e.dataTransfer.effectAllowed = 'move';
+              tab={tab}
+              isActive={isActive}
+              isExpanded={isExpanded}
+              onSelect={() => onSelectTab(tab.id)}
+              onToggleExpand={() => setExpandedTabId((prev) => (prev === tab.id ? null : tab.id))}
+              onClose={() => {
+                onCloseTab(tab.id);
+                if (isExpanded) setExpandedTabId(null);
               }}
-              onDragEnd={(e) => {
-                // Drag out of current window bounds to open on secondary monitor
-                const isOutside =
-                  e.screenX < window.screenX - 25 ||
-                  e.screenX > window.screenX + window.outerWidth + 25 ||
-                  e.screenY < window.screenY - 25 ||
-                  e.screenY > window.screenY + window.outerHeight + 25;
-
-                if (isOutside && window.browserAPI?.openNewWindow) {
+              onPopOut={() => {
+                if (window.browserAPI?.openNewWindow) {
                   window.browserAPI.openNewWindow({ url: tab.url });
-                  if (tabs.length > 1) {
-                    onCloseTab(tab.id);
-                  }
+                  if (tabs.length > 1) onCloseTab(tab.id);
                 }
               }}
-              className={isExpanded ? 'high-gloss-capsule' : `high-gloss-circle ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                onSelectTab(tab.id);
-                // Clicking toggles opening/closing the tab pill name
-                setExpandedTabId((prev) => (prev === tab.id ? null : tab.id));
-              }}
-              title={isExpanded ? 'Clic para colapsar a círculo' : `${displayTitle} (Arrastra fuera para mover a otra pantalla)`}
-            >
-              {/* Favicon or Loading Spinner */}
-              <div style={styles.faviconBox}>
-                {tab.isLoading ? (
-                  <div style={styles.spinner} />
-                ) : tab.favicon ? (
-                  <img
-                    src={tab.favicon}
-                    alt=""
-                    style={styles.favicon}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <Globe size={15} color={isActive ? 'var(--accent)' : 'var(--text-muted)'} />
-                )}
-              </div>
-
-              {/* Expanded content only when clicked to reveal name */}
-              {isExpanded && (
-                <>
-                  <span style={styles.tabTitle}>{displayTitle}</span>
-
-                  {tab.isAudioPlaying && (
-                    <div style={styles.audioIcon} title="Reproduciendo audio">
-                      <Volume2 size={12} color="var(--accent)" />
-                    </div>
-                  )}
-
-                  {/* Pop out / tear off to secondary monitor */}
-                  <button
-                    style={styles.tabActionBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (window.browserAPI?.openNewWindow) {
-                        window.browserAPI.openNewWindow({ url: tab.url });
-                        if (tabs.length > 1) onCloseTab(tab.id);
-                      }
-                    }}
-                    title="Mover a otra pantalla / Nueva ventana"
-                  >
-                    <ExternalLink size={11} />
-                  </button>
-
-                  <button
-                    style={styles.closeBtn}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onCloseTab(tab.id);
-                      if (isExpanded) setExpandedTabId(null);
-                    }}
-                    title="Cerrar pestaña"
-                  >
-                    <X size={12} />
-                  </button>
-                </>
-              )}
-            </div>
+            />
           );
         })}
 
@@ -232,7 +276,7 @@ export default function TitleBar({
         </button>
       </div>
 
-      {/* Right Draggable Spacer */}
+      {/* Large Draggable Region spanning the rest of the titlebar towards the right */}
       <div style={{ flex: 1, height: '100%' }} className="titlebar-drag-region" />
 
       {/* Split Layout Switcher (1 to 5 Views) */}
