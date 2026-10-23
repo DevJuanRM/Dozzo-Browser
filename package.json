@@ -1,7 +1,7 @@
 {
   "name": "dozzo-browser",
   "productName": "Dozzo Browser",
-  "version": "3.2.0",
+  "version": "4.0.0",
   "description": "Ultra-fast, 100% private browser with built-in adblocker, Binance crypto widget, and customizable themes",
   "main": "electron/main.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "start": "electron .",
     "dist": "vite build && electron-builder --win -p never",
     "dist:portable": "vite build && electron-builder --win portable -p never",
+    "dist:mac": "vite build && electron-builder --mac -p never",
     "dist:publish": "vite build && electron-builder --win -p always"
   },
   "build": {
@@ -31,6 +32,22 @@
         "nsis",
         "portable"
       ]
+    },
+    "mac": {
+      "icon": "public/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "icon": "public/icon.png",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network"
     },
     "nsis": {
       "oneClick": false,
@@ -63,6 +80,7 @@
   "type": "commonjs",
   "dependencies": {
     "electron-updater": "^6.8.9",
+    "framer-motion": "^14.6.0",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

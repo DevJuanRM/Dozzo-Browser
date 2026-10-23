@@ -5,54 +5,182 @@
       window.__dozzo_native_log = console.log.bind(console);
     } catch (e) {}
 
+    // Check if current site is Google auth or account page
+    const isGoogleAuth = Boolean(
+      window.location &&
+      (window.location.hostname.includes('google.com') ||
+       window.location.hostname.includes('gstatic.com') ||
+       window.location.hostname.includes('accounts.google') ||
+       window.location.hostname.includes('googleapis.com'))
+    );
+
+    // Check if current site is Figma or graphics canvas apps
+    const isFigma = Boolean(
+      window.location &&
+      (window.location.hostname.includes('figma.com') ||
+       window.location.hostname.includes('canva.com'))
+    );
+
+    // Purge any Node / Electron leakage so Figma and web apps never detect desktop Electron
+    try {
+      if (typeof window !== 'undefined') {
+        try { delete window.process; } catch (_) {}
+        try { delete window.Buffer; } catch (_) {}
+        try { delete window.global; } catch (_) {}
+        try { delete window.setImmediate; } catch (_) {}
+        try { delete window.clearImmediate; } catch (_) {}
+      }
+      if (typeof process !== 'undefined') {
+        try {
+          process.versions = { ...process.versions };
+          delete process.versions.electron;
+          delete process.versions.node;
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     try {
       const electron = require('electron');
-      if (electron && electron.ipcRenderer) {
-        window.__dozzo_ipcRenderer = electron.ipcRenderer;
+      if (electron && electron.ipcRenderer && !isGoogleAuth && !isFigma) {
+        Object.defineProperty(window, '__dozzo_ipcRenderer', {
+          value: electron.ipcRenderer,
+          writable: false,
+          enumerable: false,
+          configurable: false
+        });
       }
     } catch (e) {}
 
-    // Universal Anti-Fingerprinting & Tor-style Shield for all web pages
-    try {
-      // 1. Canvas Fingerprint Randomization
-      if (typeof HTMLCanvasElement !== 'undefined') {
-        const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-          try {
-            const ctx = this.getContext('2d');
-            if (ctx && this.width > 16 && this.height > 16) {
-              const imgData = ctx.getImageData(0, 0, 1, 1);
-              imgData.data[0] = (imgData.data[0] ^ 1) & 0xff;
-              ctx.putImageData(imgData, 0, 0);
+    // Suppress repeated Windows Security "Choose a passkey for google.com" dialog loop
+    if (typeof navigator !== 'undefined' && navigator.credentials) {
+      try {
+        const origCredGet = navigator.credentials.get ? navigator.credentials.get.bind(navigator.credentials) : null;
+        if (origCredGet) {
+          navigator.credentials.get = function (options) {
+            // When pages request conditional mediation (passkey autofill), return null immediately
+            // so Windows Security never pops up interrupting the user during login!
+            if (options && (options.mediation === 'conditional' || !options.publicKey || !options.publicKey.challenge)) {
+              return Promise.resolve(null);
             }
-          } catch (e) {}
-          return origToDataURL.apply(this, args);
-        };
-      }
+            return origCredGet(options);
+          };
+        }
+      } catch (e) {}
+    }
 
-      // 2. Battery Status API Protection (Prevent tracking device charge signatures)
-      if (typeof navigator !== 'undefined' && navigator.getBattery) {
-        navigator.getBattery = () =>
-          Promise.resolve({
-            charging: true,
-            chargingTime: 0,
-            dischargingTime: Infinity,
-            level: 1.0,
-            addEventListener: () => {},
-            removeEventListener: () => {}
+    // Google Chrome BotGuard integrity mock:
+    // Real Chrome exposes full window.chrome runtime, app, loadTimes, and csi.
+    // In Electron, if this is missing or empty, Google flags it as an embedded app ("Couldn't sign you in").
+    if (typeof window !== 'undefined') {
+      try {
+        if (!window.chrome) {
+          window.chrome = {};
+        }
+        if (!window.chrome.app) {
+          window.chrome.app = {
+            isInstalled: false,
+            InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+            RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
+            getDetails: () => null,
+            getIsInstalled: () => false,
+            installState: () => {}
+          };
+        }
+        if (!window.chrome.runtime) {
+          window.chrome.runtime = {
+            OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
+            OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
+            PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+            PlatformNaclArch: { ARM: 'arm', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+            PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
+            RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' },
+            connect: () => {},
+            sendMessage: () => {}
+          };
+        }
+        if (!window.chrome.loadTimes) {
+          window.chrome.loadTimes = () => ({
+            commitLoadTime: 1,
+            connectionInfo: 'http/1.1',
+            finishDocumentLoadTime: 1,
+            finishLoadTime: 1,
+            firstPaintAfterLoadTime: 1,
+            firstPaintTime: 1,
+            navigationType: 'Other',
+            npnNegotiatedProtocol: 'unknown',
+            requestTime: 1,
+            startLoadTime: 1,
+            wasAlternateProtocolAvailable: false,
+            wasFetchedViaSpdy: false,
+            wasNpnNegotiated: false
           });
-      }
+        }
+        if (!window.chrome.csi) {
+          window.chrome.csi = () => ({ onloadT: 1, pageT: 1, startE: 1, tran: 1 });
+        }
+      } catch (e) {}
 
-      // 3. WebGL GPU Signature Spoofing (Prevents unmasked GPU hardware fingerprinting)
-      if (typeof WebGLRenderingContext !== 'undefined') {
-        const origGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-          if (param === 37445) return 'Google Inc. (NVIDIA)';
-          if (param === 37446) return 'ANGLE (NVIDIA, Direct3D11)';
-          return origGetParameter.apply(this, arguments);
-        };
-      }
-    } catch (e) {}
+      // Ensure navigator.webdriver is undefined
+      try {
+        Object.defineProperty(navigator, 'webdriver', {
+          get: () => undefined,
+          configurable: true
+        });
+      } catch (e) {}
+    }
+
+    // Universal Anti-Fingerprinting & Tor-style Shield for all web pages (except Google auth & Figma)
+    if (!isGoogleAuth && !isFigma) {
+      try {
+        // 1. Canvas Fingerprint Randomization (Safe: NEVER force a 2D context on a WebGL/fresh canvas)
+        if (typeof HTMLCanvasElement !== 'undefined') {
+          const origGetContext = HTMLCanvasElement.prototype.getContext;
+          HTMLCanvasElement.prototype.getContext = function (type, ...args) {
+            this._dozzoContextType = type;
+            return origGetContext.apply(this, [type, ...args]);
+          };
+
+          const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+          HTMLCanvasElement.prototype.toDataURL = function (...args) {
+            try {
+              // Only alter if the canvas already established a 2D context; never force-create one!
+              if (this._dozzoContextType === '2d' && this.width > 16 && this.height > 16) {
+                const ctx = origGetContext.apply(this, ['2d']);
+                if (ctx) {
+                  const imgData = ctx.getImageData(0, 0, 1, 1);
+                  imgData.data[0] = (imgData.data[0] ^ 1) & 0xff;
+                  ctx.putImageData(imgData, 0, 0);
+                }
+              }
+            } catch (e) {}
+            return origToDataURL.apply(this, args);
+          };
+        }
+
+        // 2. Battery Status API Protection (Prevent tracking device charge signatures)
+        if (typeof navigator !== 'undefined' && navigator.getBattery) {
+          navigator.getBattery = () =>
+            Promise.resolve({
+              charging: true,
+              chargingTime: 0,
+              dischargingTime: Infinity,
+              level: 1.0,
+              addEventListener: () => {},
+              removeEventListener: () => {}
+            });
+        }
+
+        // 3. WebGL GPU Signature Spoofing (Prevents unmasked GPU hardware fingerprinting)
+        if (typeof WebGLRenderingContext !== 'undefined') {
+          const origGetParameter = WebGLRenderingContext.prototype.getParameter;
+          WebGLRenderingContext.prototype.getParameter = function (param) {
+            if (param === 37445) return 'Google Inc. (NVIDIA)';
+            if (param === 37446) return 'ANGLE (NVIDIA, Direct3D11)';
+            return origGetParameter.apply(this, arguments);
+          };
+        }
+      } catch (e) {}
+    }
 
     const isYouTube = Boolean(window.location && window.location.hostname.includes('youtube.com'));
 

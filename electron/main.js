@@ -3,6 +3,9 @@ const path = require('path');
 const http = require('http');
 const { setupAdBlocker, getBlockedCount, resetBlockedCount, setShieldActive, getShieldActive } = require('./adblocker');
 
+// Disable development security warning logs in renderer console
+process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true';
+
 // Set custom userData path FIRST before any lock or session calls
 try {
   const userDataPath = path.join(app.getPath('appData'), 'DozzoBrowser');
@@ -70,11 +73,25 @@ configureWidevine();
 // Audio, Autoplay & Media Switches (Widevine & Spotify Web Enabled)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
-app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm,SharedArrayBuffer');
 
 // Modern Chrome User-Agent to avoid Google/Spotify/Cloudflare blocking
 const CHROME_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
+
+// Global userAgent fallback ensures all webviews default to clean Chrome UA without "Electron"
+try {
+  app.userAgentFallback = CHROME_USER_AGENT;
+} catch (e) {}
+
+app.on('web-contents-created', (event, contents) => {
+  try {
+    contents.setUserAgent(CHROME_USER_AGENT);
+  } catch (e) {}
+});
 
 async function waitForServer(url, timeoutMs = 15000) {
   const startTime = Date.now();
@@ -126,7 +143,7 @@ function createWindow(initialUrl = '') {
   win.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     webPreferences.plugins = true;
     webPreferences.contextIsolation = false;
-    webPreferences.webSecurity = false;
+    webPreferences.webSecurity = true;
   });
 
   // Set user agent
@@ -135,14 +152,43 @@ function createWindow(initialUrl = '') {
   const browserPartition = session.fromPartition('persist:dozzo-browser');
   browserPartition.setUserAgent(CHROME_USER_AGENT);
 
+  // Ensure all headers match official Chrome 133 release and completely strip Electron signatures
+  const configureSessionHeaders = (targetSession) => {
+    targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      const headers = { ...details.requestHeaders };
+      let ua = headers['User-Agent'] || CHROME_USER_AGENT;
+      if (ua.includes('Electron')) {
+        ua = CHROME_USER_AGENT;
+      }
+      headers['User-Agent'] = ua;
+
+      // Provide authentic Chromium 133 Client Hints
+      if (!headers['sec-ch-ua'] || headers['sec-ch-ua'].includes('Electron')) {
+        headers['sec-ch-ua'] = '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"';
+        headers['sec-ch-ua-mobile'] = '?0';
+        headers['sec-ch-ua-platform'] = '"Windows"';
+      }
+      callback({ cancel: false, requestHeaders: headers });
+    });
+  };
+
+  configureSessionHeaders(session.defaultSession);
+  configureSessionHeaders(browserPartition);
+
   // Handle media permissions (audio, microphone, mediaKeySystem / EME DRM, autoplay, etc.)
   const setupPermissions = (targetSession) => {
     targetSession.setPermissionRequestHandler((webContents, permission, callback) => {
-      // Unconditionally allow microphone, media, audioCapture, notifications, DRM, etc.
+      // Prevent repeated system passkey / security key dialog loops on Google auth
+      if (permission === 'identity-credentials') {
+        return callback(false);
+      }
       callback(true);
     });
 
     targetSession.setPermissionCheckHandler((webContents, permission) => {
+      if (permission === 'identity-credentials') {
+        return false;
+      }
       return true;
     });
 
@@ -259,6 +305,18 @@ ipcMain.on('window-maximize', (event) => {
   }
 });
 
+ipcMain.on('window-shrink', (event) => {
+  const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (targetWin) {
+    if (targetWin.isMaximized()) {
+      targetWin.unmaximize();
+    } else {
+      targetWin.setSize(1000, 680);
+      targetWin.center();
+    }
+  }
+});
+
 ipcMain.on('window-close', (event) => {
   const targetWin = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   if (targetWin) targetWin.close();
@@ -297,6 +355,21 @@ ipcMain.handle('toggle-shield', (event, active) => {
 
 ipcMain.handle('reset-adblock-stats', () => {
   return resetBlockedCount();
+});
+
+ipcMain.handle('fetch-rss', async (event, url) => {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': CHROME_USER_AGENT,
+        'Accept': 'application/rss+xml, application/xml, text/xml, */*'
+      }
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch (err) {
+    return null;
+  }
 });
 
 ipcMain.on('open-devtools', () => {

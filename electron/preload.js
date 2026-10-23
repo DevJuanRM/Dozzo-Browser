@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('browserAPI', {
   // Window controls
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
+  shrink: () => ipcRenderer.send('window-shrink'),
   close: () => ipcRenderer.send('window-close'),
   isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
   openNewWindow: (data) => ipcRenderer.send('open-new-window', data),
@@ -31,6 +32,7 @@ contextBridge.exposeInMainWorld('browserAPI', {
   getAdblockStats: () => ipcRenderer.invoke('get-adblock-stats'),
   toggleShield: (active) => ipcRenderer.invoke('toggle-shield', active),
   resetAdblockStats: () => ipcRenderer.invoke('reset-adblock-stats'),
+  fetchRss: (url) => ipcRenderer.invoke('fetch-rss', url),
   onAdblockUpdate: (callback) => {
     const subscription = (event, stats) => callback(stats);
     ipcRenderer.on('adblock-update', subscription);

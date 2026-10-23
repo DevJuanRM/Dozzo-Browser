@@ -1,50 +1,78 @@
-# 🛡️ Dozzo Browser (Binance & Privacy Edition)
+# 🛡️ Dozzo Browser (Official & Latest Release)
 
 <div align="center">
 
 ![Dozzo Browser](https://raw.githubusercontent.com/DevJuanRM/Dozzo-Browser/main/public/icon.svg)
 
 Un navegador web **100% privado, moderno y ultra-rápido**, desarrollado con **React, Vite y Electron**.  
-Diseñado especialmente para navegación sin anuncios, máxima privacidad, herramientas para desarrolladores/diseñadores y seguimiento de criptomonedas en tiempo real.
+Diseñado especialmente para navegación sin anuncios, máxima privacidad, seguimiento cripto en tiempo real, búsqueda por voz inteligente y dock con efecto lupa estilo macOS.
 
 [![GitHub Release](https://img.shields.io/github/v/release/DevJuanRM/Dozzo-Browser?color=F0B90B&label=Versi%C3%B3n%20Oficial)](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows&logoColor=white)](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest)
+[![macOS](https://img.shields.io/badge/macOS-Apple%20Silicon%20%26%20Intel-000000?logo=apple&logoColor=white)](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest)
 [![Android / iOS](https://img.shields.io/badge/Mobile-Android%20%26%20iPhone%20(PWA)-3DDC84?logo=android&logoColor=white)](https://devjuanrm.github.io/Dozzo-Browser/)
 [![License](https://img.shields.io/badge/Licencia-Privada-yellow)](#)
 
 ---
 
-### 📥 Descargas e Instalación
+### 📥 Descargas Oficiales (Última Versión)
+
+Siempre se descarga automáticamente la versión más reciente y actualizada de Dozzo Browser:
 
 | Plataforma | Tipo | Enlace de Descarga |
 | :--- | :--- | :--- |
-| 💻 **Windows** (Instalador recomendado) | `.exe` (Setup con auto-actualizador) | [⬇️ **Descargar Dozzo Browser Setup (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v1.0.0/Dozzo.Browser.Setup.1.0.0.exe) |
-| 💻 **Windows** (Portable sin instalación) | `.exe` (Ejecutable directo) | [⬇️ **Descargar Dozzo Browser Portable (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v1.0.0/Dozzo.Browser.1.0.0.exe) |
-| 📱 **Android & iPhone** (Móvil / Web App) | PWA (Web App Oficial) | [📲 **Abrir Dozzo Mobile App**](https://devjuanrm.github.io/Dozzo-Browser/) |
+| 💻 **Windows** (Recomendado) | `.exe` (Instalador con auto-actualizador) | [⬇️ **Descargar Dozzo Setup Oficial (Última Versión)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
+| 💻 **Windows Portable** | `.exe` (Ejecutable sin instalación) | [⬇️ **Descargar Dozzo Portable (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
+| 🍏 **macOS** (Mac Silicon & Intel) | `.dmg` / Código Fuente compilable | [⬇️ **Descargar Dozzo para Mac**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
+| 📱 **Android & iPhone** | PWA (Web App Nativa Móvil) | [📲 **Abrir Dozzo Mobile App**](https://devjuanrm.github.io/Dozzo-Browser/) |
 
-> 📌 **Ver todas las versiones:** Puedes ver las últimas actualizaciones y notas de versión en [GitHub Releases](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
+> 📌 **Historial y Notas de Versión:** Puedes consultar todas las novedades en [GitHub Releases](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
 
 </div>
 
 ---
 
+## 🍏 Instalación en macOS
+
+Para usuarios de Mac (MacBook Air, MacBook Pro, Mac mini, Mac Studio, iMac):
+
+### Opción 1: Descargar desde Releases
+1. Entra a [GitHub Releases (Última Versión)](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
+2. Descarga el paquete para macOS (`.dmg` o `.zip`).
+3. Abre el archivo y arrastra **Dozzo Browser** a tu carpeta de **Aplicaciones**.
+
+### Opción 2: Compilar y Ejecutar en Mac en 2 pasos
+Si tienes Node.js en tu Mac:
+```bash
+git clone https://github.com/DevJuanRM/Dozzo-Browser.git
+cd Dozzo-Browser
+npm install
+npm run dev
+```
+Para generar el instalador `.dmg` de Mac:
+```bash
+npm run dist:mac
+```
+
+---
+
 ## 📱 Cómo Instalar en Celulares (Android y iPhone)
 
-Dozzo Browser incluye soporte **PWA (Progressive Web App)** nativo con ícono de alta resolución y ejecución a pantalla completa sin barras del navegador:
+Dozzo Browser incluye soporte **PWA (Progressive Web App)** nativo con ícono de alta resolución, ejecución a pantalla completa, barra de navegación móvil y pestañas flotantes:
 
 ### 🤖 En Celulares Android:
 1. Abre el enlace en tu navegador móvil (Google Chrome o Brave):  
    👉 **https://devjuanrm.github.io/Dozzo-Browser/**
-2. Verás un aviso en la parte inferior que dice **"Agregar Dozzo Browser a la pantalla principal"** o **"Instalar aplicación"**.
-3. Si no sale el aviso, toca el menú de los **3 puntos** (arriba a la derecha) y selecciona **"Instalar aplicación"**.
+2. Verás el botón o aviso en la parte inferior: **"Agregar Dozzo Browser a la pantalla principal"** o **"Instalar aplicación"**.
+3. Si no sale el aviso, toca el menú de los **3 puntos** (arriba a la derecha) y presiona **"Instalar aplicación"**.
 4. ¡Listo! Se creará el ícono oficial en tu pantalla con acceso directo independiente como si fuera un APK nativo.
 
 ### 🍏 En iPhone (iOS Safari):
 1. Abre el enlace en **Safari**:  
    👉 **https://devjuanrm.github.io/Dozzo-Browser/**
-2. Toca el botón de **Compartir** (el ícono del cuadrado con la flecha hacia arriba en la barra inferior).
-3. Desliza hacia abajo y presiona **"Agregar a pantalla de inicio"** (o *"Add to Home Screen"*).
-4. Toca **"Agregar"**. Dozzo se instalará como una App nativa a pantalla completa con su ícono dorado.
+2. Toca el botón de **Compartir** (el ícono del cuadrado con la flecha hacia arriba en la barra inferior de Safari).
+3. Desliza hacia abajo y presiona **"Agregar a pantalla de inicio"** (*Add to Home Screen*).
+4. Toca **"Agregar"**. Dozzo se instalará como una App nativa a pantalla completa con su ícono oficial.
 
 ---
 
@@ -52,44 +80,45 @@ Dozzo Browser incluye soporte **PWA (Progressive Web App)** nativo con ícono de
 
 ### 1. 🔒 100% Privado y Sin Rastreo
 * **Cero telemetría:** No envía historial, telemetría ni datos a Google, Microsoft ni terceros.
-* **Buscadores Privados:** Viene configurado de fábrica con **DuckDuckGo**, **Brave Search** y **Startpage**.
-* **Anti-Fingerprinting:** Protección de cabeceras para evitar que te identifiquen por tu dispositivo.
+* **Buscadores Privados:** Configurado con **Google**, **DuckDuckGo**, **Brave Search** y **Startpage**.
+* **Anti-Fingerprinting:** Protección de cabeceras para evitar rastreo entre sitios.
 
-### 2. 🚫 Bloqueador de Anuncios y Rastreadores Integrado (Dozzo Shield)
+### 2. 🚫 Bloqueador de Anuncios Integrado (Dozzo Shield)
 * **Intercepción a nivel de red:** Bloquea peticiones a redes de anuncios como DoubleClick, Google AdServices, Criteo, Taboola, Outbrain, Facebook Pixel, etc.
 * **YouTube Sin Publicidad:** Detector y saltador automático de anuncios en videos de YouTube, silenciado instantáneo y eliminación de banners invasivos.
 * **Contador en vivo:** Muestra en la barra cuántos anuncios y rastreadores han sido neutralizados en tu sesión.
 
-### 3. 🟡 Binance Crypto Hub en la Barra
-* **Ticker en vivo en la barra de navegación:** Muestra el precio actual de Bitcoin / BNB.
-* **Panel lateral interactivo:** Consulta en tiempo real las cotizaciones, cambios porcentuales de 24 horas y volumen de las principales criptomonedas (BTC, ETH, BNB, SOL, XRP, DOGE, ADA, AVAX, NEAR, SUI) directamente desde la API oficial de Binance.
-* **Acceso directo a Spot:** Botón de 1 clic para abrir pares de trading en Binance Exchange.
+### 3. 🔍 Barra de Búsqueda Láser & Búsqueda por Voz
+* **Efecto BorderBeam dinámico:** Se activa en la bienvenida, al seleccionar la barra, al escribir o al dictar por voz.
+* **Búsqueda por Voz Inteligente:** Botón de micrófono integrado con reconocimiento de voz en tiempo real y envío automático.
+* **Sugerencias y URLs directas:** Autocompletado inteligente con navegación por teclado.
 
-### 4. 🎨 Dev Inspector & Exportador a Figma
-* **Inspección visual de elementos:** Muestra etiquetas, clases, dimensiones, colores y márgenes.
-* **Copia inteligente a Figma:** Extrae elementos DOM reales y los transforma en código SVG vectorial con capas, textos y estilos listos para pegar en Figma con `Ctrl + V`.
+### 4. 📈 Vigilancia de Mercados y Criptomonedas (Watchlist)
+* Tarjeta limpia y compacta en reposo con tipografía redondeada **Lato**.
+* Despliegue fluido en hover hacia abajo mostrando 5 activos en tiempo real.
+* Rotación automática fluida entre Índices (S&P 500, BTC, Tech), Criptos alternativas y Materias primas (Oro, Petróleo Brent).
 
-### 5. 🎙️ Asistente de Voz Integrado
-* Controla el navegador por comandos de voz: *"Dozzo abrir YouTube"*, *"buscar Bitcoin"*, etc.
-* Visualizador dinámico de audio en tiempo real y fallback automático.
+### 5. 📰 Mazo de Noticias en Vivo (Card Deck Carousel)
+* Mazo de noticias apiladas en 3D con fotografías de prensa reales y logotipo original.
+* Detección automática del idioma del usuario (Español / Inglés).
+* En reposo se muestra como un rectángulo plano; al hacer hover se abanica suavemente y despliega el titular y la descripción completa.
 
-### 6. 🎨 Diseño Moderno, Rápido y Personalizable
-* **Modo Oscuro (Dark Pro)** y **Modo Claro (Light)**.
-* **6 Paletas de colores:**
-  * 🟡 *Binance Gold* (Predeterminado)
-  * 🔵 *Cyber Cyan*
-  * 🟢 *Emerald Green*
-  * 🟣 *Royal Violet*
-  * 🟠 *Sunset Flame*
-  * 🔴 *Ruby Crimson*
-* **Nueva Pestaña (Speed Dial):** Reloj en tiempo real, barra de búsqueda privada, accesos rápidos a YouTube, Binance, ChatGPT, GitHub, Reddit y Wikipedia.
+### 6. 🖥️ Dock Lateral Estilo macOS con Efecto Lupa
+* Iconos monocromáticos oscuros minimalistas (WhatsApp, Instagram, Figma, Slack, Twitter/X, Notas, ChatGPT IA y Configuración).
+* Magnificación suave con físicas de resorte libres de oscilaciones.
+* Tooltips flotantes independientes que nunca se cortan en pantalla.
+
+### 7. 📱 Experiencia Móvil 100% Dedicada
+* Omnibar superior estilo Chrome Mobile con indicador de seguridad y contador de pestañas.
+* Barra de navegación inferior con acceso a historial, favoritos, recarga y selector de pestañas en cuadrícula táctil.
+* Búsqueda activa y navegación web instantánea tanto en teléfonos como en tablets.
 
 ---
 
 ## ⌨️ Atajos de Teclado
 
 | Atajo | Acción |
-| --- | --- |
+| :--- | :--- |
 | `Ctrl + T` | Abrir nueva pestaña |
 | `Ctrl + W` | Cerrar pestaña actual |
 | `Ctrl + R` / `F5` | Recargar página |
@@ -101,9 +130,10 @@ Dozzo Browser incluye soporte **PWA (Progressive Web App)** nativo con ícono de
 
 ## 🛠️ Tecnologías Utilizadas
 
-* **Electron 45** (Motor Chromium nativo de Google Chrome)
+* **Electron 45** (Chromium nativo)
 * **React 19** & **Vite 8**
+* **Framer Motion**
 * **Lucide Icons**
-* **Binance Public Market Data API**
 * **CSS3 Design Tokens & Glassmorphism**
-* **electron-updater** (Actualizaciones automáticas vía GitHub Releases)
+* **Web Speech API**
+* **electron-updater & electron-builder**

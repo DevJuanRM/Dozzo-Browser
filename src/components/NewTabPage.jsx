@@ -27,6 +27,11 @@ import {
 } from 'lucide-react';
 import { YoutubeIcon, GithubIcon } from './Icons';
 import { SEARCH_ENGINES, getSearchUrl, getEngine } from '../utils/searchEngines';
+import RecentSitesCarousel from './RecentSitesCarousel';
+import BeamSearch from './BeamSearch';
+import { MarketWatchList } from './StockCard';
+import CardDeckCarousel from './CardDeckCarousel';
+import GlassTimeCard from './GlassTimeCard';
 
 const CITY_WALLPAPERS = [
   {
@@ -179,7 +184,10 @@ export default function NewTabPage({
   onOpenBinance,
   isAutoHidden = false,
   isInspectorActive = false,
-  onElementInspected
+  onElementInspected,
+  tabs = [],
+  onSelectTab,
+  isMobile = false
 }) {
   const containerRef = useRef(null);
   const [inspectedTarget, setInspectedTarget] = useState(null);
@@ -188,6 +196,20 @@ export default function NewTabPage({
   const [dateStr, setDateStr] = useState('');
   const [greeting, setGreeting] = useState('Bienvenido');
   const [isEngineMenuOpen, setIsEngineMenuOpen] = useState(false);
+
+  // Responsive layout state
+  const [isSmallScreen, setIsSmallScreen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return isMobile || window.innerWidth <= 768;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsSmallScreen(isMobile || window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
 
   // Wallpaper System State (Rotates every 30s)
   const [wallpaperIndex, setWallpaperIndex] = useState(() => {
@@ -486,175 +508,96 @@ export default function NewTabPage({
       <div
         style={{
           ...styles.dashboardContainer,
-          paddingTop: isAutoHidden ? '96px' : '30px'
+          paddingTop: isSmallScreen ? '24px' : isAutoHidden ? '72px' : '64px',
+          ...(isSmallScreen ? { padding: '24px 14px 40px 14px', gap: '20px' } : {})
         }}
         className="custom-scrollbar"
       >
-        {/* Top Header Row: Weather Pill (Left) + Clock/Greeting (Center) + Status Badge (Right) */}
-        <div style={styles.headerRow}>
-          {/* Live Weather Widget */}
-          <div style={styles.weatherCard} title="Clima en vivo actualizado">
-            <div style={styles.weatherIconBox}>
-              {weather.code >= 51 ? (
-                <CloudRain size={18} color="#38BDF8" />
-              ) : weather.code >= 1 ? (
-                <Cloud size={18} color="#94A3B8" />
-              ) : (
-                <Sun size={18} color="#F59E0B" />
-              )}
-            </div>
-            <div>
-              <div style={styles.weatherTempRow}>
+        {/* Top Header Row: News Stack (Left) + Central Clock & Weather (Center) + Market Watchlist (Right) */}
+        <div style={{
+          ...styles.headerRow,
+          ...(isSmallScreen ? { flexDirection: 'column', alignItems: 'center', gap: '20px' } : {})
+        }}>
+          {/* Top-Left: CardDeckCarousel */}
+          <div style={{
+            ...styles.topNewsDock,
+            ...(isSmallScreen ? { order: 3, marginLeft: 0, marginTop: 0, alignItems: 'center' } : {})
+          }}>
+            <CardDeckCarousel onNavigate={onNavigate} />
+          </div>
+
+          {/* Central Clock: GlassTimeCard + Live Weather directly underneath */}
+          <div style={{
+            ...styles.clockCenter,
+            ...(isSmallScreen ? { order: 1, marginTop: 0 } : {})
+          }}>
+            <GlassTimeCard showSeconds={false} showTimezone={false} />
+
+            {/* Live Weather Widget positioned directly under the time & date */}
+            <div style={styles.weatherUnderClock} title="Clima en vivo actualizado">
+              <div style={styles.weatherIconBox}>
+                {weather.code >= 51 ? (
+                  <CloudRain size={14} color="#38BDF8" />
+                ) : weather.code >= 1 ? (
+                  <Cloud size={14} color="#94A3B8" />
+                ) : (
+                  <Sun size={14} color="#F59E0B" />
+                )}
+              </div>
+              <div style={styles.weatherInlineRow}>
                 <span style={styles.weatherTemp}>{weather.temp}</span>
                 <span style={styles.weatherCity}>{weather.city}</span>
-              </div>
-              <div style={styles.weatherDescRow}>
-                <span>{weather.condition}</span>
-                <span style={{ opacity: 0.5 }}>•</span>
-                <span>{weather.wind}</span>
+                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                <span style={styles.weatherDescText}>{weather.condition}</span>
+                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                <span style={styles.weatherDescText}>{weather.wind}</span>
               </div>
             </div>
           </div>
 
-          {/* Central Clock & Dynamic Greeting */}
-          <div style={styles.clockCenter}>
-            <div style={styles.greetingText}>{greeting}</div>
-            <div style={styles.clockDisplay}>{timeStr || '12:00'}</div>
-            <div style={styles.dateDisplay}>{dateStr}</div>
-          </div>
-
-          {/* Privacy Security Summary Pill */}
-          <div style={styles.securityPill}>
-            <div style={styles.secShieldDot}>
-              <Shield size={14} color="#10B981" />
-            </div>
-            <div>
-              <div style={styles.secTitle}>Dozzo Shield Activo</div>
-              <div style={styles.secCount}>{blockedCount} bloqueados</div>
-            </div>
+          {/* Top-Right Vertical Market Watchlist: S&P 500, BTC, Stocks (Image 5 style) */}
+          <div style={{
+            ...styles.marketWatchlistRight,
+            ...(isSmallScreen ? { order: 2, alignItems: 'center', marginTop: 0 } : {})
+          }}>
+            <MarketWatchList onNavigate={onNavigate} onOpenBinance={onOpenBinance} />
           </div>
         </div>
 
-        {/* Spacious High-Gloss Omnibar Search Form */}
-        <form onSubmit={handleSearchSubmit} style={styles.searchForm}>
-          <div style={styles.searchBar}>
-            {/* Interactive Engine Selector Button */}
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                style={styles.engineSelectBtn}
-                onClick={() => setIsEngineMenuOpen(!isEngineMenuOpen)}
-                title="Cambiar motor de búsqueda"
-              >
-                <span style={styles.engineName}>{currentEngine.name}</span>
-                <ChevronDown size={13} style={{ opacity: 0.7 }} />
-              </button>
+        {/* BorderBeam SearchBar matching user specification */}
+        <div style={{
+          ...styles.searchForm,
+          ...(isSmallScreen ? { padding: '0 8px', boxSizing: 'border-box' } : {})
+        }}>
+          <BeamSearch
+            value={query}
+            onChange={(val) => setQuery(val)}
+            onSubmit={(val) => {
+              const text = (val !== undefined ? val : query).trim();
+              if (!text) return;
+              if (onSearch) {
+                onSearch(text, searchEngine);
+              } else if (onNavigate) {
+                const searchUrl = getSearchUrl(text, searchEngine);
+                onNavigate(searchUrl);
+              }
+            }}
+            placeholder="Search"
+            colorVariant="colorful"
+            duration={3.1}
+            autoFocus={!isSmallScreen}
+          />
+        </div>
 
-              {isEngineMenuOpen && (
-                <div style={styles.engineDropdown} className="glass-panel animate-slide-down">
-                  <div style={styles.engineDropdownTitle}>Motores de Búsqueda</div>
-                  {SEARCH_ENGINES.map((eng) => (
-                    <div
-                      key={eng.id}
-                      style={{
-                        ...styles.engineOption,
-                        backgroundColor: searchEngine === eng.id ? 'var(--bg-hover)' : 'transparent'
-                      }}
-                      onClick={() => {
-                        onChangeSearchEngine(eng.id);
-                        setIsEngineMenuOpen(false);
-                      }}
-                    >
-                      <span style={{ fontWeight: searchEngine === eng.id ? '700' : '500', color: '#ffffff' }}>
-                        {eng.name}
-                      </span>
-                      {searchEngine === eng.id && <div style={styles.activeDot} />}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <input
-              type="text"
-              placeholder={`Buscar con ${currentEngine.name} o escribir URL...`}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              style={styles.searchInput}
-              autoFocus
+        {/* Bottom Area: Centered Floating 3D Tabs Carousel */}
+        <div style={styles.bottomAreaRow}>
+          <div style={styles.bottomCarouselDock}>
+            <RecentSitesCarousel
+              tabs={tabs}
+              history={history}
+              onSelectTab={onSelectTab}
+              onNavigate={onNavigate}
             />
-
-            <button type="submit" style={styles.searchSubmitBtn} title="Buscar">
-              <Search size={18} />
-            </button>
-          </div>
-        </form>
-
-        {/* Live Crypto Spot Ticker Strip */}
-        <div style={styles.cryptoStrip}>
-          <div style={styles.cryptoHeader} onClick={onOpenBinance} title="Abrir Crypto Hub con Binance, Coinbase, OKX">
-            <div style={styles.livePulse} />
-            <span>Binance Live</span>
-            <ArrowUpRight size={13} />
-          </div>
-
-          <div style={styles.cryptoCards}>
-            {cryptoData.map((coin) => (
-              <div
-                key={coin.symbol}
-                style={styles.cryptoCard}
-                onClick={onOpenBinance}
-                title={`Ver detalles de ${coin.symbol}`}
-              >
-                <span style={styles.coinSymbol}>{coin.symbol}</span>
-                <span style={styles.coinPrice}>{coin.price}</span>
-                <span
-                  style={{
-                    ...styles.coinChange,
-                    color: coin.isPositive ? '#10B981' : '#EF4444'
-                  }}
-                >
-                  {coin.change}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Elegant Pro Shortcuts Grid (Expanded 4-Column Layout) */}
-        <div style={styles.shortcutsGrid}>
-          {shortcuts.map((sc) => (
-            <div
-              key={sc.title}
-              style={styles.shortcutCard}
-              onClick={() => onNavigate(sc.url)}
-              title={`Ir a ${sc.title}`}
-            >
-              <div style={{ ...styles.shortcutIconBox, backgroundColor: sc.color }}>
-                {sc.icon}
-              </div>
-              <div style={styles.shortcutTitle}>{sc.title}</div>
-              <div style={styles.shortcutBadge}>{sc.badge}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom Privacy Guarantee Card */}
-        <div style={styles.shieldBanner}>
-          <div style={styles.shieldLeft}>
-            <div style={styles.shieldIconWrap}>
-              <Shield size={20} color="#10B981" />
-            </div>
-            <div>
-              <div style={styles.shieldTitle}>Escudo Dozzo 100% Blindado</div>
-              <div style={styles.shieldSubtitle}>
-                Cero telemetría externa • YouTube libre de anuncios • Criptografía moderna
-              </div>
-            </div>
-          </div>
-          <div style={styles.shieldStatsRight}>
-            <span style={styles.shieldCountNumber}>{blockedCount}</span>
-            <span style={styles.shieldCountLabel}>Anuncios y rastreadores evitados</span>
           </div>
         </div>
       </div>
@@ -728,82 +671,118 @@ const styles = {
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'center',
+    fontFamily: "'Lato', sans-serif"
   },
   dashboardContainer: {
     width: '100%',
-    maxWidth: '1080px',
-    padding: '30px 24px 60px 24px',
+    maxWidth: '100%',
+    minHeight: '100%',
+    boxSizing: 'border-box',
+    padding: '64px 36px 16px 36px',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '24px'
+    justifyContent: 'space-between',
+    gap: '16px',
+    fontFamily: "'Lato', sans-serif"
+  },
+  bottomAreaRow: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 'auto',
+    paddingTop: '8px',
+    paddingBottom: '16px',
+    boxSizing: 'border-box',
+    position: 'relative',
+    zIndex: 10
+  },
+  bottomCarouselDock: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    zIndex: 10
   },
   headerRow: {
     width: '100%',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: '16px'
+    gap: '20px'
   },
-  weatherCard: {
+  topNewsDock: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '12px 18px',
-    borderRadius: '16px',
-    background: 'rgba(12, 12, 18, 0.72)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
-    minWidth: '175px'
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    flexShrink: 0,
+    zIndex: 15,
+    marginTop: '6px',
+    marginLeft: '56px'
   },
-  weatherIconBox: {
-    width: '38px',
-    height: '38px',
-    borderRadius: '11px',
-    background: 'rgba(255, 255, 255, 0.08)',
+  marketWatchlistRight: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  weatherTempRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '6px'
-  },
-  weatherTemp: {
-    fontSize: '15px',
-    fontWeight: '800',
-    color: '#ffffff',
-    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
-  },
-  weatherCity: {
-    fontSize: '11.5px',
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600'
-  },
-  weatherDescRow: {
-    fontSize: '10.5px',
-    color: 'rgba(255, 255, 255, 0.7)',
-    display: 'flex',
-    gap: '4px',
-    marginTop: '2px'
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    zIndex: 20,
+    marginTop: '6px'
   },
   clockCenter: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     textAlign: 'center',
-    padding: '14px 28px',
-    borderRadius: '24px',
-    background: 'rgba(10, 10, 16, 0.52)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55)'
+    marginTop: '2px'
+  },
+  searchForm: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: '6px 0 10px 0',
+    zIndex: 30
+  },
+  weatherUnderClock: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginTop: '10px',
+    padding: '5px 14px',
+    borderRadius: '20px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backdropFilter: 'blur(16px)',
+    WebkitBackdropFilter: 'blur(16px)'
+  },
+  weatherIconBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  weatherInlineRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '11.5px',
+    color: '#ffffff'
+  },
+  weatherTemp: {
+    fontSize: '13px',
+    fontWeight: '800',
+    color: '#ffffff'
+  },
+  weatherCity: {
+    fontSize: '11.5px',
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontWeight: '600'
+  },
+  weatherDescText: {
+    fontSize: '11px',
+    color: 'rgba(255, 255, 255, 0.65)'
   },
   greetingText: {
     fontSize: '11.5px',
@@ -866,7 +845,9 @@ const styles = {
   },
   searchForm: {
     width: '100%',
-    maxWidth: '820px'
+    maxWidth: '720px',
+    marginTop: '-18px',
+    zIndex: 25
   },
   searchBar: {
     display: 'flex',

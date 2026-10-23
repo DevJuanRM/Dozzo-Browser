@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Code2, X, ChevronDown, ChevronUp } from 'lucide-react';
-import TitleBar from './components/TitleBar';
+import MacSidebar from './components/MacSidebar';
+import SideAppDrawer from './components/SideAppDrawer';
 import NavigationBar from './components/NavigationBar';
 import BookmarksBar from './components/BookmarksBar';
 import WebviewContainer from './components/WebviewContainer';
@@ -66,73 +67,65 @@ export default function App() {
   const [splitMode, setSplitMode] = useState(() => localStorage.getItem('dozzo_split_mode') || 'single');
   const [searchEngine, setSearchEngine] = useState(() => localStorage.getItem('dozzo_engine') || 'duckduckgo');
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
-  // Fixed top bar by default (only hidden if explicitly toggled via the chevron arrow button)
-  const [isAutoHidden, setIsAutoHidden] = useState(() => localStorage.getItem('dozzo_autohide_topbar_v2') === 'true');
+  // Dual Auto-Hiding Overlays (Top Navbar & Lateral Sidebar)
+  const [activeSideApp, setActiveSideApp] = useState(null);
   const [isHoveringTop, setIsHoveringTop] = useState(false);
+  const [isOmniFocused, setIsOmniFocused] = useState(false);
   const topHoverTimerRef = useRef(null);
 
-  const hideTopBarImmediately = () => {
+  const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
+  const sidebarHoverTimerRef = useRef(null);
+
+  const handleTopMouseEnter = () => {
     if (topHoverTimerRef.current) {
       clearTimeout(topHoverTimerRef.current);
       topHoverTimerRef.current = null;
     }
-    setIsHoveringTop(false);
+    setIsHoveringTop(true);
   };
 
-  const handleHeaderMouseEnter = () => {
+  const handleTopMouseLeave = () => {
     if (topHoverTimerRef.current) {
       clearTimeout(topHoverTimerRef.current);
-      topHoverTimerRef.current = null;
     }
-    if (isAutoHidden) {
-      setIsHoveringTop(true);
-    }
-  };
-
-  // Note: Top bar now only hides when the user explicitly clicks outside of it,
-  // preventing it from repeatedly popping in and out while moving the mouse.
-  const handleHeaderMouseLeave = () => {
-    // Intentional no-op: dismissed exclusively on click-outside
-  };
-
-  // Global click-outside & webview focus blur listeners:
-  // If top bar is peeking and user clicks anywhere outside the header, hide immediately
-  useEffect(() => {
-    if (!isAutoHidden || !isHoveringTop) return;
-
-    const handleGlobalPointerDown = (e) => {
-      const headerEl = document.querySelector('.top-header-wrapper');
-      if (headerEl && !headerEl.contains(e.target)) {
-        hideTopBarImmediately();
+    topHoverTimerRef.current = setTimeout(() => {
+      // Don't auto-hide if user is actively interacting with the Omnibar
+      if (!isOmniFocused) {
+        setIsHoveringTop(false);
       }
-    };
+    }, 450); // 450ms smooth buffer
+  };
 
-    const handleWindowBlur = () => {
-      hideTopBarImmediately();
-    };
+  const handleSidebarMouseEnter = () => {
+    if (sidebarHoverTimerRef.current) {
+      clearTimeout(sidebarHoverTimerRef.current);
+      sidebarHoverTimerRef.current = null;
+    }
+    setIsHoveringSidebar(true);
+  };
 
-    window.addEventListener('pointerdown', handleGlobalPointerDown, true);
-    window.addEventListener('mousedown', handleGlobalPointerDown, true);
-    window.addEventListener('blur', handleWindowBlur);
+  const handleSidebarMouseLeave = () => {
+    if (sidebarHoverTimerRef.current) {
+      clearTimeout(sidebarHoverTimerRef.current);
+    }
+    sidebarHoverTimerRef.current = setTimeout(() => {
+      // Keep open if user has an active side app drawer open (WhatsApp, Instagram, etc.)
+      if (!activeSideApp) {
+        setIsHoveringSidebar(false);
+      }
+    }, 450); // 450ms smooth buffer
+  };
 
-    return () => {
-      window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
-      window.removeEventListener('mousedown', handleGlobalPointerDown, true);
-      window.removeEventListener('blur', handleWindowBlur);
-    };
-  }, [isAutoHidden, isHoveringTop]);
+  const isTopBarVisible = isHoveringTop || isOmniFocused;
+  const isSidebarVisible = isHoveringSidebar || Boolean(activeSideApp);
 
   const handleSplitModeChange = (mode) => {
     setSplitMode(mode);
     localStorage.setItem('dozzo_split_mode', mode);
   };
 
-  // Fixed by default. Header only collapses if user toggled auto-hide on with the arrow.
-  const isHeaderHidden = isAutoHidden;
-
-  // Scroll direction handler: kept for future custom behaviors, does not hide fixed top bar
   const handleScrollDirection = (direction) => {
-    // Top bar is fixed by default; scroll does not hide it
+    // Canvas handles scroll natively without layout thrashing
   };
 
   // Privacy & Adblocker Stats
@@ -379,6 +372,7 @@ export default function App() {
   const addToHistory = (entry) => {
     if (!entry.url || entry.url.startsWith('about:') || entry.url.includes('localhost:5173')) return;
     setHistory((prev) => {
+      const existing = prev.find((h) => h.url === entry.url);
       const filtered = prev.filter((h) => h.url !== entry.url);
       const updated = [
         {
@@ -386,11 +380,18 @@ export default function App() {
           title: entry.title || entry.url,
           url: entry.url,
           timestamp: Date.now(),
-          favicon: entry.favicon || null
+          favicon: entry.favicon || existing?.favicon || null,
+          preview: entry.preview || existing?.preview || null
         },
         ...filtered
       ].slice(0, 500);
-      localStorage.setItem('dozzo_browser_history', JSON.stringify(updated));
+      try {
+        localStorage.setItem('dozzo_browser_history', JSON.stringify(updated));
+      } catch (err) {
+        // Prune older screenshots to fit in localStorage quota
+        const pruned = updated.map((item, idx) => idx > 15 ? { ...item, preview: null } : item);
+        try { localStorage.setItem('dozzo_browser_history', JSON.stringify(pruned)); } catch (_) {}
+      }
       return updated;
     });
   };
@@ -422,6 +423,19 @@ export default function App() {
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newId);
     setIsViewingHome(!url);
+  };
+
+  const handleOpenApp = (url) => {
+    setIsViewingHome(false);
+    try {
+      const targetHost = new URL(url).hostname;
+      const existingTab = tabs.find((t) => t.url && t.url.includes(targetHost));
+      if (existingTab) {
+        setActiveTabId(existingTab.id);
+        return;
+      }
+    } catch (_) {}
+    handleNewTab(url);
   };
 
   const handleCloseTab = (tabIdToClose) => {
@@ -524,9 +538,11 @@ export default function App() {
         if (t.id === tabId) {
           const next = { ...t, ...updates };
           if (updates.url && updates.url !== t.url) {
-            addToHistory({ url: updates.url, title: next.title, favicon: next.favicon });
+            addToHistory({ url: updates.url, title: next.title, favicon: next.favicon, preview: next.preview });
           } else if (updates.title && next.url && !t.isNewTab) {
-            addToHistory({ url: next.url, title: updates.title, favicon: next.favicon });
+            addToHistory({ url: next.url, title: updates.title, favicon: next.favicon, preview: next.preview });
+          } else if (updates.preview && next.url && !t.isNewTab) {
+            addToHistory({ url: next.url, title: next.title, favicon: next.favicon, preview: updates.preview });
           }
           return next;
         }
@@ -637,108 +653,103 @@ export default function App() {
     >
       {/* Responsive Header: Dedicated Mobile Browser UI vs Desktop TitleBar & NavigationBar */}
       {isMobile ? (
-        <MobileBrowserUI
-          tabs={tabs}
-          activeTabId={activeTabId}
-          onSelectTab={(id) => setActiveTabId(id)}
-          onCloseTab={handleCloseTab}
-          onNewTab={() => handleNewTab()}
-          onCloseAllTabs={handleCloseAllTabs}
-          currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
-          isLoading={activeTab?.isLoading}
-          canGoBack={activeTab?.canGoBack}
-          canGoForward={activeTab?.canGoForward}
-          onGoBack={handleGoBack}
-          onGoForward={handleGoForward}
-          onReload={handleReload}
-          onStop={handleStop}
-          onNavigate={handleNavigate}
-          blockedCount={blockedCount}
-          onToggleShieldModal={() => setIsShieldOpen(true)}
-          selectedCryptoBroker={selectedCryptoBroker}
-          onOpenBinance={() => setIsBinanceOpen(true)}
-          onOpenDownloads={() => setIsDownloadsOpen(true)}
-          onOpenHistory={() => setIsHistoryOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          theme={theme}
-          onToggleTheme={() => setTheme(theme === 'mac-snow' ? 'obsidian-aurora' : 'mac-snow')}
-          isBookmarked={isCurrentBookmarked}
-          onToggleBookmark={handleToggleBookmark}
-        />
-      ) : (
-        <>
-          {/* Top Hover & Click Trigger Zone when bar is auto-hidden */}
-          {isHeaderHidden && !isHoveringTop && (
-            <div
-              className="top-hover-trigger"
-              onMouseEnter={handleHeaderMouseEnter}
-              onClick={handleHeaderMouseEnter}
-              title="Hacer clic o pasar el cursor por la parte superior para mostrar la barra del explorador"
-            />
-          )}
+        <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <MobileBrowserUI
+            tabs={tabs}
+            activeTabId={activeTabId}
+            onSelectTab={handleSelectTab}
+            onCloseTab={handleCloseTab}
+            onNewTab={() => handleNewTab()}
+            onCloseAllTabs={handleCloseAllTabs}
+            currentUrl={activeTab?.isNewTab ? '' : activeTab?.url}
+            isLoading={activeTab?.isLoading}
+            canGoBack={activeTab?.canGoBack}
+            canGoForward={activeTab?.canGoForward}
+            onGoBack={handleGoBack}
+            onGoForward={handleGoForward}
+            onReload={handleReload}
+            onStop={handleStop}
+            onNavigate={handleNavigate}
+            searchEngine={searchEngine}
+            blockedCount={blockedCount}
+            onToggleShieldModal={() => setIsShieldOpen(true)}
+            selectedCryptoBroker={selectedCryptoBroker}
+            onOpenBinance={() => setIsBinanceOpen(true)}
+            onOpenDownloads={() => setIsDownloadsOpen(true)}
+            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            theme={theme}
+            onToggleTheme={() => setTheme(theme === 'mac-snow' ? 'obsidian-aurora' : 'mac-snow')}
+            isBookmarked={isCurrentBookmarked}
+            onToggleBookmark={handleToggleBookmark}
+          />
 
-          {/* Transparent Click-Outside Backdrop: catches any click outside the header to dismiss it */}
-          {isHeaderHidden && isHoveringTop && (
-            <div
-              className="top-bar-click-outside-backdrop"
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 95,
-                background: 'transparent',
-                cursor: 'default'
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                hideTopBarImmediately();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                hideTopBarImmediately();
-              }}
-            />
-          )}
-
-          {/* Top Header Wrapper (TitleBar, NavigationBar, BookmarksBar) */}
+          {/* Dedicated Mobile Webview & NewTabPage Viewport between top bar (56px) and bottom bar (56px) */}
           <div
-            className={`top-header-wrapper ${isHeaderHidden ? 'auto-hidden' : ''} ${isHoveringTop ? 'peek' : ''}`}
+            style={{
+              position: 'absolute',
+              top: '56px',
+              bottom: '56px',
+              left: 0,
+              right: 0,
+              width: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 10
+            }}
           >
-            {/* Custom Window TitleBar & Centered iOS Dock Tabs */}
-            <TitleBar
-              tabs={tabs}
-              activeTabId={activeTabId}
-              onSelectTab={handleSelectTab}
-              onCloseTab={handleCloseTab}
-              onNewTab={() => handleNewTab()}
-              isMaximized={isMaximized}
-              splitMode={splitMode}
-              onChangeSplitMode={handleSplitModeChange}
-              onToggleAutoHide={() => {
-                const next = !isAutoHidden;
-                setIsAutoHidden(next);
-                localStorage.setItem('dozzo_autohide_topbar_v2', String(next));
-                if (!next) {
-                  setIsHoveringTop(false);
-                }
-              }}
-              isAutoHidden={isAutoHidden}
-              onGoHome={handleGoHome}
-              onToggleBookmarksBar={() => {
-                const next = !showBookmarksBar;
-                setShowBookmarksBar(next);
-                localStorage.setItem('dozzo_bookmarks_visible', String(next));
-              }}
-              showBookmarksBar={showBookmarksBar}
-              onReorderTabs={(newTabs) => setTabs(newTabs)}
-              isHomeActive={Boolean(isViewingHome || !activeTab?.url || activeTab?.isNewTab)}
-              isBookmarked={isCurrentBookmarked}
-              onToggleBookmark={handleToggleBookmark}
-            />
+            <ErrorBoundary>
+              <WebviewContainer
+                isMobile={true}
+                tabs={tabs}
+                activeTabId={activeTabId}
+                isViewingHome={isViewingHome}
+                history={history}
+                onSelectTab={handleSelectTab}
+                onCloseTab={handleCloseTab}
+                onNewTab={() => handleNewTab()}
+                onUpdateTab={handleUpdateTab}
+                onNewTabWithUrl={(url) => handleNewTab(url)}
+                onNavigate={handleNavigate}
+                searchEngine={searchEngine}
+                onChangeSearchEngine={(eng) => setSearchEngine(eng)}
+                blockedCount={blockedCount}
+                onOpenBinance={() => setIsBinanceOpen(true)}
+                webviewRefs={webviewRefs}
+                isInspectorActive={false}
+                splitMode="single"
+                responsiveMode={null}
+              />
+            </ErrorBoundary>
+          </div>
+        </div>
+      ) : (
+        <div style={{ position: 'relative', width: '100%', height: '100%', flex: 1, minHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {/* Top Edge Hover Trigger (activates sliding top navbar) */}
+          <div
+            className="top-hover-trigger"
+            onMouseEnter={handleTopMouseEnter}
+          />
 
-            {/* Navigation Toolbar (Omnibar, Privacy Shield, Binance Button, 10 Themes Selector, Sidebar) */}
+          {/* Left Edge Hover Trigger (activates sliding lateral sidebar) */}
+          <div
+            className="sidebar-hover-trigger"
+            onMouseEnter={handleSidebarMouseEnter}
+          />
+
+          {/* 1. TOP NAVBAR SLIDING OVERLAY (macOS Traffic Dots on Left + Omnibar + Nav controls) */}
+          <div
+            className="top-navbar-sliding-overlay"
+            style={{
+              transform: isTopBarVisible ? 'translateY(0)' : 'translateY(-100%)',
+              opacity: isTopBarVisible ? 1 : 0,
+              pointerEvents: isTopBarVisible ? 'auto' : 'none',
+              boxShadow: isTopBarVisible ? '0 12px 36px rgba(0, 0, 0, 0.65)' : 'none'
+            }}
+            onMouseEnter={handleTopMouseEnter}
+            onMouseLeave={handleTopMouseLeave}
+          >
             <NavigationBar
               currentUrl={isViewingHome || activeTab?.isNewTab ? '' : activeTab?.url}
               isLoading={activeTab?.isLoading}
@@ -749,47 +760,17 @@ export default function App() {
               onGoForward={handleGoForward}
               onReload={handleReload}
               onStop={handleStop}
-              onGoHome={handleGoHome}
-              showBookmarksBar={showBookmarksBar}
-              onToggleBookmarksBar={() => {
-                const next = !showBookmarksBar;
-                setShowBookmarksBar(next);
-                localStorage.setItem('dozzo_bookmarks_visible', String(next));
-              }}
-              blockedCount={blockedCount}
-              isShieldActive={isShieldActive}
-              isShieldOpen={isShieldOpen}
-              onToggleShieldModal={() => setIsShieldOpen(true)}
-              onToggleBinance={() => setIsBinanceOpen(!isBinanceOpen)}
-              isBinanceOpen={isBinanceOpen}
-              selectedCryptoBroker={selectedCryptoBroker}
-              theme={theme}
-              onChangeTheme={(newTheme) => setTheme(newTheme)}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onCheckUpdates={handleCheckUpdates}
               searchEngine={searchEngine}
               isBookmarked={isCurrentBookmarked}
               onToggleBookmark={handleToggleBookmark}
-              binanceTicker={binanceTicker}
-              onToggleDownloads={() => setIsDownloadsOpen(!isDownloadsOpen)}
-              downloadsCount={downloads.filter((d) => d.state === 'progressing').length}
-              onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-              isSidebarOpen={isSidebarOpen}
               onToggleInspector={() => setIsInspectorActive((prev) => !prev)}
               isInspectorActive={isInspectorActive}
-              onOpenHistory={() => setIsHistoryOpen(true)}
               history={history}
-              isAutoHidden={isAutoHidden}
-              onToggleAutoHide={() => {
-                const next = !isAutoHidden;
-                setIsAutoHidden(next);
-                localStorage.setItem('dozzo_autohide_topbar_v2', String(next));
-                if (!next) {
-                  setIsHoveringTop(false);
-                }
-              }}
+              onCloseWindow={() => window.browserAPI?.close?.()}
+              onMinimizeWindow={() => window.browserAPI?.minimize?.()}
+              onMaximizeWindow={() => window.browserAPI?.maximize?.()}
+              onFocusChange={(focused) => setIsOmniFocused(focused)}
             />
-
 
             {/* Optional Bookmarks Bar */}
             {showBookmarksBar && (
@@ -804,201 +785,247 @@ export default function App() {
                 }}
               />
             )}
-          </div>
-        </>
-      )}
 
-      {/* Dev Mode Banner when inspector is active */}
-      {isInspectorActive && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 16px',
-            background: 'rgba(240, 185, 11, 0.15)',
-            borderBottom: '1px solid rgba(240, 185, 11, 0.35)',
-            color: 'var(--text-primary)',
-            fontSize: '12.5px',
-            zIndex: 45
-          }}
-          className="animate-slide-down"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Code2 size={16} color="var(--accent)" />
-            <span>
-              <strong>Modo Dev Studio Activo:</strong> Mueve el mouse sobre cualquier botón, tarjeta o elemento y <strong>haz clic</strong> para inspeccionarlo y clonarlo a <strong>React (JSX)</strong> y <strong>Figma</strong>.
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: responsiveMode.enabled ? 'var(--accent)' : 'var(--bg-tertiary)',
-                color: responsiveMode.enabled ? '#000000' : 'var(--text-primary)',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                border: '1px solid var(--border-subtle)',
-                cursor: 'pointer'
-              }}
-              onClick={() => setResponsiveMode((prev) => ({ ...prev, enabled: !prev.enabled }))}
-            >
-              <span>{responsiveMode.enabled ? 'Cerrar Modo Responsive' : 'Modo Responsive (Móvil / Tablet)'}</span>
-            </button>
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'var(--bg-tertiary)',
-                color: 'var(--text-primary)',
-                fontSize: '11.5px',
-                fontWeight: '700',
-                border: '1px solid var(--border-subtle)',
-                cursor: 'pointer'
-              }}
-              onClick={() => setIsInspectorActive(false)}
-            >
-              <X size={14} />
-              <span>Cerrar Inspector</span>
-            </button>
-          </div>
-        </div>
-      )}
+            {/* Dev Mode Banner when inspector is active */}
+            {isInspectorActive && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 16px',
+                  background: 'rgba(240, 185, 11, 0.15)',
+                  borderBottom: '1px solid rgba(240, 185, 11, 0.35)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12.5px',
+                  zIndex: 45
+                }}
+                className="animate-slide-down"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Code2 size={16} color="var(--accent)" />
+                  <span>
+                    <strong>Modo Dev Studio Activo:</strong> Mueve el mouse sobre cualquier botón, tarjeta o elemento y <strong>haz clic</strong> para inspeccionarlo y clonarlo a <strong>React (JSX)</strong> y <strong>Figma</strong>.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: responsiveMode.enabled ? 'var(--accent)' : 'var(--bg-tertiary)',
+                      color: responsiveMode.enabled ? '#000000' : 'var(--text-primary)',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setResponsiveMode((prev) => ({ ...prev, enabled: !prev.enabled }))}
+                  >
+                    <span>{responsiveMode.enabled ? 'Cerrar Modo Responsive' : 'Modo Responsive (Móvil / Tablet)'}</span>
+                  </button>
+                  <button
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      border: '1px solid var(--border-subtle)',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setIsInspectorActive(false)}
+                  >
+                    <X size={14} />
+                    <span>Cerrar Inspector</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-      {/* Spotify DRM Helper banner when on Spotify Web */}
-      {activeTab?.url && activeTab.url.includes('spotify.com') && !isSpotifyDismissed && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '7px 16px',
-            background: 'linear-gradient(90deg, rgba(29, 185, 84, 0.16), rgba(12, 12, 14, 0.95))',
-            borderBottom: '1px solid rgba(29, 185, 84, 0.35)',
-            color: '#fff',
-            fontSize: '12px',
-            zIndex: 44
-          }}
-          className="animate-slide-down"
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '15px' }}>🎵</span>
-            <span>
-              <strong>Spotify Web Playback:</strong> Spotify Web requiere firma propietaria VMP de Google para reproducir audio DRM. Puedes reproducir al instante en la App de Spotify (1-Click) o usar YouTube Music sin restricciones.
-            </span>
+            {/* Spotify DRM Helper banner when on Spotify Web */}
+            {activeTab?.url && activeTab.url.includes('spotify.com') && !isSpotifyDismissed && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '7px 16px',
+                  background: 'linear-gradient(90deg, rgba(29, 185, 84, 0.16), rgba(12, 12, 14, 0.95))',
+                  borderBottom: '1px solid rgba(29, 185, 84, 0.35)',
+                  color: '#fff',
+                  fontSize: '12px',
+                  zIndex: 44
+                }}
+                className="animate-slide-down"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '15px' }}>🎵</span>
+                  <span>
+                    <strong>Spotify Web Playback:</strong> Spotify Web requiere firma propietaria VMP de Google para reproducir audio DRM. Puedes reproducir al instante en la App de Spotify (1-Click) o usar YouTube Music sin restricciones.
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      if (window.browserAPI?.openExternal) {
+                        window.browserAPI.openExternal('spotify:');
+                      } else {
+                        window.open('spotify:');
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: '#1DB954',
+                      color: '#000',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Abrir App de Spotify
+                  </button>
+                  <button
+                    onClick={() => handleNavigate('https://music.youtube.com')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Usar YouTube Music
+                  </button>
+                  <button
+                    onClick={() => setIsSpotifyDismissed(true)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'rgba(255, 255, 255, 0.6)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '2px'
+                    }}
+                    title="Cerrar aviso"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={() => {
-                if (window.browserAPI?.openExternal) {
-                  window.browserAPI.openExternal('spotify:');
+
+          {/* 2. LATERAL SIDEBAR SLIDING OVERLAY (macOS Vertical Tabs & Quick Apps) */}
+          <div
+            className="sidebar-sliding-overlay"
+            style={{
+              transform: isSidebarVisible ? 'translateX(0)' : 'translateX(-100%)',
+              opacity: isSidebarVisible ? 1 : 0,
+              pointerEvents: isSidebarVisible ? 'auto' : 'none',
+              boxShadow: isSidebarVisible ? '12px 0 36px rgba(0, 0, 0, 0.65)' : 'none'
+            }}
+            onMouseEnter={handleSidebarMouseEnter}
+            onMouseLeave={handleSidebarMouseLeave}
+          >
+            <MacSidebar
+              tabs={tabs}
+              activeTabId={activeTabId}
+              onSelectTab={(id) => {
+                setIsViewingHome(false);
+                setActiveTabId(id);
+              }}
+              onCloseTab={handleCloseTab}
+              onNewTab={() => handleNewTab()}
+              onSelectSideApp={(app) => {
+                if (activeSideApp?.id === app.id) {
+                  setActiveSideApp(null);
                 } else {
-                  window.open('spotify:');
+                  setActiveSideApp(app);
+                  setIsHoveringSidebar(true);
                 }
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: '#1DB954',
-                color: '#000',
-                fontSize: '11px',
-                fontWeight: '700',
-                border: 'none',
-                cursor: 'pointer'
+              activeSideApp={activeSideApp}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
+
+            {/* Floating Flyout Drawer for WhatsApp, Instagram, etc. */}
+            <SideAppDrawer
+              app={activeSideApp}
+              isOpen={Boolean(activeSideApp)}
+              onClose={() => setActiveSideApp(null)}
+              onOpenInMainTab={(url) => {
+                handleNewTab(url);
+                setActiveSideApp(null);
               }}
-            >
-              Abrir App de Spotify
-            </button>
-            <button
-              onClick={() => handleNavigate('https://music.youtube.com')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                color: '#fff',
-                fontSize: '11px',
-                fontWeight: '600',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                cursor: 'pointer'
-              }}
-            >
-              Usar YouTube Music
-            </button>
-            <button
-              onClick={() => setIsSpotifyDismissed(true)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'rgba(255, 255, 255, 0.6)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '2px'
-              }}
-              title="Cerrar aviso"
-            >
-              <X size={14} />
-            </button>
+            />
+          </div>
+
+          {/* 3. MAIN FULL-CANVAS WEBVIEW CONTAINER */}
+          <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', zIndex: 1 }}>
+            {/* Chrome DevTools Responsive Device Toolbar */}
+            {responsiveMode.enabled && !isMobile && (
+              <ResponsiveDeviceBar
+                responsiveMode={responsiveMode}
+                onChangeResponsiveMode={(upd) => setResponsiveMode((prev) => ({ ...prev, ...upd }))}
+                onClose={() => setResponsiveMode((prev) => ({ ...prev, enabled: false }))}
+              />
+            )}
+
+            {/* Main Webviews & New Tab Pages Viewport */}
+            <ErrorBoundary>
+              <WebviewContainer
+                isMobile={false}
+                tabs={tabs}
+                activeTabId={activeTabId}
+                isViewingHome={isViewingHome}
+                history={history}
+                onSelectTab={handleSelectTab}
+                onCloseTab={handleCloseTab}
+                onNewTab={() => handleNewTab()}
+                onUpdateTab={handleUpdateTab}
+                onNewTabWithUrl={(url) => handleNewTab(url)}
+                onNavigate={handleNavigate}
+                searchEngine={searchEngine}
+                onChangeSearchEngine={(eng) => setSearchEngine(eng)}
+                blockedCount={blockedCount}
+                onOpenBinance={() => setIsBinanceOpen(true)}
+                webviewRefs={webviewRefs}
+                isInspectorActive={isInspectorActive}
+                onElementInspected={(data) => {
+                  setInspectedElement(data);
+                  setIsInspectorActive(false);
+                }}
+                onScrollDirection={handleScrollDirection}
+                splitMode={splitMode}
+                onChangeSplitMode={handleSplitModeChange}
+                responsiveMode={responsiveMode}
+                isDevInspectorOpen={Boolean(inspectedElement)}
+                devDrawerWidth={480}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       )}
-
-      {/* Chrome DevTools Responsive Device Toolbar */}
-      {responsiveMode.enabled && !isMobile && (
-        <ResponsiveDeviceBar
-          responsiveMode={responsiveMode}
-          onChangeResponsiveMode={(upd) => setResponsiveMode((prev) => ({ ...prev, ...upd }))}
-          onClose={() => setResponsiveMode((prev) => ({ ...prev, enabled: false }))}
-        />
-      )}
-
-      {/* Main Webviews & New Tab Pages Viewport */}
-      <ErrorBoundary>
-        <WebviewContainer
-          isMobile={isMobile}
-          tabs={tabs}
-          activeTabId={activeTabId}
-          isViewingHome={isViewingHome}
-          onSelectTab={handleSelectTab}
-          onCloseTab={handleCloseTab}
-          onNewTab={() => handleNewTab()}
-          onUpdateTab={handleUpdateTab}
-          onNewTabWithUrl={(url) => handleNewTab(url)}
-          onNavigate={handleNavigate}
-          searchEngine={searchEngine}
-          onChangeSearchEngine={(eng) => setSearchEngine(eng)}
-          blockedCount={blockedCount}
-          onOpenBinance={() => setIsBinanceOpen(true)}
-          webviewRefs={webviewRefs}
-          isInspectorActive={isInspectorActive}
-          onElementInspected={(data) => {
-            setInspectedElement(data);
-            setIsInspectorActive(false);
-          }}
-          onScrollDirection={handleScrollDirection}
-          splitMode={splitMode}
-          onChangeSplitMode={handleSplitModeChange}
-          responsiveMode={responsiveMode}
-          isDevInspectorOpen={Boolean(inspectedElement)}
-          devDrawerWidth={480}
-          isAutoHidden={isAutoHidden}
-          isHoveringTop={isHoveringTop}
-          onDismissTopBar={hideTopBarImmediately}
-        />
-      </ErrorBoundary>
 
       {/* Binance Crypto Hub Drawer */}
       <BinanceWidget

@@ -23,6 +23,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { BrokerIcon } from './BinanceWidget';
+import { getSearchUrl } from '../utils/searchEngines';
 
 export default function MobileBrowserUI({
   tabs,
@@ -40,6 +41,7 @@ export default function MobileBrowserUI({
   onReload,
   onStop,
   onNavigate,
+  searchEngine = 'google',
   blockedCount,
   onToggleShieldModal,
   selectedCryptoBroker,
@@ -56,7 +58,9 @@ export default function MobileBrowserUI({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [urlInput, setUrlInput] = useState(currentUrl || '');
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
   const inputRef = useRef(null);
+  const voiceRecRef = useRef(null);
 
   useEffect(() => {
     setUrlInput(currentUrl || '');
@@ -69,17 +73,71 @@ export default function MobileBrowserUI({
     }
   }, [isEditingUrl]);
 
+  // Voice Search setup for mobile
+  useEffect(() => {
+    const SpeechRecognition = typeof window !== 'undefined'
+      ? (window.SpeechRecognition || window.webkitSpeechRecognition)
+      : null;
+
+    if (SpeechRecognition) {
+      try {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = true;
+        rec.lang = (typeof navigator !== 'undefined' && navigator.language) || 'es-ES';
+
+        rec.onstart = () => setIsVoiceListening(true);
+        rec.onresult = (evt) => {
+          const transcript = Array.from(evt.results).map((r) => r[0].transcript).join('');
+          setUrlInput(transcript);
+          if (evt.results[0] && evt.results[0].isFinal) {
+            setIsVoiceListening(false);
+            if (transcript.trim()) {
+              const finalTarget = getSearchUrl(searchEngine || 'google', transcript.trim());
+              onNavigate(finalTarget);
+              setIsEditingUrl(false);
+            }
+          }
+        };
+        rec.onerror = () => setIsVoiceListening(false);
+        rec.onend = () => setIsVoiceListening(false);
+        voiceRecRef.current = rec;
+      } catch (e) {
+        voiceRecRef.current = null;
+      }
+    }
+  }, [searchEngine, onNavigate]);
+
+  const toggleVoice = (e) => {
+    e.stopPropagation();
+    if (!voiceRecRef.current) {
+      alert('La búsqueda por voz requiere permisos de micrófono.');
+      return;
+    }
+    if (isVoiceListening) {
+      voiceRecRef.current.stop();
+      setIsVoiceListening(false);
+    } else {
+      try {
+        voiceRecRef.current.start();
+        setIsVoiceListening(true);
+      } catch (err) {
+        setIsVoiceListening(false);
+      }
+    }
+  };
+
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   const handleSubmitUrl = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!urlInput.trim()) return;
     let target = urlInput.trim();
     if (!target.startsWith('http://') && !target.startsWith('https://')) {
       if (target.includes('.') && !target.includes(' ')) {
         target = `https://${target}`;
       } else {
-        target = `https://duckduckgo.com/?q=${encodeURIComponent(target)}`;
+        target = getSearchUrl(searchEngine || 'google', target);
       }
     }
     onNavigate(target);
@@ -132,9 +190,17 @@ export default function MobileBrowserUI({
                 type="text"
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="Buscar o escribir URL..."
+                placeholder={isVoiceListening ? "Escuchando..." : "Buscar o escribir URL..."}
                 style={styles.urlInput}
               />
+              <button
+                type="button"
+                style={{ ...styles.clearBtn, color: isVoiceListening ? '#ef4444' : 'var(--text-muted)' }}
+                onClick={toggleVoice}
+                title="Búsqueda por voz"
+              >
+                <Mic size={14} />
+              </button>
               {urlInput && (
                 <button
                   type="button"

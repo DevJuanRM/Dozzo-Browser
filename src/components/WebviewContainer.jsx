@@ -97,7 +97,8 @@ export default function WebviewContainer({
   devDrawerWidth = 480,
   isAutoHidden = false,
   isHoveringTop = false,
-  onDismissTopBar
+  onDismissTopBar,
+  history = []
 }) {
   const isSplit = !isMobile && splitMode !== 'single';
   const paneCount = getSplitCount(splitMode);
@@ -109,6 +110,28 @@ export default function WebviewContainer({
   const activeTab = tabs.find((t) => t.id === activeTabId);
   const visibleTabs = tabs.slice(0, paneCount);
   const emptySlotsCount = isSplit ? Math.max(0, paneCount - visibleTabs.length) : 0;
+
+  // Whenever user opens Home, trigger preview captures of open tabs
+  useEffect(() => {
+    if (isViewingHome) {
+      tabs.forEach((t) => {
+        if (!t.isNewTab && t.url && !t.url.startsWith('about:')) {
+          const wv = webviewRefs?.current?.get(t.id);
+          if (wv && typeof wv.capturePage === 'function') {
+            try {
+              wv.capturePage().then((image) => {
+                if (image && !image.isEmpty()) {
+                  const resized = typeof image.resize === 'function' ? image.resize({ width: 440 }) : image;
+                  const preview = resized.toDataURL();
+                  if (preview) onUpdateTab?.(t.id, { preview });
+                }
+              }).catch(() => {});
+            } catch (err) {}
+          }
+        }
+      });
+    }
+  }, [isViewingHome]);
 
   return (
     <div
@@ -337,6 +360,9 @@ export default function WebviewContainer({
               {(tab.isNewTab || (isCurrentActive && isViewingHome && !isSplit)) && (
                 <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'var(--bg-primary)' }}>
                   <NewTabPage
+                    tabs={tabs}
+                    history={history}
+                    onSelectTab={onSelectTab}
                     onNavigate={(url) => {
                       if (onNavigate) {
                         onNavigate(url);
@@ -454,11 +480,28 @@ function WebviewItem({
 
     lastLoadedUrlRef.current = tab.url;
 
-    try {
-      if (typeof webview.loadURL === 'function') {
-        webview.loadURL(tab.url).catch(() => { });
+    const doLoad = () => {
+      try {
+        if (typeof webview.loadURL === 'function') {
+          webview.loadURL(tab.url).catch(() => {});
+        } else if (typeof webview.setAttribute === 'function') {
+          webview.setAttribute('src', tab.url);
+        } else {
+          webview.src = tab.url;
+        }
+      } catch (e) {
+        try {
+          webview.src = tab.url;
+        } catch (err) {}
       }
-    } catch (e) { }
+    };
+
+    if (typeof webview.loadURL === 'function') {
+      doLoad();
+    } else {
+      webview.addEventListener('dom-ready', doLoad, { once: true });
+      setTimeout(doLoad, 80);
+    }
   }, [tab.url, tab.isNewTab]);
 
 
@@ -506,12 +549,29 @@ function WebviewItem({
       callbacksRef.current.onUpdateTab?.(tab.id, { isLoading: true });
     };
 
+    const captureTabPreview = () => {
+      try {
+        if (typeof webview.capturePage === 'function' && !tab.isNewTab && tab.url && !tab.url.startsWith('about:')) {
+          webview.capturePage().then((image) => {
+            if (image && !image.isEmpty()) {
+              const resized = typeof image.resize === 'function' ? image.resize({ width: 440 }) : image;
+              const preview = resized.toDataURL();
+              if (preview) {
+                callbacksRef.current.onUpdateTab?.(tab.id, { preview });
+              }
+            }
+          }).catch(() => {});
+        }
+      } catch (err) {}
+    };
+
     const handleStopLoading = () => {
       callbacksRef.current.onUpdateTab?.(tab.id, {
         isLoading: false,
         canGoBack: webview.canGoBack ? webview.canGoBack() : false,
         canGoForward: webview.canGoForward ? webview.canGoForward() : false
       });
+      setTimeout(captureTabPreview, 500);
     };
 
     const handleTitleUpdated = (e) => {
@@ -701,10 +761,10 @@ function WebviewItem({
   return (
     <webview
       ref={ref}
-      src={initialUrlRef.current}
+      src={tab.url && !tab.isNewTab ? tab.url : initialUrlRef.current}
       partition="persist:dozzo-browser"
       preload={webviewPreload || undefined}
-      webpreferences="contextIsolation=no, nodeIntegration=no, plugins=yes, webSecurity=no"
+      webpreferences="contextIsolation=no, nodeIntegration=no, plugins=yes, webSecurity=yes"
       allowpopups="true"
       plugins="true"
       useragent={window.browserAPI?.getUserAgent?.() || defaultUserAgent}
@@ -715,6 +775,7 @@ function WebviewItem({
         left: isSplit ? 0 : isActive ? 0 : -99999,
         width: '100%',
         height: '100%',
+        minHeight: '100%',
         zIndex: 1,
         border: 'none',
         outline: 'none',
@@ -728,8 +789,13 @@ function WebviewItem({
 
 const styles = {
   container: {
+    width: '100%',
+    height: '100%',
+    minHeight: '100%',
     flex: 1,
     position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
     overflow: 'hidden',
     background: 'var(--bg-primary)'
   },

@@ -153,9 +153,19 @@ function setupAdBlocker(targetSession, onBlockedCallback) {
     callback({});
   });
 
-  // 3. Onion Privacy Headers: Anonymize headers, enforce Do-Not-Track & Global Privacy Control
   targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
     if (!isShieldActive) {
+      return callback({ cancel: false, requestHeaders: details.requestHeaders });
+    }
+
+    // Never tamper with headers or referers for Google authentication or accounts
+    const isGoogleAuth = details.url && (
+      details.url.includes('google.com') ||
+      details.url.includes('accounts.google') ||
+      details.url.includes('gstatic.com') ||
+      details.url.includes('googleapis.com')
+    );
+    if (isGoogleAuth) {
       return callback({ cancel: false, requestHeaders: details.requestHeaders });
     }
 
