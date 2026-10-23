@@ -2,11 +2,11 @@
 export const CURATED_THEMES = [
   {
     id: 'obsidian-aurora',
-    name: 'Obsidian Aurora',
+    name: 'Dozzo Monochrome',
     type: 'dark',
-    primaryColor: '#0a0a0f',
-    accentColor: '#a855f7',
-    badge: 'Oscuro'
+    primaryColor: '#000000',
+    accentColor: '#ffffff',
+    badge: 'Predeterminado'
   },
   {
     id: 'binance-gold',

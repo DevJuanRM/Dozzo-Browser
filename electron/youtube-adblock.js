@@ -46,11 +46,9 @@
     ytd-compact-video-renderer:has(ytd-ad-slot-renderer),
     ytd-compact-video-renderer:has([class*="badge-style-type-ad"]),
     ytd-compact-video-renderer:has(.badge-shape-wiz--ad),
-    ytd-compact-video-renderer:has(.ytd-badge-supported-renderer),
     ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
     ytd-rich-item-renderer:has([class*="badge-style-type-ad"]),
     ytd-rich-item-renderer:has(.badge-shape-wiz--ad),
-    ytd-item-section-renderer:has(ytd-ad-slot-renderer),
     ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer),
     #panels ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
     #masthead-ad,
@@ -156,20 +154,30 @@
         } catch (e) {}
       }
 
-      // Accelerate ad safely without corrupting video stream buffer
+      // Accelerate ad and instantly seek to the end so it never hangs for 20 seconds
       videos.forEach((video) => {
         if (!video) return;
-        if (!video.muted) {
-          try {
-            video.muted = true;
-          } catch (e) {}
-        }
+        try {
+          video.muted = true;
+        } catch (e) {}
+
         try {
           video.playbackRate = 16.0;
         } catch (e) {}
+
+        if (isFinite(video.duration) && video.duration > 0) {
+          try {
+            video.currentTime = video.duration;
+            video.dispatchEvent(new Event('ended'));
+          } catch (e) {}
+        } else {
+          try {
+            video.currentTime = 999999;
+          } catch (e) {}
+        }
       });
     } else if (adWasActive) {
-      // Ad has ended! Cleanly restore normal state
+      // Ad has ended! Cleanly restore normal state and ensure main video continues playing
       adWasActive = false;
       videos.forEach((video) => {
         if (!video) return;
@@ -179,12 +187,12 @@
           } catch (e) {}
         }
         try {
-          video.muted = false;
+          if (video.muted) video.muted = false;
         } catch (e) {}
-
-        // Resume video smoothly if paused
-        if (video.paused && !isNaN(video.duration) && video.currentTime < video.duration - 0.5) {
-          video.play().catch(() => {});
+        if (video.paused && isFinite(video.duration) && video.currentTime < video.duration - 0.5) {
+          try {
+            video.play().catch(() => {});
+          } catch (e) {}
         }
       });
     }
@@ -198,8 +206,8 @@
     }
   }
 
-  // Poll safely every 200ms
-  setInterval(skipYouTubeAds, 200);
+  // Poll aggressively every 100ms for instantaneous ad skipping
+  setInterval(skipYouTubeAds, 100);
 
   // Mutation observer throttled
   let observerTimeout = null;

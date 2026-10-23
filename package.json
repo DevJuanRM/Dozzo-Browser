@@ -1,7 +1,7 @@
 {
   "name": "dozzo-browser",
   "productName": "Dozzo Browser",
-  "version": "4.0.0",
+  "version": "4.5.0",
   "description": "Ultra-fast, 100% private browser with built-in adblocker, Binance crypto widget, and customizable themes",
   "main": "electron/main.js",
   "scripts": {
@@ -39,7 +39,22 @@
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "identity": null
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "linux": {
       "icon": "public/icon.png",

@@ -70,13 +70,21 @@ function configureWidevine() {
 }
 configureWidevine();
 
+// Built-in Secure DNS (DoH) & Direct Cloudflare IP routing for Censored Domains (e.g. Polymarket blocks in Colombia)
+app.commandLine.appendSwitch('dns-over-https-mode', 'secure');
+app.commandLine.appendSwitch('dns-over-https-templates', 'https://1.1.1.1/dns-query');
+app.commandLine.appendSwitch(
+  'host-resolver-rules',
+  'MAP polymarket.com 172.64.153.51, MAP *.polymarket.com 172.64.153.51, MAP gamma-api.polymarket.com 172.64.153.51, MAP clob.polymarket.com 172.64.153.51'
+);
+
 // Audio, Autoplay & Media Switches (Widevine & Spotify Web Enabled)
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm,SharedArrayBuffer');
+app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm,SharedArrayBuffer,DnsOverHttps');
 
 // Modern Chrome User-Agent to avoid Google/Spotify/Cloudflare blocking
 const CHROME_USER_AGENT =
@@ -91,6 +99,19 @@ app.on('web-contents-created', (event, contents) => {
   try {
     contents.setUserAgent(CHROME_USER_AGENT);
   } catch (e) {}
+
+  // Prevent raw unstyled OS windows from spawning when opening links in new tabs/windows
+  contents.setWindowOpenHandler((details) => {
+    const rawUrl = details.url;
+    if (rawUrl && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+      // Only process intentional top-level user clicks (not background ad frames or tracking beacons)
+      const isTopLevel = details.disposition === 'new-window' || details.disposition === 'foreground-tab' || details.disposition === 'background-tab';
+      if (isTopLevel && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('open-new-tab-url', rawUrl);
+      }
+    }
+    return { action: 'deny' };
+  });
 });
 
 async function waitForServer(url, timeoutMs = 15000) {
@@ -135,6 +156,11 @@ function createWindow(initialUrl = '') {
     }
   });
 
+  // Start browser fully maximized like any standard desktop browser
+  try {
+    win.maximize();
+  } catch (_) {}
+
   if (!mainWindow) {
     mainWindow = win;
   }
@@ -156,18 +182,19 @@ function createWindow(initialUrl = '') {
   const configureSessionHeaders = (targetSession) => {
     targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
       const headers = { ...details.requestHeaders };
-      let ua = headers['User-Agent'] || CHROME_USER_AGENT;
-      if (ua.includes('Electron')) {
-        ua = CHROME_USER_AGENT;
-      }
-      headers['User-Agent'] = ua;
+
+      // Ensure User-Agent is authentic Chrome without Electron
+      headers['User-Agent'] = CHROME_USER_AGENT;
+      delete headers['user-agent'];
 
       // Provide authentic Chromium 133 Client Hints
-      if (!headers['sec-ch-ua'] || headers['sec-ch-ua'].includes('Electron')) {
-        headers['sec-ch-ua'] = '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"';
-        headers['sec-ch-ua-mobile'] = '?0';
-        headers['sec-ch-ua-platform'] = '"Windows"';
-      }
+      headers['sec-ch-ua'] = '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"';
+      headers['sec-ch-ua-mobile'] = '?0';
+      headers['sec-ch-ua-platform'] = '"Windows"';
+      delete headers['Sec-CH-UA'];
+      delete headers['Sec-CH-UA-Mobile'];
+      delete headers['Sec-CH-UA-Platform'];
+
       callback({ cancel: false, requestHeaders: headers });
     });
   };
@@ -200,10 +227,10 @@ function createWindow(initialUrl = '') {
   setupPermissions(session.defaultSession);
   setupPermissions(browserPartition);
 
-  // Onion / Tor standard: Disable WebRTC non-proxied UDP to prevent local & public IP leakage
+  // WebRTC privacy: Bind to default public interface only (protects LAN IP without blocking UDP/QUIC)
   try {
-    session.defaultSession.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
-    browserPartition.setWebRTCIPHandlingPolicy('disable_non_proxied_udp');
+    session.defaultSession.setWebRTCIPHandlingPolicy('default_public_interface_only');
+    browserPartition.setWebRTCIPHandlingPolicy('default_public_interface_only');
   } catch (e) {}
 
   const notifyRenderer = (count, url) => {
@@ -310,9 +337,17 @@ ipcMain.on('window-shrink', (event) => {
   if (targetWin) {
     if (targetWin.isMaximized()) {
       targetWin.unmaximize();
-    } else {
       targetWin.setSize(1000, 680);
       targetWin.center();
+    } else {
+      const [w, h] = targetWin.getSize();
+      // If already small windowed (around 1000x680), 1 click immediately restores/maximizes
+      if (w <= 1060 && h <= 740) {
+        targetWin.maximize();
+      } else {
+        targetWin.setSize(1000, 680);
+        targetWin.center();
+      }
     }
   }
 });
@@ -382,6 +417,17 @@ ipcMain.on('open-path', (event, filePath) => {
 
 ipcMain.on('show-item-in-folder', (event, filePath) => {
   if (filePath) shell.showItemInFolder(filePath);
+});
+
+ipcMain.on('open-external', (event, url) => {
+  const target = (typeof url === 'string' && url.trim())
+    ? url.trim()
+    : 'https://github.com/DevJuanRM/Dozzo-Browser/releases/latest';
+  try {
+    shell.openExternal(target);
+  } catch (err) {
+    console.error('Failed to open external url:', err);
+  }
 });
 
 // Native Context Menu for webviews and webcontents

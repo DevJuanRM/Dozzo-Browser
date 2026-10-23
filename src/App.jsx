@@ -23,17 +23,42 @@ import { checkForLatestRelease } from './utils/updateChecker';
 export default function App() {
   const initialTabUrl = new URLSearchParams(window.location.search).get('initialUrl') || '';
 
-  // Responsive Mobile Detection (Dedicated Mobile Experience)
+  // Responsive Mobile & Tablet Detection (Dedicated Mobile Experience <= 1024px)
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
     const isTouchMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    return window.innerWidth <= 768 || isTouchMobile;
+    return window.innerWidth <= 1024 || isTouchMobile;
   });
+
+  // Mobile Launch Splash Screen (0.3s black screen with Dozzo logo in center)
+  const [showMobileSplash, setShowMobileSplash] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const isTouchMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return window.innerWidth <= 1024 || isTouchMobile;
+  });
+  const [isSplashFading, setIsSplashFading] = useState(false);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setShowMobileSplash(false);
+      return;
+    }
+    const fadeTimer = setTimeout(() => {
+      setIsSplashFading(true);
+    }, 300); // 0.3s
+    const hideTimer = setTimeout(() => {
+      setShowMobileSplash(false);
+    }, 550); // smooth fade duration
+    return () => {
+      clearTimeout(fadeTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     const handleResize = () => {
       const isTouchMobile = typeof navigator !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      setIsMobile(window.innerWidth <= 768 || isTouchMobile);
+      setIsMobile(window.innerWidth <= 1024 || isTouchMobile);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -69,12 +94,26 @@ export default function App() {
   const [showBookmarksBar, setShowBookmarksBar] = useState(() => localStorage.getItem('dozzo_bookmarks_visible') !== 'false');
   // Dual Auto-Hiding Overlays (Top Navbar & Lateral Sidebar)
   const [activeSideApp, setActiveSideApp] = useState(null);
+  const [isHeaderPinned, setIsHeaderPinned] = useState(() => {
+    return localStorage.getItem('dozzo_header_pinned') === 'true';
+  });
   const [isHoveringTop, setIsHoveringTop] = useState(false);
   const [isOmniFocused, setIsOmniFocused] = useState(false);
   const topHoverTimerRef = useRef(null);
 
   const [isHoveringSidebar, setIsHoveringSidebar] = useState(false);
   const sidebarHoverTimerRef = useRef(null);
+
+  const handleTogglePinHeader = () => {
+    setIsHeaderPinned((prev) => {
+      const next = !prev;
+      localStorage.setItem('dozzo_header_pinned', String(next));
+      if (next) {
+        setIsHoveringTop(true);
+      }
+      return next;
+    });
+  };
 
   const handleTopMouseEnter = () => {
     if (topHoverTimerRef.current) {
@@ -89,8 +128,8 @@ export default function App() {
       clearTimeout(topHoverTimerRef.current);
     }
     topHoverTimerRef.current = setTimeout(() => {
-      // Don't auto-hide if user is actively interacting with the Omnibar
-      if (!isOmniFocused) {
+      // Don't auto-hide if user is actively interacting with the Omnibar or header is pinned
+      if (!isOmniFocused && !isHeaderPinned) {
         setIsHoveringTop(false);
       }
     }, 450); // 450ms smooth buffer
@@ -116,7 +155,7 @@ export default function App() {
     }, 450); // 450ms smooth buffer
   };
 
-  const isTopBarVisible = isHoveringTop || isOmniFocused;
+  const isTopBarVisible = isHeaderPinned || isHoveringTop || isOmniFocused;
   const isSidebarVisible = isHoveringSidebar || Boolean(activeSideApp);
 
   const handleSplitModeChange = (mode) => {
@@ -235,7 +274,7 @@ export default function App() {
             price: parseFloat(data.price).toFixed(0)
           });
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     fetchQuickTicker();
     const interval = setInterval(fetchQuickTicker, 15000);
@@ -270,6 +309,42 @@ export default function App() {
     }
   }, []);
 
+  // Close side app drawer when clicking outside with safety margin (Request 4)
+  useEffect(() => {
+    if (!activeSideApp) return;
+
+    const handleWindowMouseDown = (e) => {
+      // Don't close if clicking inside left sidebar dock or the side drawer element itself
+      if (e.target && (e.target.closest?.('.dozzo-mac-sidebar') || e.target.closest?.('.dozzo-side-drawer'))) {
+        return;
+      }
+      if (e.clientX <= 54) return;
+
+      let currentDrawerW = 440;
+      try {
+        const drawerEl = document.querySelector('.dozzo-side-drawer');
+        if (drawerEl) {
+          currentDrawerW = drawerEl.getBoundingClientRect().width;
+        } else {
+          const saved = localStorage.getItem('dozzo_side_drawer_width');
+          if (saved) {
+            const val = parseInt(saved, 10);
+            if (!isNaN(val)) currentDrawerW = val;
+          }
+        }
+      } catch (_) {}
+
+      // Add 28px safety buffer margin so dragging/resizing near the edge never triggers premature closing
+      const boundaryX = 54 + currentDrawerW + 28;
+      if (e.clientX > boundaryX) {
+        setActiveSideApp(null);
+      }
+    };
+
+    window.addEventListener('mousedown', handleWindowMouseDown);
+    return () => window.removeEventListener('mousedown', handleWindowMouseDown);
+  }, [activeSideApp]);
+
   // Auto-updater and Version Management
   const [updateInfo, setUpdateInfo] = useState(null);
   const [activeUpdateData, setActiveUpdateData] = useState(null);
@@ -289,7 +364,7 @@ export default function App() {
             setIsUpdateModalOpen(true);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }, 2500);
 
     return () => clearTimeout(timer);
@@ -390,7 +465,7 @@ export default function App() {
       } catch (err) {
         // Prune older screenshots to fit in localStorage quota
         const pruned = updated.map((item, idx) => idx > 15 ? { ...item, preview: null } : item);
-        try { localStorage.setItem('dozzo_browser_history', JSON.stringify(pruned)); } catch (_) {}
+        try { localStorage.setItem('dozzo_browser_history', JSON.stringify(pruned)); } catch (_) { }
       }
       return updated;
     });
@@ -434,40 +509,50 @@ export default function App() {
         setActiveTabId(existingTab.id);
         return;
       }
-    } catch (_) {}
+    } catch (_) { }
     handleNewTab(url);
   };
 
   const handleCloseTab = (tabIdToClose) => {
-    if (tabs.length === 1) {
-      // If closing the only tab, reset to New Tab page
-      setTabs([
-        {
-          id: `tab-${Date.now()}`,
-          title: 'Nueva Pestaña',
-          url: '',
-          favicon: null,
-          isLoading: false,
-          canGoBack: false,
-          canGoForward: false,
-          isAudioPlaying: false,
-          isNewTab: true
-        }
-      ]);
+    const newTabs = tabs.filter((t) => t.id !== tabIdToClose);
+
+    // If no tabs remain, create a fresh New Tab and immediately update activeTabId and isViewingHome
+    if (newTabs.length === 0) {
+      const resetId = `tab-${Date.now()}`;
+      const defaultTab = {
+        id: resetId,
+        title: 'Nueva Pestaña',
+        url: '',
+        favicon: null,
+        isLoading: false,
+        canGoBack: false,
+        canGoForward: false,
+        isAudioPlaying: false,
+        isNewTab: true
+      };
+      setTabs([defaultTab]);
+      setActiveTabId(resetId);
       setIsViewingHome(true);
       return;
     }
 
     const currentIndex = tabs.findIndex((t) => t.id === tabIdToClose);
-    const newTabs = tabs.filter((t) => t.id !== tabIdToClose);
-
     if (activeTabId === tabIdToClose) {
-      const nextIndex = Math.max(0, currentIndex - 1);
+      const nextIndex = Math.max(0, Math.min(currentIndex, newTabs.length - 1));
       const nextTab = newTabs[nextIndex];
       setActiveTabId(nextTab.id);
       setIsViewingHome(Boolean(!nextTab.url || nextTab.isNewTab));
     }
     setTabs(newTabs);
+  };
+
+  const handleGoHome = () => {
+    const curTab = tabs.find((t) => t.id === activeTabId);
+    if (!curTab || curTab.isNewTab || !curTab.url) {
+      setIsViewingHome(true);
+      return;
+    }
+    handleNewTab();
   };
 
   const handleCloseAllTabs = () => {
@@ -519,9 +604,9 @@ export default function App() {
               urlObj.searchParams.set('t', String(timeSec));
               targetUrl = urlObj.toString();
             }
-          } catch (e) {}
+          } catch (e) { }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (window.browserAPI?.openNewWindow) {
@@ -592,15 +677,6 @@ export default function App() {
   const handleStop = () => {
     if (activeWebview) {
       activeWebview.stop();
-    }
-  };
-
-  const handleGoHome = () => {
-    if (isViewingHome && activeTab && activeTab.url && !activeTab.isNewTab) {
-      // Toggle back to active website tab
-      setIsViewingHome(false);
-    } else {
-      setIsViewingHome(true);
     }
   };
 
@@ -770,6 +846,8 @@ export default function App() {
               onMinimizeWindow={() => window.browserAPI?.minimize?.()}
               onMaximizeWindow={() => window.browserAPI?.maximize?.()}
               onFocusChange={(focused) => setIsOmniFocused(focused)}
+              isHeaderPinned={isHeaderPinned}
+              onTogglePinHeader={handleTogglePinHeader}
             />
 
             {/* Optional Bookmarks Bar */}
@@ -956,6 +1034,10 @@ export default function App() {
               }}
               onCloseTab={handleCloseTab}
               onNewTab={() => handleNewTab()}
+              onGoHome={handleGoHome}
+              onTabContextMenu={(e, tabId) => {
+                setContextMenu({ isOpen: true, x: e.clientX, y: e.clientY, targetTabId: tabId });
+              }}
               onSelectSideApp={(app) => {
                 if (activeSideApp?.id === app.id) {
                   setActiveSideApp(null);
@@ -981,7 +1063,20 @@ export default function App() {
           </div>
 
           {/* 3. MAIN FULL-CANVAS WEBVIEW CONTAINER */}
-          <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', zIndex: 1 }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              zIndex: 1,
+              paddingTop: isHeaderPinned ? (showBookmarksBar ? '78px' : '46px') : 0,
+              transition: 'padding-top 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
             {/* Chrome DevTools Responsive Device Toolbar */}
             {responsiveMode.enabled && !isMobile && (
               <ResponsiveDeviceBar
@@ -994,7 +1089,7 @@ export default function App() {
             {/* Main Webviews & New Tab Pages Viewport */}
             <ErrorBoundary>
               <WebviewContainer
-                isMobile={false}
+                isMobile={isMobile}
                 tabs={tabs}
                 activeTabId={activeTabId}
                 isViewingHome={isViewingHome}
@@ -1002,6 +1097,7 @@ export default function App() {
                 onSelectTab={handleSelectTab}
                 onCloseTab={handleCloseTab}
                 onNewTab={() => handleNewTab()}
+                onCloseAllTabs={handleCloseAllTabs}
                 onUpdateTab={handleUpdateTab}
                 onNewTabWithUrl={(url) => handleNewTab(url)}
                 onNavigate={handleNavigate}
@@ -1009,6 +1105,19 @@ export default function App() {
                 onChangeSearchEngine={(eng) => setSearchEngine(eng)}
                 blockedCount={blockedCount}
                 onOpenBinance={() => setIsBinanceOpen(true)}
+                onOpenDownloads={() => setIsDownloadsOpen(true)}
+                onOpenHistory={() => setIsHistoryOpen(true)}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+                onToggleShieldModal={() => setIsShieldOpen(true)}
+                theme={theme}
+                onToggleTheme={() => setTheme(theme === 'mac-snow' ? 'obsidian-aurora' : 'mac-snow')}
+                isBookmarked={isCurrentBookmarked}
+                onToggleBookmark={handleToggleBookmark}
+                onGoBack={handleGoBack}
+                onGoForward={handleGoForward}
+                onReload={handleReload}
+                onStop={handleStop}
+                selectedCryptoBroker={selectedCryptoBroker}
                 webviewRefs={webviewRefs}
                 isInspectorActive={isInspectorActive}
                 onElementInspected={(data) => {
@@ -1084,7 +1193,7 @@ export default function App() {
         onGoForward={handleGoForward}
         onReload={handleReload}
         onNewTab={() => handleNewTab()}
-        onCloseTab={() => handleCloseTab(activeTabId)}
+        onCloseTab={() => handleCloseTab(contextMenu.targetTabId || activeTabId)}
         onOpenDownloads={() => setIsDownloadsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -1162,6 +1271,37 @@ export default function App() {
         isOpen={isInstallGuideOpen}
         onClose={() => setIsInstallGuideOpen(false)}
       />
+
+      {/* Mobile Native 0.3s Splash Screen: Black Background with Centered Dozzo Logo */}
+      {showMobileSplash && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999999,
+            background: '#000000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            opacity: isSplashFading ? 0 : 1,
+            pointerEvents: isSplashFading ? 'none' : 'auto',
+            transition: 'opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          }}
+        >
+          <img
+            src="./Logo.svg"
+            alt="Dozzo"
+            style={{
+              width: '84px',
+              height: '84px',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 0 24px rgba(255, 255, 255, 0.35))'
+            }}
+          />
+        </div>
+      )}
     </div>
 
   );

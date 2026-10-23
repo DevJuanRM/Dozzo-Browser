@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export function wrap(i, n) {
   return n ? ((i % n) + n) % n : 0;
@@ -168,14 +168,15 @@ const ENGLISH_NEWS_FALLBACK = [
 ];
 
 export function CardDeckCarousel({
-  cardWidth = "180px",
-  aspect = "4 / 4.8",
+  cardWidth = "148px",
+  aspect = "4 / 4.9",
   scatter = 5,
   autoplay = 6500,
   onChange,
   onNavigate,
   className = "",
-  style = {}
+  style = {},
+  popDirection = "left"
 }) {
   const isSpanish = typeof navigator !== 'undefined' && (navigator.language || '').toLowerCase().startsWith('es');
   const defaultInitial = isSpanish ? SPANISH_NEWS_FALLBACK : ENGLISH_NEWS_FALLBACK;
@@ -308,13 +309,15 @@ export function CardDeckCarousel({
         ...style
       }}
     >
-      {/* 3D Stacked Card Deck: Clean flat rectangle in resting state; fans out on hover */}
+      {/* 3D Stacked Card Deck: Compact in resting state; expands smoothly on hover */}
       <div
         style={{
           position: 'relative',
           width: cardWidth,
           aspectRatio: aspect,
-          cursor: 'grab'
+          cursor: 'grab',
+          transform: isHovered ? 'scale(1.07) translateY(-3px)' : 'scale(1) translateY(0)',
+          transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
         }}
       >
         {/* Layered Background Cards (Hidden in resting state, smoothly fanned out on hover) */}
@@ -395,7 +398,10 @@ export function CardDeckCarousel({
               borderRadius: '14px',
               overflow: 'hidden',
               background: '#161822',
-              boxShadow: '0 16px 36px -10px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.14)',
+              boxShadow: isHovered
+                ? '0 20px 42px -10px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.22)'
+                : '0 10px 26px -8px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.12)',
+              transition: 'box-shadow 0.35s ease',
               zIndex: n + 1,
               cursor: 'grab'
             }}
@@ -442,22 +448,24 @@ export function CardDeckCarousel({
         </AnimatePresence>
       </div>
 
-      {/* Floating Hover Panel appearing to the RIGHT on user hover */}
+      {/* Floating Hover Panel appearing to the LEFT (or right) on user hover */}
       <AnimatePresence>
         {isHovered && (
           <motion.div
-            initial={{ opacity: 0, x: -10, scale: 0.96 }}
+            initial={{ opacity: 0, x: popDirection === 'left' ? 10 : -10, scale: 0.96 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: -8, scale: 0.96 }}
+            exit={{ opacity: 0, x: popDirection === 'left' ? 8 : -8, scale: 0.96 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
             onClick={handleCardClick}
             style={{
               position: 'absolute',
               top: '4px',
-              left: 'calc(100% + 14px)',
+              ...(popDirection === 'left'
+                ? { right: 'calc(100% + 14px)', left: 'auto' }
+                : { left: 'calc(100% + 14px)', right: 'auto' }),
               width: '240px',
               padding: '14px 16px',
-              background: 'rgba(14, 16, 24, 0.92)',
+              background: 'rgba(14, 16, 24, 0.94)',
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
               borderRadius: '16px',
@@ -465,7 +473,8 @@ export function CardDeckCarousel({
               boxShadow: '0 18px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.06)',
               zIndex: 99,
               cursor: 'pointer',
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
+              textAlign: 'left'
             }}
           >
             <div
@@ -524,6 +533,350 @@ export function CardDeckCarousel({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * MobileNewsSection: Full-width edge-to-edge card for Mobile and Tablets
+ * Displays featured news with panoramic image banner, publisher badge, clear headline,
+ * full description, swipe gestures, and direct reading action.
+ */
+export function MobileNewsSection({ onNavigate, className = "", style = {} }) {
+  const isSpanish = typeof navigator !== 'undefined' && (navigator.language || '').toLowerCase().startsWith('es');
+  const defaultInitial = isSpanish ? SPANISH_NEWS_FALLBACK : ENGLISH_NEWS_FALLBACK;
+
+  const [slides, setSlides] = useState(defaultInitial);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveFeed() {
+      try {
+        const feedUrl = isSpanish
+          ? 'https://cnnespanol.cnn.com/feed/'
+          : 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml';
+
+        let xmlText = '';
+        if (window.browserAPI?.fetchRss) {
+          xmlText = await window.browserAPI.fetchRss(feedUrl);
+        } else {
+          const res = await fetch(feedUrl);
+          if (res.ok) xmlText = await res.text();
+        }
+
+        if (xmlText && isMounted) {
+          const items = [];
+          const matches = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+
+          for (const m of matches.slice(0, 8)) {
+            const titleMatch = m.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/);
+            const descMatch = m.match(/<description>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/description>/);
+            const linkMatch = m.match(/<link>(.*?)<\/link>/);
+            const mediaMatch = m.match(/url="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/i);
+
+            if (titleMatch && linkMatch) {
+              const cleanTitle = titleMatch[1]
+                .replace(/&amp;/g, '&')
+                .replace(/&quot;/g, '"')
+                .replace(/&#39;/g, "'")
+                .trim();
+
+              const cleanDesc = descMatch
+                ? descMatch[1]
+                    .replace(/<[^>]+>/g, '')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'")
+                    .trim()
+                : '';
+
+              items.push({
+                title: cleanTitle,
+                caption: cleanDesc,
+                url: linkMatch[1].trim(),
+                image: mediaMatch ? mediaMatch[1] : null,
+                source: isSpanish ? 'CNN' : 'The New York Times'
+              });
+            }
+          }
+
+          const fallbackList = isSpanish ? SPANISH_NEWS_FALLBACK : ENGLISH_NEWS_FALLBACK;
+          const refined = items.map((it, idx) => ({
+            ...it,
+            image: it.image || fallbackList[idx % fallbackList.length].image
+          }));
+
+          if (refined.length > 0 && isMounted) {
+            setSlides(refined);
+          }
+        }
+      } catch (err) {}
+    }
+    loadLiveFeed();
+    return () => { isMounted = false; };
+  }, [isSpanish]);
+
+  const n = slides.length || 1;
+  const current = slides[currentIndex] || slides[0] || {};
+
+  const handleNext = () => setCurrentIndex((prev) => (prev + 1) % n);
+  const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + n) % n);
+
+  const handleTouchStart = (e) => {
+    if (e.touches && e.touches.length === 1) {
+      touchStartXRef.current = e.touches[0].clientX;
+      touchStartYRef.current = e.touches[0].clientY;
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.changedTouches && e.changedTouches.length === 1) {
+      const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+      const deltaY = e.changedTouches[0].clientY - touchStartYRef.current;
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40) {
+        if (deltaX < 0) {
+          handleNext();
+        } else {
+          handlePrev();
+        }
+      }
+    }
+  };
+
+  return (
+    <div
+      className={className}
+      style={{
+        width: '100%',
+        maxWidth: '480px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        userSelect: 'none',
+        boxSizing: 'border-box',
+        ...style
+      }}
+    >
+      {/* Section Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 4px',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 800,
+              color: 'rgba(255, 255, 255, 0.7)'
+            }}
+          >
+            {isSpanish ? 'Noticias de Portada' : 'Top Headlines'}
+          </span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#ef4444',
+              boxShadow: '0 0 8px #ef4444'
+            }}
+          />
+        </div>
+
+        {/* Carousel controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={handlePrev}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              borderRadius: '6px',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              cursor: 'pointer',
+              padding: 0
+            }}
+            title="Noticia anterior"
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.55)', fontFamily: "'Lato', sans-serif", fontWeight: 700 }}>
+            {currentIndex + 1} / {n}
+          </span>
+          <button
+            type="button"
+            onClick={handleNext}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.14)',
+              borderRadius: '6px',
+              width: '26px',
+              height: '26px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ffffff',
+              cursor: 'pointer',
+              padding: 0
+            }}
+            title="Siguiente noticia"
+          >
+            <ChevronRight size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Full Edge-to-Edge News Card */}
+      <motion.div
+        key={currentIndex}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.28, ease: 'easeOut' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onClick={() => current.url && onNavigate?.(current.url)}
+        style={{
+          width: '100%',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          background: 'rgba(255, 255, 255, 0.045)',
+          border: '1px solid rgba(255, 255, 255, 0.14)',
+          boxShadow: '0 12px 36px rgba(0, 0, 0, 0.65)',
+          cursor: 'pointer',
+          backdropFilter: 'blur(28px)',
+          WebkitBackdropFilter: 'blur(28px)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
+        {/* News Hero Image with Scrim and Publisher */}
+        <div style={{ position: 'relative', width: '100%', height: '185px', overflow: 'hidden' }}>
+          {current.image ? (
+            <img
+              src={current.image}
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block'
+              }}
+            />
+          ) : (
+            <div style={{ width: '100%', height: '100%', background: '#12141d' }} />
+          )}
+
+          {/* Gradient Scrim */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(to top, rgba(9, 10, 15, 0.95) 0%, rgba(9, 10, 15, 0.3) 50%, transparent 100%)'
+            }}
+          />
+
+          {/* Publisher Badge Overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '12px',
+              left: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }}
+          >
+            <PublisherLogo source={current.source} size={16} />
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffffff' }}>
+              {current.source || 'Internacional'}
+            </span>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column' }}>
+          <h3
+            style={{
+              margin: '0 0 8px 0',
+              fontSize: '15.5px',
+              fontWeight: 800,
+              color: '#ffffff',
+              lineHeight: 1.3,
+              fontFamily: "'Lato', sans-serif"
+            }}
+          >
+            {current.title}
+          </h3>
+
+          <p
+            style={{
+              margin: '0 0 14px 0',
+              fontSize: '12.5px',
+              color: 'rgba(255, 255, 255, 0.72)',
+              lineHeight: 1.5,
+              fontFamily: "'Lato', sans-serif"
+            }}
+          >
+            {current.caption}
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+            }}
+          >
+            <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)' }}>
+              {isSpanish ? 'Desliza para más noticias' : 'Swipe for more'}
+            </span>
+
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '5px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.18)',
+                color: '#ffffff',
+                fontSize: '11.5px',
+                fontWeight: 700
+              }}
+            >
+              <span>{isSpanish ? 'Leer noticia' : 'Read story'}</span>
+              <ArrowUpRight size={13} color="#ffffff" />
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

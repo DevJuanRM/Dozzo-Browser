@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Maximize2, X, Plus, Globe } from 'lucide-react';
 import NewTabPage from './NewTabPage';
+import MobileBrowserUI from './MobileBrowserUI';
 
 const getSplitCount = (mode) => {
   switch (mode) {
@@ -78,6 +79,7 @@ export default function WebviewContainer({
   onSelectTab,
   onCloseTab,
   onNewTab,
+  onCloseAllTabs,
   onUpdateTab,
   onNewTabWithUrl,
   onNavigate,
@@ -85,6 +87,19 @@ export default function WebviewContainer({
   onChangeSearchEngine,
   blockedCount,
   onOpenBinance,
+  onOpenDownloads,
+  onOpenHistory,
+  onOpenSettings,
+  onToggleShieldModal,
+  selectedCryptoBroker = 'binance',
+  theme = 'obsidian-aurora',
+  onToggleTheme,
+  isBookmarked = false,
+  onToggleBookmark,
+  onGoBack,
+  onGoForward,
+  onReload,
+  onStop,
   webviewRefs,
   isInspectorActive,
   onElementInspected,
@@ -107,7 +122,7 @@ export default function WebviewContainer({
   // Dynamic split ratio for 2-column or 2-row views (stretching / resizing)
   const [splitRatio, setSplitRatio] = useState(50);
 
-  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
   const visibleTabs = tabs.slice(0, paneCount);
   const emptySlotsCount = isSplit ? Math.max(0, paneCount - visibleTabs.length) : 0;
 
@@ -148,6 +163,30 @@ export default function WebviewContainer({
         }
       }}
     >
+      {/* Absolute failsafe: if no tabs exist, immediately render NewTabPage so it is NEVER black */}
+      {tabs.length === 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'var(--bg-primary)' }}>
+          <NewTabPage
+            isMobile={isMobile || isResponsiveActive}
+            tabs={[]}
+            history={history}
+            onSelectTab={onSelectTab}
+            onNavigate={(url) => {
+              if (onNavigate) {
+                onNavigate(url);
+              } else if (onNewTabWithUrl) {
+                onNewTabWithUrl(url);
+              } else if (onNewTab) {
+                onNewTab();
+              }
+            }}
+            searchEngine={searchEngine}
+            onChangeSearchEngine={onChangeSearchEngine}
+            blockedCount={blockedCount}
+            onOpenBinance={onOpenBinance}
+          />
+        </div>
+      )}
       {/* Persistent Webviews Tree: Every tab stays continuously mounted so video playback NEVER resets */}
       {tabs.map((tab, idx) => {
         const isCurrentActive = tab.id === activeTabId;
@@ -356,42 +395,111 @@ export default function WebviewContainer({
                   <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#0a192f', border: '1px solid #1e293b' }} />
                 </div>
               )}
-              {/* If tab is in New Tab state or Home view is active on current tab, show NewTabPage speed dial */}
-              {(tab.isNewTab || (isCurrentActive && isViewingHome && !isSplit)) && (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'var(--bg-primary)' }}>
-                  <NewTabPage
-                    tabs={tabs}
-                    history={history}
-                    onSelectTab={onSelectTab}
-                    onNavigate={(url) => {
-                      if (onNavigate) {
-                        onNavigate(url);
-                      } else if (onUpdateTab) {
-                        onUpdateTab(tab.id, { url, isNewTab: false, isLoading: true });
-                      }
-                    }}
-                    searchEngine={searchEngine}
-                    onChangeSearchEngine={onChangeSearchEngine}
-                    blockedCount={blockedCount}
-                    onOpenBinance={onOpenBinance}
-                    isAutoHidden={isAutoHidden}
-                    isInspectorActive={isInspectorActive && isCurrentActive}
-                    onElementInspected={onElementInspected}
-                  />
-                </div>
+
+              {/* DevMode Responsive Device Simulator: Embedded Interactive Mobile Browser UI */}
+              {isResponsiveActive && isCurrentActive && (
+                <MobileBrowserUI
+                  isEmbedded={true}
+                  hasDynamicIsland={Boolean(responsiveMode?.showFrame && !responsiveMode?.isRotated)}
+                  tabs={tabs}
+                  activeTabId={activeTabId}
+                  onSelectTab={onSelectTab}
+                  onCloseTab={onCloseTab}
+                  onNewTab={onNewTab}
+                  onCloseAllTabs={onCloseAllTabs}
+                  currentUrl={tab.isNewTab ? '' : tab.url}
+                  isLoading={tab.isLoading}
+                  canGoBack={tab.canGoBack}
+                  canGoForward={tab.canGoForward}
+                  onGoBack={onGoBack}
+                  onGoForward={onGoForward}
+                  onReload={onReload}
+                  onStop={onStop}
+                  onNavigate={(url) => {
+                    if (onNavigate) {
+                      onNavigate(url);
+                    } else if (onUpdateTab) {
+                      onUpdateTab(tab.id, { url, isNewTab: false, isLoading: true });
+                    }
+                  }}
+                  searchEngine={searchEngine}
+                  blockedCount={blockedCount}
+                  onToggleShieldModal={onToggleShieldModal}
+                  selectedCryptoBroker={selectedCryptoBroker}
+                  onOpenBinance={onOpenBinance}
+                  onOpenDownloads={onOpenDownloads}
+                  onOpenHistory={onOpenHistory}
+                  onOpenSettings={onOpenSettings}
+                  theme={theme}
+                  onToggleTheme={onToggleTheme}
+                  isBookmarked={isBookmarked}
+                  onToggleBookmark={onToggleBookmark}
+                />
               )}
 
-              <WebviewItem
-                tab={tab}
-                isActive={isSplit ? isVisibleInSplit : (isCurrentActive && !isViewingHome)}
-                isSplit={isSplit}
-                onUpdateTab={onUpdateTab}
-                onNewTabWithUrl={onNewTabWithUrl}
-                webviewRefs={webviewRefs}
-                isInspectorActive={isInspectorActive}
-                onElementInspected={onElementInspected}
-                onScrollDirection={onScrollDirection}
-              />
+              {/* Viewport for Webview or NewTabPage inside frame */}
+              <div
+                style={
+                  isResponsiveActive && isCurrentActive
+                    ? {
+                        position: 'absolute',
+                        top: responsiveMode?.showFrame && !responsiveMode?.isRotated ? '72px' : '50px',
+                        bottom: '56px',
+                        left: 0,
+                        right: 0,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        zIndex: 10
+                      }
+                    : {
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }
+                }
+              >
+                {/* If tab is in New Tab state or Home view is active on current tab, show NewTabPage speed dial */}
+                {(tab.isNewTab || (isCurrentActive && isViewingHome && !isSplit)) && (
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 10, background: 'var(--bg-primary)' }}>
+                    <NewTabPage
+                      isMobile={isMobile || isResponsiveActive}
+                      tabs={tabs}
+                      history={history}
+                      onSelectTab={onSelectTab}
+                      onNavigate={(url) => {
+                        if (onNavigate) {
+                          onNavigate(url);
+                        } else if (onUpdateTab) {
+                          onUpdateTab(tab.id, { url, isNewTab: false, isLoading: true });
+                        }
+                      }}
+                      searchEngine={searchEngine}
+                      onChangeSearchEngine={onChangeSearchEngine}
+                      blockedCount={blockedCount}
+                      onOpenBinance={onOpenBinance}
+                      isAutoHidden={isAutoHidden}
+                      isInspectorActive={isInspectorActive && isCurrentActive}
+                      onElementInspected={onElementInspected}
+                    />
+                  </div>
+                )}
+
+                <WebviewItem
+                  tab={tab}
+                  isActive={isSplit ? isVisibleInSplit : (isCurrentActive && !isViewingHome)}
+                  isSplit={isSplit}
+                  onUpdateTab={onUpdateTab}
+                  onNewTabWithUrl={onNewTabWithUrl}
+                  webviewRefs={webviewRefs}
+                  isInspectorActive={isInspectorActive}
+                  onElementInspected={onElementInspected}
+                  onScrollDirection={onScrollDirection}
+                />
+              </div>
             </div>
           </div>
         );
@@ -646,6 +754,7 @@ function WebviewItem({
     };
 
     const handleNewWindow = (e) => {
+      try { e.preventDefault?.(); } catch (_) {}
       if (e.url) {
         callbacksRef.current.onNewTabWithUrl?.(e.url);
       }
@@ -672,6 +781,11 @@ function WebviewItem({
             const parsed = JSON.parse(jsonStr);
             callbacksRef.current.onElementInspected?.(parsed);
           } catch (err) { }
+        } else if (msg.startsWith('__DOZZO_OPEN_TAB__:')) {
+          const tabUrl = msg.replace('__DOZZO_OPEN_TAB__:', '').trim();
+          if (tabUrl) {
+            callbacksRef.current.onNewTabWithUrl?.(tabUrl);
+          }
         } else if (msg === '__DOZZO_SCROLL__:down') {
           if (callbacksRef.current.isActive) callbacksRef.current.onScrollDirection?.('down');
         } else if (msg === '__DOZZO_SCROLL__:up') {

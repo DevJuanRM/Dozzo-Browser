@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld('browserAPI', {
   // Downloads & Shell
   openPath: (path) => ipcRenderer.send('open-path', path),
   showItemInFolder: (path) => ipcRenderer.send('show-item-in-folder', path),
+  openExternal: (url) => ipcRenderer.send('open-external', url),
   onDownloadEvent: (callback) => {
     const subscription = (event, data) => callback(data);
     ipcRenderer.on('download-event', subscription);

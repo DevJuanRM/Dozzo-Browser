@@ -27,10 +27,11 @@ import {
 } from 'lucide-react';
 import { YoutubeIcon, GithubIcon } from './Icons';
 import { SEARCH_ENGINES, getSearchUrl, getEngine } from '../utils/searchEngines';
+import { motion, AnimatePresence } from 'framer-motion';
 import RecentSitesCarousel from './RecentSitesCarousel';
 import BeamSearch from './BeamSearch';
 import { MarketWatchList } from './StockCard';
-import CardDeckCarousel from './CardDeckCarousel';
+import CardDeckCarousel, { MobileNewsSection } from './CardDeckCarousel';
 import GlassTimeCard from './GlassTimeCard';
 
 const CITY_WALLPAPERS = [
@@ -197,16 +198,18 @@ export default function NewTabPage({
   const [greeting, setGreeting] = useState('Bienvenido');
   const [isEngineMenuOpen, setIsEngineMenuOpen] = useState(false);
 
-  // Responsive layout state
+  // Responsive layout state (Mobile & Tablets only: <= 1024px or container <= 840px)
   const [isSmallScreen, setIsSmallScreen] = useState(() => {
     if (typeof window === 'undefined') return false;
-    return isMobile || window.innerWidth <= 768;
+    return Boolean(isMobile) || window.innerWidth <= 1024;
   });
 
   useEffect(() => {
     const handleResize = () => {
-      setIsSmallScreen(isMobile || window.innerWidth <= 768);
+      const containerWidth = containerRef.current?.offsetWidth || (typeof window !== 'undefined' ? window.innerWidth : 1200);
+      setIsSmallScreen(Boolean(isMobile) || window.innerWidth <= 1024 || containerWidth <= 840);
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [isMobile]);
@@ -353,9 +356,11 @@ export default function NewTabPage({
   }, []);
 
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    const target = query.trim();
+  const handleSearchSubmit = (valOrEvent) => {
+    if (valOrEvent && typeof valOrEvent.preventDefault === 'function') {
+      valOrEvent.preventDefault();
+    }
+    const target = (typeof valOrEvent === 'string' ? valOrEvent : query).trim();
     if (!target) return;
 
     const isUrl =
@@ -508,98 +513,163 @@ export default function NewTabPage({
       <div
         style={{
           ...styles.dashboardContainer,
-          paddingTop: isSmallScreen ? '24px' : isAutoHidden ? '72px' : '64px',
-          ...(isSmallScreen ? { padding: '24px 14px 40px 14px', gap: '20px' } : {})
+          paddingTop: isSmallScreen ? '20px' : isAutoHidden ? '72px' : '64px',
+          ...(isSmallScreen ? { padding: '20px 12px 48px 12px', gap: '22px', justifyContent: 'flex-start' } : {})
         }}
         className="custom-scrollbar"
       >
-        {/* Top Header Row: News Stack (Left) + Central Clock & Weather (Center) + Market Watchlist (Right) */}
-        <div style={{
-          ...styles.headerRow,
-          ...(isSmallScreen ? { flexDirection: 'column', alignItems: 'center', gap: '20px' } : {})
-        }}>
-          {/* Top-Left: CardDeckCarousel */}
-          <div style={{
-            ...styles.topNewsDock,
-            ...(isSmallScreen ? { order: 3, marginLeft: 0, marginTop: 0, alignItems: 'center' } : {})
-          }}>
-            <CardDeckCarousel onNavigate={onNavigate} />
-          </div>
-
-          {/* Central Clock: GlassTimeCard + Live Weather directly underneath */}
-          <div style={{
-            ...styles.clockCenter,
-            ...(isSmallScreen ? { order: 1, marginTop: 0 } : {})
-          }}>
-            <GlassTimeCard showSeconds={false} showTimezone={false} />
-
-            {/* Live Weather Widget positioned directly under the time & date */}
-            <div style={styles.weatherUnderClock} title="Clima en vivo actualizado">
-              <div style={styles.weatherIconBox}>
-                {weather.code >= 51 ? (
-                  <CloudRain size={14} color="#38BDF8" />
-                ) : weather.code >= 1 ? (
-                  <Cloud size={14} color="#94A3B8" />
-                ) : (
-                  <Sun size={14} color="#F59E0B" />
-                )}
-              </div>
-              <div style={styles.weatherInlineRow}>
-                <span style={styles.weatherTemp}>{weather.temp}</span>
-                <span style={styles.weatherCity}>{weather.city}</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
-                <span style={styles.weatherDescText}>{weather.condition}</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
-                <span style={styles.weatherDescText}>{weather.wind}</span>
+        {isSmallScreen ? (
+          /* DEDICATED MOBILE & TABLET 1-COLUMN VERTICAL STACK */
+          <div style={styles.mobileContainer}>
+            {/* 1. Centered Clock + Weather Capsule directly underneath */}
+            <div style={styles.mobileSection}>
+              <div style={styles.clockCenter}>
+                <GlassTimeCard showSeconds={true} isMobile={true} />
+                <div style={styles.weatherUnderClock} title="Clima en vivo actualizado">
+                  <div style={styles.weatherIconBox}>
+                    {weather.code >= 51 ? (
+                      <CloudRain size={14} color="#38BDF8" />
+                    ) : weather.code >= 1 ? (
+                      <Cloud size={14} color="#94A3B8" />
+                    ) : (
+                      <Sun size={14} color="#F59E0B" />
+                    )}
+                  </div>
+                  <div style={styles.weatherInlineRow}>
+                    <span style={styles.weatherTemp}>{weather.temp}</span>
+                    <span style={styles.weatherCity}>{weather.city}</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                    <span style={styles.weatherDescText}>{weather.condition}</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                    <span style={styles.weatherDescText}>{weather.wind}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Top-Right Vertical Market Watchlist: S&P 500, BTC, Stocks (Image 5 style) */}
-          <div style={{
-            ...styles.marketWatchlistRight,
-            ...(isSmallScreen ? { order: 2, alignItems: 'center', marginTop: 0 } : {})
-          }}>
-            <MarketWatchList onNavigate={onNavigate} onOpenBinance={onOpenBinance} />
-          </div>
-        </div>
+            {/* 2. Search Bar directly below clock */}
+            <div style={styles.mobileSection}>
+              <div style={{ width: '100%', maxWidth: '420px', padding: '0 4px', boxSizing: 'border-box' }}>
+                <BeamSearch
+                  value={query}
+                  onChange={(val) => setQuery(val)}
+                  onSubmit={handleSearchSubmit}
+                  placeholder="Search"
+                  colorVariant="colorful"
+                  duration={3.1}
+                  autoFocus={false}
+                />
+              </div>
+            </div>
 
-        {/* BorderBeam SearchBar matching user specification */}
-        <div style={{
-          ...styles.searchForm,
-          ...(isSmallScreen ? { padding: '0 8px', boxSizing: 'border-box' } : {})
-        }}>
-          <BeamSearch
-            value={query}
-            onChange={(val) => setQuery(val)}
-            onSubmit={(val) => {
-              const text = (val !== undefined ? val : query).trim();
-              if (!text) return;
-              if (onSearch) {
-                onSearch(text, searchEngine);
-              } else if (onNavigate) {
-                const searchUrl = getSearchUrl(text, searchEngine);
-                onNavigate(searchUrl);
-              }
-            }}
-            placeholder="Search"
-            colorVariant="colorful"
-            duration={3.1}
-            autoFocus={!isSmallScreen}
-          />
-        </div>
+            {/* 3. S&P 500 Market Watchlist with touch press-and-hold (holding expands 5 assets, releasing collapses) */}
+            <div style={styles.mobileSection}>
+              <MarketWatchList onNavigate={onNavigate} onOpenBinance={onOpenBinance} isMobile={true} />
+            </div>
 
-        {/* Bottom Area: Centered Floating 3D Tabs Carousel */}
-        <div style={styles.bottomAreaRow}>
-          <div style={styles.bottomCarouselDock}>
-            <RecentSitesCarousel
-              tabs={tabs}
-              history={history}
-              onSelectTab={onSelectTab}
-              onNavigate={onNavigate}
-            />
+            {/* 4. Recent Sites 3D Carousel with touch finger drag/swipe */}
+            <div style={styles.mobileSection}>
+              <div style={styles.bottomCarouselDock}>
+                <RecentSitesCarousel
+                  tabs={tabs}
+                  history={history}
+                  onSelectTab={onSelectTab}
+                  onNavigate={onNavigate}
+                  isMobile={true}
+                />
+              </div>
+            </div>
+
+            {/* 5. Full Edge-to-Edge News Card Section */}
+            <div style={styles.mobileSection}>
+              <MobileNewsSection onNavigate={onNavigate} />
+            </div>
           </div>
-        </div>
+        ) : (
+          /* DESKTOP 3-COLUMN UNCHANGED LAYOUT */
+          <>
+            {/* Top Header Row: News Stack (Left) + Central Clock & Weather (Center) + Market Watchlist (Right) */}
+            <div style={styles.headerRow}>
+              {/* Top-Left: Balanced spacer ensuring clock remains strictly centered horizontally */}
+              <div style={{ width: '220px', flexShrink: 0 }} />
+
+              {/* Central Clock: GlassTimeCard + Live Weather directly underneath */}
+              <div style={styles.clockCenter}>
+                <GlassTimeCard showSeconds={true} isMobile={false} />
+
+                {/* Live Weather Widget positioned directly under the time & date */}
+                <div style={styles.weatherUnderClock} title="Clima en vivo actualizado">
+                  <div style={styles.weatherIconBox}>
+                    {weather.code >= 51 ? (
+                      <CloudRain size={14} color="#38BDF8" />
+                    ) : weather.code >= 1 ? (
+                      <Cloud size={14} color="#94A3B8" />
+                    ) : (
+                      <Sun size={14} color="#F59E0B" />
+                    )}
+                  </div>
+                  <div style={styles.weatherInlineRow}>
+                    <span style={styles.weatherTemp}>{weather.temp}</span>
+                    <span style={styles.weatherCity}>{weather.city}</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                    <span style={styles.weatherDescText}>{weather.condition}</span>
+                    <span style={{ color: 'rgba(255, 255, 255, 0.4)' }}>•</span>
+                    <span style={styles.weatherDescText}>{weather.wind}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Top-Right Vertical Column: S&P 500 Market Watchlist + News Card underneath */}
+              <div style={{
+                ...styles.marketWatchlistRight,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                alignItems: 'flex-end',
+                width: '240px'
+              }}>
+                <MarketWatchList onNavigate={onNavigate} onOpenBinance={onOpenBinance} isMobile={false} />
+                <motion.div
+                  layout
+                  transition={{ layout: { duration: 0.32, ease: [0.16, 1, 0.3, 1] } }}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'flex-end'
+                  }}
+                >
+                  <CardDeckCarousel onNavigate={onNavigate} popDirection="left" />
+                </motion.div>
+              </div>
+            </div>
+
+            {/* BorderBeam SearchBar matching user specification */}
+            <div style={styles.searchForm}>
+              <BeamSearch
+                value={query}
+                onChange={(val) => setQuery(val)}
+                onSubmit={handleSearchSubmit}
+                placeholder="Search"
+                colorVariant="colorful"
+                duration={3.1}
+                autoFocus={!isSmallScreen}
+              />
+            </div>
+
+            {/* Bottom Area: Centered Floating 3D Tabs Carousel */}
+            <div style={styles.bottomAreaRow}>
+              <div style={styles.bottomCarouselDock}>
+                <RecentSitesCarousel
+                  tabs={tabs}
+                  history={history}
+                  onSelectTab={onSelectTab}
+                  onNavigate={onNavigate}
+                  isMobile={false}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Dev Mode High-Gloss Highlight Box when inspector is active on New Tab Page */}
@@ -687,6 +757,24 @@ const styles = {
     gap: '16px',
     fontFamily: "'Lato', sans-serif"
   },
+  mobileContainer: {
+    width: '100%',
+    maxWidth: '460px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '24px',
+    boxSizing: 'border-box',
+    padding: '0 4px',
+    margin: '0 auto'
+  },
+  mobileSection: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    boxSizing: 'border-box'
+  },
   bottomAreaRow: {
     width: '100%',
     display: 'flex',
@@ -750,7 +838,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    marginTop: '10px',
+    marginTop: '2px',
     padding: '5px 14px',
     borderRadius: '20px',
     background: 'rgba(255, 255, 255, 0.05)',

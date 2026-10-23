@@ -10,7 +10,9 @@ import {
   Copy,
   Check,
   Code2,
-  Clock
+  Clock,
+  Pin,
+  PinOff
 } from 'lucide-react';
 import { getSearchUrl, getEngine } from '../utils/searchEngines';
 
@@ -33,7 +35,9 @@ export default function NavigationBar({
   onCloseWindow,
   onMinimizeWindow,
   onMaximizeWindow,
-  onFocusChange
+  onFocusChange,
+  isHeaderPinned = false,
+  onTogglePinHeader
 }) {
   const [inputValue, setInputValue] = useState(currentUrl || '');
   const [copied, setCopied] = useState(false);
@@ -273,13 +277,35 @@ export default function NavigationBar({
           {isLoading ? <StopIcon size={16} /> : <RotateCw size={15} />}
         </button>
 
+        {/* Fijar Header (Pin / Auto-hide Toggle) */}
+        {onTogglePinHeader && (
+          <button
+            style={{
+              ...styles.iconBtn,
+              color: isHeaderPinned ? 'var(--accent)' : 'rgba(255, 255, 255, 0.45)',
+              background: isHeaderPinned ? 'rgba(240, 185, 11, 0.16)' : 'transparent',
+              border: isHeaderPinned ? '1px solid rgba(240, 185, 11, 0.35)' : '1px solid transparent',
+              boxShadow: isHeaderPinned ? '0 0 10px var(--accent-glow)' : 'none',
+              borderRadius: '8px'
+            }}
+            onClick={onTogglePinHeader}
+            title={
+              isHeaderPinned
+                ? 'Barra superior fijada permanentemente (Clic para ocultar automáticamente al salir el mouse)'
+                : 'Fijar barra superior permanentemente en la parte superior'
+            }
+          >
+            {isHeaderPinned ? <Pin size={15} fill="currentColor" /> : <PinOff size={15} />}
+          </button>
+        )}
+
         <div style={styles.rightDivider} />
 
         {/* Dev Mode button */}
         <button
           style={{
             ...styles.iconBtn,
-            color: isInspectorActive ? 'var(--accent)' : 'var(--text-secondary)',
+            color: isInspectorActive ? 'var(--accent)' : '#ffffff',
             background: isInspectorActive ? 'rgba(240, 185, 11, 0.18)' : 'transparent',
             border: isInspectorActive ? '1px solid rgba(240, 185, 11, 0.35)' : '1px solid transparent',
             boxShadow: isInspectorActive ? '0 0 12px var(--accent-glow)' : 'none',
@@ -323,7 +349,7 @@ const styles = {
     justifyContent: 'center',
     background: 'transparent',
     border: 'none',
-    color: 'var(--text-secondary)',
+    color: '#ffffff',
     cursor: 'pointer',
     transition: 'all 0.15s ease'
   },

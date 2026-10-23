@@ -127,6 +127,71 @@
           configurable: true
         });
       } catch (e) {}
+
+      // Authentic Chrome 133 Client Hints & UserAgent mock (Prevents Slack "Please update your browser" block)
+      if (typeof navigator !== 'undefined') {
+        try {
+          const chromeUa = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
+          const chromeAppVer = '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36';
+          
+          Object.defineProperty(navigator, 'userAgent', { get: () => chromeUa, configurable: true });
+          Object.defineProperty(navigator, 'appVersion', { get: () => chromeAppVer, configurable: true });
+          Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.', configurable: true });
+          Object.defineProperty(navigator, 'platform', { get: () => 'Win32', configurable: true });
+
+          const fakeBrands = [
+            { brand: 'Not(A:Brand', version: '99' },
+            { brand: 'Google Chrome', version: '133' },
+            { brand: 'Chromium', version: '133' }
+          ];
+          const fakeUaData = {
+            brands: fakeBrands,
+            mobile: false,
+            platform: 'Windows',
+            getHighEntropyValues: async () => ({
+              brands: fakeBrands,
+              mobile: false,
+              platform: 'Windows',
+              platformVersion: '15.0.0',
+              architecture: 'x86',
+              bitness: '64',
+              model: '',
+              uaFullVersion: '133.0.0.0',
+              fullVersionList: fakeBrands
+            })
+          };
+          Object.defineProperty(navigator, 'userAgentData', {
+            get: () => fakeUaData,
+            configurable: true
+          });
+        } catch (e) {}
+
+        // Geolocation Privacy & Censorship Bypass (Returns unrestricted London, UK coords)
+        try {
+          if (navigator.geolocation) {
+            const fakeCoords = {
+              latitude: 51.5074,
+              longitude: -0.1278,
+              accuracy: 25,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null
+            };
+            const fakePosition = {
+              coords: fakeCoords,
+              timestamp: Date.now()
+            };
+            navigator.geolocation.getCurrentPosition = function (success) {
+              if (typeof success === 'function') success(fakePosition);
+            };
+            navigator.geolocation.watchPosition = function (success) {
+              if (typeof success === 'function') success(fakePosition);
+              return 1;
+            };
+          }
+        } catch (_) {}
+      }
     }
 
     // Universal Anti-Fingerprinting & Tor-style Shield for all web pages (except Google auth & Figma)
@@ -185,154 +250,7 @@
     const isYouTube = Boolean(window.location && window.location.hostname.includes('youtube.com'));
 
     if (isYouTube) {
-      // 1. Core script to run inside the guest page's MAIN WORLD context
-      function runMainWorldAdblocker() {
-        if (window.__dozzo_main_adblock_injected) return;
-        window.__dozzo_main_adblock_injected = true;
-
-        function pruneAds(obj) {
-          if (!obj || typeof obj !== 'object') return obj;
-          try {
-            if (Array.isArray(obj)) {
-              for (let i = 0; i < obj.length; i++) {
-                pruneAds(obj[i]);
-              }
-              return obj;
-            }
-
-            // Prune ad placement lists
-            if (obj.adPlacements) obj.adPlacements = [];
-            if (obj.adSlots) obj.adSlots = [];
-            if (obj.playerAds) obj.playerAds = [];
-            delete obj.adBreakHeartbeatParams;
-            delete obj.adParams;
-            delete obj.adBreakParams;
-
-            // Recurse into nested playerResponse
-            if (obj.playerResponse) {
-              pruneAds(obj.playerResponse);
-            }
-          } catch (e) {}
-          return obj;
-        }
-
-        // A. Hook JSON.parse so any parsed player payload has ads stripped before reaching YouTube
-        try {
-          const origJSONParse = JSON.parse;
-          JSON.parse = function (...args) {
-            const res = origJSONParse.apply(this, args);
-            if (res && typeof res === 'object') {
-              pruneAds(res);
-            }
-            return res;
-          };
-        } catch (e) {}
-
-        // B. Hook window.ytInitialPlayerResponse
-        try {
-          let storedInitial = window.ytInitialPlayerResponse;
-          Object.defineProperty(window, 'ytInitialPlayerResponse', {
-            get() {
-              return pruneAds(storedInitial);
-            },
-            set(val) {
-              storedInitial = pruneAds(val);
-            },
-            configurable: true
-          });
-        } catch (e) {}
-
-        // C. Hook window.ytInitialData
-        try {
-          let storedData = window.ytInitialData;
-          Object.defineProperty(window, 'ytInitialData', {
-            get() {
-              return pruneAds(storedData);
-            },
-            set(val) {
-              storedData = pruneAds(val);
-            },
-            configurable: true
-          });
-        } catch (e) {}
-
-        // D. Hook Response.prototype.json for fetch calls
-        try {
-          if (typeof Response !== 'undefined' && Response.prototype && Response.prototype.json) {
-            const origJson = Response.prototype.json;
-            Response.prototype.json = async function () {
-              const data = await origJson.apply(this, arguments);
-              if (data && typeof data === 'object') {
-                pruneAds(data);
-              }
-              return data;
-            };
-          }
-        } catch (e) {}
-
-        // E. Hook window.fetch
-        try {
-          const origFetch = window.fetch;
-          window.fetch = async function (...args) {
-            const res = await origFetch.apply(this, args);
-            try {
-              const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
-              if (url.includes('/youtubei/v1/player') || url.includes('/youtubei/v1/next')) {
-                const clone = res.clone();
-                const data = await clone.json();
-                pruneAds(data);
-                return new Response(JSON.stringify(data), {
-                  status: res.status,
-                  statusText: res.statusText,
-                  headers: res.headers
-                });
-              }
-            } catch (err) {}
-            return res;
-          };
-        } catch (e) {}
-
-        // F. Hook XMLHttpRequest
-        try {
-          const origOpen = XMLHttpRequest.prototype.open;
-          const origSend = XMLHttpRequest.prototype.send;
-          XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-            this._dozzoUrl = url;
-            return origOpen.apply(this, [method, url, ...rest]);
-          };
-          XMLHttpRequest.prototype.send = function (...args) {
-            if (
-              typeof this._dozzoUrl === 'string' &&
-              (this._dozzoUrl.includes('/youtubei/v1/player') || this._dozzoUrl.includes('/youtubei/v1/next'))
-            ) {
-              this.addEventListener('readystatechange', function () {
-                if (this.readyState === 4 && this.status === 200) {
-                  try {
-                    const data = JSON.parse(this.responseText);
-                    pruneAds(data);
-                    Object.defineProperty(this, 'responseText', { value: JSON.stringify(data), writable: false });
-                    Object.defineProperty(this, 'response', { value: JSON.stringify(data), writable: false });
-                  } catch (e) {}
-                }
-              });
-            }
-            return origSend.apply(this, args);
-          };
-        } catch (e) {}
-      }
-
-      // Execute directly in current window context
-      runMainWorldAdblocker();
-
-      // Also inject as an inline <script> tag into DOM to guarantee main-world execution before page scripts
-      try {
-        const scriptEl = document.createElement('script');
-        scriptEl.textContent = `(${runMainWorldAdblocker.toString()})();`;
-        (document.head || document.documentElement).appendChild(scriptEl);
-        scriptEl.remove();
-      } catch (e) {}
-
-      // 2. CSS: Make ad videos completely invisible if they ever begin, and hide all ad banners/overlays
+      // 1. High-Performance CSS: Hide ad overlays, banners, and promoted tiles cleanly without tampering with JSON or network streams
       const style = document.createElement('style');
       style.id = '__dozzo_early_adblock_css';
       style.textContent = `
@@ -364,7 +282,6 @@
         ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
         ytd-rich-item-renderer:has([class*="badge-style-type-ad"]),
         ytd-rich-item-renderer:has(.badge-shape-wiz--ad),
-        ytd-item-section-renderer:has(ytd-ad-slot-renderer),
         ytd-reel-shelf-renderer:has(ytd-ad-slot-renderer),
         #panels ytd-engagement-panel-section-list-renderer[target-id="engagement-panel-ads"],
         #masthead-ad,
@@ -443,15 +360,24 @@
           // Mute and speed up immediately
           videos.forEach((v) => {
             if (!v) return;
-            if (!v.muted) {
-              try { v.muted = true; } catch (e) {}
-            }
+            try { v.muted = true; } catch (e) {}
             try { v.playbackRate = 16.0; } catch (e) {}
+
+            if (isFinite(v.duration) && v.duration > 0) {
+              try {
+                v.currentTime = v.duration;
+                v.dispatchEvent(new Event('ended'));
+              } catch (e) {}
+            } else {
+              try {
+                v.currentTime = 999999;
+              } catch (e) {}
+            }
           });
 
           // Click native skip buttons
           const skipBtns = document.querySelectorAll(
-            '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-skip-button-container button, [id^="skip-button"] button'
+            '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-skip-button-container button, [id^="skip-button"] button, .ytp-ad-overlay-close-button'
           );
           skipBtns.forEach((btn) => {
             try { btn.click(); } catch (e) {}
@@ -461,23 +387,7 @@
           if (typeof player.skipAd === 'function') {
             try { player.skipAd(true); } catch (e) {}
           }
-
-          // Single jump to end with seek lock (prevents thrashing and black screen timeout)
-          if (!adSkipLocked) {
-            videos.forEach((v) => {
-              if (v && !isNaN(v.duration) && v.duration > 0 && isFinite(v.duration)) {
-                if (v.currentTime < v.duration - 0.2) {
-                  adSkipLocked = true;
-                  try {
-                    v.currentTime = v.duration;
-                  } catch (e) {}
-                  setTimeout(() => { adSkipLocked = false; }, 250);
-                }
-              }
-            });
-          }
         } else {
-          adSkipLocked = false;
           if (adWasActive) {
             adWasActive = false;
             videos.forEach((v) => {
@@ -487,7 +397,7 @@
               }
               try { v.muted = false; } catch (e) {}
               // Resume the main video once if paused
-              if (v.paused && v.currentTime < v.duration - 0.5) {
+              if (v.paused && isFinite(v.duration) && v.currentTime < v.duration - 0.5) {
                 v.play().catch(() => {});
               }
             });
@@ -495,7 +405,7 @@
         }
       }
 
-      setInterval(quickSkip, 40);
+      setInterval(quickSkip, 100);
     }
 
     // Universal scroll tracking for browser navigation bar
@@ -520,6 +430,36 @@
         }
       },
       { passive: true }
+    );
+    // Intercept middle-click (mouse wheel click) & Ctrl/Cmd click on links to open in a new tab inside Dozzo
+    window.addEventListener(
+      'auxclick',
+      (e) => {
+        if (e.button === 1) {
+          const anchor = e.target && typeof e.target.closest === 'function' ? e.target.closest('a') : null;
+          if (anchor && anchor.href && !anchor.href.startsWith('javascript:')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('__DOZZO_OPEN_TAB__:' + anchor.href);
+          }
+        }
+      },
+      true
+    );
+
+    window.addEventListener(
+      'click',
+      (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          const anchor = e.target && typeof e.target.closest === 'function' ? e.target.closest('a') : null;
+          if (anchor && anchor.href && !anchor.href.startsWith('javascript:')) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('__DOZZO_OPEN_TAB__:' + anchor.href);
+          }
+        }
+      },
+      true
     );
   } catch (err) {
     console.error('Error in webview preload:', err);

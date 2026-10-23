@@ -18,12 +18,11 @@ export default function UpdateNotificationModal({
       return;
     }
 
-    if (downloadUrl) {
-      if (window.browserAPI?.openExternal) {
-        window.browserAPI.openExternal(downloadUrl);
-      } else {
-        window.open(downloadUrl, '_blank');
-      }
+    const targetUrl = downloadUrl || releaseUrl || 'https://github.com/DevJuanRM/Dozzo-Browser/releases/latest';
+    if (window.browserAPI?.openExternal) {
+      window.browserAPI.openExternal(targetUrl);
+    } else {
+      window.open(targetUrl, '_blank');
     }
   };
 
@@ -99,7 +98,7 @@ export default function UpdateNotificationModal({
             ) : (
               <>
                 <Download size={15} />
-                <span>Descargar Dozzo v{latestVersion} (.exe)</span>
+                <span>Descargar Dozzo v{latestVersion}</span>
               </>
             )}
           </button>
@@ -113,9 +112,9 @@ const styles = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -126,10 +125,10 @@ const styles = {
     position: 'relative',
     width: '100%',
     maxWidth: '520px',
-    backgroundColor: 'rgba(13, 14, 20, 0.96)',
-    border: '1px solid rgba(240, 185, 11, 0.35)',
+    backgroundColor: '#09090b',
+    border: '1px solid #27272a',
     borderRadius: '16px',
-    boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(240, 185, 11, 0.15)',
+    boxShadow: '0 32px 80px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column'
@@ -140,7 +139,7 @@ const styles = {
     right: '-60px',
     width: '160px',
     height: '160px',
-    background: 'radial-gradient(circle, rgba(240, 185, 11, 0.25) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.12) 0%, transparent 70%)',
     pointerEvents: 'none'
   },
   header: {

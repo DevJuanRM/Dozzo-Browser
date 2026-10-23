@@ -28,6 +28,8 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 
+const DEV_DRAWER_STORAGE_KEY = 'dozzo_dev_drawer_width';
+
 export default function DevInspectorDrawer({
   isOpen,
   onClose,
@@ -43,7 +45,16 @@ export default function DevInspectorDrawer({
   const [copied, setCopied] = useState(false);
   const [copiedType, setCopiedType] = useState('');
   const [selectedLayerIdx, setSelectedLayerIdx] = useState(0);
-  const [drawerWidth, setDrawerWidth] = useState(480);
+  const [drawerWidth, setDrawerWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem(DEV_DRAWER_STORAGE_KEY);
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= 380 && val <= 850) return val;
+      }
+    } catch (_) {}
+    return 480;
+  });
   const [isResizing, setIsResizing] = useState(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(480);
@@ -94,12 +105,17 @@ export default function DevInspectorDrawer({
     const handleMouseMove = (e) => {
       if (!isResizing) return;
       const delta = startXRef.current - e.clientX;
-      const newWidth = Math.max(380, Math.min(760, startWidthRef.current + delta));
+      const newWidth = Math.max(360, Math.min(850, startWidthRef.current + delta));
       setDrawerWidth(newWidth);
     };
 
     const handleMouseUp = () => {
-      setIsResizing(false);
+      if (isResizing) {
+        setIsResizing(false);
+        try {
+          localStorage.setItem(DEV_DRAWER_STORAGE_KEY, String(drawerWidth));
+        } catch (_) {}
+      }
     };
 
     if (isResizing) {
@@ -110,7 +126,7 @@ export default function DevInspectorDrawer({
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, drawerWidth]);
 
   if (!isOpen || !elementData) return null;
 
@@ -296,38 +312,58 @@ Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
   const previewH = activeElement.rect?.height || 0;
 
   return (
-    <div
-      style={{
-        ...styles.container,
-        width: `${drawerWidth}px`
-      }}
-      className="glass-panel animate-slide-left"
-    >
-      {/* Resizer Handle on Left Edge */}
-      <div
-        style={styles.resizerHandle}
-        onMouseDown={(e) => {
-          setIsResizing(true);
-          startXRef.current = e.clientX;
-          startWidthRef.current = drawerWidth;
-        }}
-        title="Arrastrar para ajustar ancho del panel"
-      />
+    <>
+      {/* Full-screen invisible overlay during resizing so webviews NEVER capture mouse events */}
+      {isResizing && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999999,
+            cursor: 'col-resize',
+            userSelect: 'none',
+            WebkitUserSelect: 'none'
+          }}
+        />
+      )}
 
-      {/* Top Header */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <div style={styles.iconBadge}>
-            <Code2 size={16} color="var(--accent)" />
-          </div>
-          <div>
-            <div style={styles.title}>Dozzo Dev Studio</div>
-            <div style={styles.subtitle}>
-              <span style={styles.tagBadge}>&lt;{activeElement.tagName.toLowerCase()}&gt;</span>
-              {previewW > 0 && <span style={styles.dimBadge}> • {previewW}×{previewH}px</span>}
+      <div
+        style={{
+          ...styles.container,
+          width: `${drawerWidth}px`,
+          transition: isResizing ? 'none' : 'width 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}
+        className="glass-panel animate-slide-left"
+      >
+        {/* Resizer Handle on Left Edge */}
+        <div
+          style={styles.resizerHandle}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setIsResizing(true);
+            startXRef.current = e.clientX;
+            startWidthRef.current = drawerWidth;
+          }}
+          title="Arrastrar para ajustar ancho del panel"
+        />
+
+        {/* Top Header */}
+        <div style={styles.header}>
+          <div style={styles.headerLeft}>
+            <div style={styles.iconBadge}>
+              <Code2 size={15} color="var(--accent)" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={styles.title}>Dev Inspector</span>
+                <span style={styles.versionBadge}>PRO</span>
+              </div>
+              <div style={styles.subtitle}>
+                <span style={styles.tagBadge}>&lt;{activeElement.tagName.toLowerCase()}&gt;</span>
+                {previewW > 0 && <span style={styles.dimBadge}> • {previewW}×{previewH}px</span>}
+              </div>
             </div>
           </div>
-        </div>
 
         <div style={styles.headerRight}>
           {/* Toggle Responsive Mode */}
@@ -361,106 +397,137 @@ Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
         </div>
       </div>
 
-      {/* Breadcrumb Hierarchy Bar (Clean, intuitive path trail with smooth scrolling & tree popup) */}
-      <div style={styles.breadcrumbBar}>
-        <div style={styles.breadcrumbHeader}>
-          <Layers size={12} color="var(--accent)" />
-          <span style={styles.breadcrumbLabel}>Jerarquía DOM:</span>
-          {/* Quick Tree View popover toggle button */}
-          <button
-            style={{
-              ...styles.treeToggleBtn,
-              ...(showTreeDropdown ? styles.treeToggleBtnActive : {})
+      {/* DOM Hierarchy Section (Professional full-width track with dedicated header & intuitive smooth horizontal scroll) */}
+      <div style={styles.breadcrumbSection}>
+        {/* Top Header Row: Label, Depth Counter, Scroll Controls, and Tree Toggle */}
+        <div style={styles.breadcrumbHeaderRow}>
+          <div style={styles.breadcrumbHeaderLeft}>
+            <Layers size={13} color="var(--accent)" />
+            <span style={styles.breadcrumbLabel}>Jerarquía DOM</span>
+            <span style={styles.breadcrumbBadge}>{layers.length} niveles</span>
+          </div>
+
+          <div style={styles.breadcrumbHeaderRight}>
+            {/* Quick left/right scroll arrows */}
+            <button
+              style={{
+                ...styles.scrollArrowBtn,
+                opacity: canScrollLeft ? 1 : 0.4,
+                cursor: canScrollLeft ? 'pointer' : 'default'
+              }}
+              onClick={() => handleScrollBreadcrumb('left')}
+              title="Deslizar a la izquierda"
+              disabled={!canScrollLeft}
+            >
+              <ChevronLeft size={12} />
+            </button>
+            <button
+              style={{
+                ...styles.scrollArrowBtn,
+                opacity: canScrollRight ? 1 : 0.4,
+                cursor: canScrollRight ? 'pointer' : 'default'
+              }}
+              onClick={() => handleScrollBreadcrumb('right')}
+              title="Deslizar a la derecha"
+              disabled={!canScrollRight}
+            >
+              <ChevronRight size={12} />
+            </button>
+
+            {/* Tree View popup button */}
+            <button
+              style={{
+                ...styles.treeToggleBtn,
+                ...(showTreeDropdown ? styles.treeToggleBtnActive : {})
+              }}
+              onClick={() => setShowTreeDropdown((prev) => !prev)}
+              title={`Ver árbol DOM completo (${layers.length} componentes)`}
+            >
+              <ListTree size={12} />
+              <span>Árbol DOM</span>
+              <ChevronDown
+                size={11}
+                style={{
+                  transform: showTreeDropdown ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s ease'
+                }}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Dedicated 100% Full-Width Breadcrumb Track */}
+        <div style={styles.breadcrumbTrackWrapper}>
+          <div
+            ref={breadcrumbScrollRef}
+            style={styles.breadcrumbScroll}
+            className="custom-scrollbar"
+            onScroll={checkBreadcrumbScroll}
+            onWheel={(e) => {
+              if (breadcrumbScrollRef.current) {
+                breadcrumbScrollRef.current.scrollLeft += (e.deltaY !== 0 ? e.deltaY : e.deltaX) * 1.2;
+                checkBreadcrumbScroll();
+              }
             }}
-            onClick={() => setShowTreeDropdown((prev) => !prev)}
-            title={`Ver árbol DOM completo (${layers.length} componentes)`}
-          >
-            <ListTree size={11} />
-            <span>{layers.length}</span>
-            <ChevronDown size={10} style={{ transform: showTreeDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
-          </button>
-        </div>
-
-        {/* Scroll Left Button if overflowing */}
-        {canScrollLeft && (
-          <button
-            style={styles.scrollArrowBtn}
-            onClick={() => handleScrollBreadcrumb('left')}
-            title="Deslizar a la izquierda"
-          >
-            <ChevronLeft size={13} />
-          </button>
-        )}
-
-        <div
-          ref={breadcrumbScrollRef}
-          style={styles.breadcrumbScroll}
-          className="custom-scrollbar"
-          onScroll={checkBreadcrumbScroll}
-          onWheel={(e) => {
-            if (e.deltaY !== 0) {
-              e.currentTarget.scrollLeft += e.deltaY;
+            onMouseDown={(e) => {
+              if (e.target.closest('button')) return;
+              isDraggingBreadcrumbRef.current = true;
+              dragStartXRef.current = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
+              dragScrollLeftRef.current = breadcrumbScrollRef.current?.scrollLeft || 0;
+            }}
+            onMouseMove={(e) => {
+              if (!isDraggingBreadcrumbRef.current || !breadcrumbScrollRef.current) return;
+              e.preventDefault();
+              const x = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
+              const walk = (x - dragStartXRef.current) * 1.5;
+              breadcrumbScrollRef.current.scrollLeft = dragScrollLeftRef.current - walk;
               checkBreadcrumbScroll();
-            }
-          }}
-          onMouseDown={(e) => {
-            if (e.target.closest('button')) return;
-            isDraggingBreadcrumbRef.current = true;
-            dragStartXRef.current = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
-            dragScrollLeftRef.current = breadcrumbScrollRef.current?.scrollLeft || 0;
-          }}
-          onMouseMove={(e) => {
-            if (!isDraggingBreadcrumbRef.current || !breadcrumbScrollRef.current) return;
-            e.preventDefault();
-            const x = e.pageX - (breadcrumbScrollRef.current?.offsetLeft || 0);
-            const walk = (x - dragStartXRef.current) * 1.5;
-            breadcrumbScrollRef.current.scrollLeft = dragScrollLeftRef.current - walk;
-            checkBreadcrumbScroll();
-          }}
-          onMouseUp={() => {
-            isDraggingBreadcrumbRef.current = false;
-          }}
-          onMouseLeave={() => {
-            isDraggingBreadcrumbRef.current = false;
-          }}
-        >
-          {layers.map((layer, idx) => {
-            const isSelected = idx === selectedLayerIdx;
-            const primaryClass = layer.className && typeof layer.className === 'string'
-              ? layer.className.trim().split(' ')[0]
-              : '';
-            return (
-              <React.Fragment key={idx}>
-                {idx > 0 && <ChevronRight size={11} color="rgba(255, 255, 255, 0.3)" style={{ flexShrink: 0 }} />}
-                <button
-                  data-layer-idx={idx}
-                  style={{
-                    ...styles.breadcrumbPill,
-                    ...(isSelected ? styles.breadcrumbPillActive : {})
-                  }}
-                  onClick={() => setSelectedLayerIdx(idx)}
-                  title={`Seleccionar <${layer.tagName.toLowerCase()}> (Capa ${idx + 1})`}
-                >
-                  <span style={styles.breadcrumbTag}>{layer.tagName.toLowerCase()}</span>
-                  {primaryClass && (
-                    <span style={styles.breadcrumbClass}>.{primaryClass.slice(0, 18)}</span>
-                  )}
-                </button>
-              </React.Fragment>
-            );
-          })}
-        </div>
-
-        {/* Scroll Right Button if overflowing */}
-        {canScrollRight && (
-          <button
-            style={styles.scrollArrowBtn}
-            onClick={() => handleScrollBreadcrumb('right')}
-            title="Deslizar a la derecha"
+            }}
+            onMouseUp={() => {
+              isDraggingBreadcrumbRef.current = false;
+            }}
+            onMouseLeave={() => {
+              isDraggingBreadcrumbRef.current = false;
+            }}
           >
-            <ChevronRight size={13} />
-          </button>
-        )}
+            {layers.map((layer, idx) => {
+              const isSelected = idx === selectedLayerIdx;
+              const primaryClass = layer.className && typeof layer.className === 'string'
+                ? layer.className.trim().split(/\s+/)[0]
+                : '';
+              const id = layer.id && typeof layer.id === 'string' ? layer.id.trim() : '';
+
+              return (
+                <React.Fragment key={idx}>
+                  {idx > 0 && (
+                    <ChevronRight
+                      size={11}
+                      color="rgba(255, 255, 255, 0.25)"
+                      style={{ flexShrink: 0, margin: '0 1px' }}
+                    />
+                  )}
+                  <button
+                    data-layer-idx={idx}
+                    style={{
+                      ...styles.breadcrumbPill,
+                      ...(isSelected ? styles.breadcrumbPillActive : {})
+                    }}
+                    onClick={(e) => {
+                      setSelectedLayerIdx(idx);
+                      e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }}
+                    title={`<${layer.tagName.toLowerCase()}${id ? '#' + id : ''}${primaryClass ? '.' + primaryClass : ''}> (Nivel ${idx + 1})`}
+                  >
+                    <span style={styles.breadcrumbTag}>{layer.tagName.toLowerCase()}</span>
+                    {id && <span style={styles.breadcrumbId}>#{id.slice(0, 14)}</span>}
+                    {primaryClass && <span style={styles.breadcrumbClass}>.{primaryClass.slice(0, 18)}</span>}
+                    {isSelected && <span style={styles.activeDot} />}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Tree Dropdown Flyout */}
         {showTreeDropdown && (
@@ -1197,6 +1264,7 @@ Alignment: ${s.alignItems || 'stretch'} / ${s.justifyContent || 'flex-start'}`;
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -1214,19 +1282,18 @@ const styles = {
     flexDirection: 'column',
     fontFamily: 'Lato, -apple-system, sans-serif',
     backdropFilter: 'blur(24px)',
-    transition: 'width 0.05s ease',
     overflow: 'hidden',
     maxWidth: '100vw',
     boxSizing: 'border-box'
   },
   resizerHandle: {
     position: 'absolute',
-    left: 0,
+    left: '-4px',
     top: 0,
     bottom: 0,
-    width: '6px',
-    cursor: 'ew-resize',
-    zIndex: 10,
+    width: '8px',
+    cursor: 'col-resize',
+    zIndex: 99,
     background: 'transparent',
     transition: 'background 0.2s'
   },
@@ -1260,10 +1327,21 @@ const styles = {
     border: '1px solid rgba(255, 255, 255, 0.1)'
   },
   title: {
-    fontSize: '13.5px',
-    fontWeight: '800',
+    fontSize: '13px',
+    fontWeight: '700',
     color: '#ffffff',
-    letterSpacing: '0.3px'
+    letterSpacing: '-0.01em',
+    fontFamily: "'Lato', sans-serif"
+  },
+  versionBadge: {
+    fontSize: '9.5px',
+    fontWeight: '800',
+    padding: '1px 6px',
+    borderRadius: '4px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: '0.5px'
   },
   subtitle: {
     fontSize: '11px',
@@ -1328,35 +1406,55 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.15s ease'
   },
-  breadcrumbBar: {
+  breadcrumbSection: {
     display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '7px 12px',
-    background: 'rgba(0, 0, 0, 0.40)',
+    flexDirection: 'column',
+    background: 'rgba(10, 11, 16, 0.70)',
     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
     flexShrink: 0,
     width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-    boxSizing: 'border-box',
     position: 'relative',
-    overflow: 'hidden'
+    boxSizing: 'border-box'
   },
-  breadcrumbHeader: {
+  breadcrumbHeaderRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '5px',
-    flexShrink: 0,
+    justifyContent: 'space-between',
+    padding: '7px 12px 4px 12px',
     userSelect: 'none'
   },
+  breadcrumbHeaderLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
   breadcrumbLabel: {
-    fontSize: '10.5px',
-    color: 'rgba(255, 255, 255, 0.55)',
+    fontSize: '11px',
+    color: 'rgba(255, 255, 255, 0.7)',
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: '0.4px',
-    whiteSpace: 'nowrap'
+    letterSpacing: '0.5px'
+  },
+  breadcrumbBadge: {
+    fontSize: '10px',
+    fontWeight: '700',
+    color: 'var(--accent)',
+    background: 'rgba(240, 185, 11, 0.12)',
+    border: '1px solid rgba(240, 185, 11, 0.25)',
+    padding: '1px 6px',
+    borderRadius: '10px'
+  },
+  breadcrumbHeaderRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px'
+  },
+  breadcrumbTrackWrapper: {
+    width: '100%',
+    padding: '0 10px 6px 10px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    alignItems: 'center'
   },
   breadcrumbScroll: {
     display: 'flex',
@@ -1364,10 +1462,8 @@ const styles = {
     gap: '4px',
     overflowX: 'auto',
     overflowY: 'hidden',
-    flex: '1 1 0%',
-    minWidth: 0,
-    maxWidth: '100%',
-    paddingBottom: '3px',
+    width: '100%',
+    paddingBottom: '4px',
     paddingTop: '2px',
     scrollBehavior: 'smooth',
     WebkitOverflowScrolling: 'touch',
@@ -1377,11 +1473,11 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
-    padding: '3px 8px',
-    borderRadius: '5px',
-    background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid rgba(255, 255, 255, 0.10)',
-    color: 'rgba(255, 255, 255, 0.75)',
+    padding: '4px 9px',
+    borderRadius: '6px',
+    background: 'rgba(255, 255, 255, 0.04)',
+    border: '1px solid rgba(255, 255, 255, 0.09)',
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: '11px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
@@ -1389,43 +1485,59 @@ const styles = {
     transition: 'all 0.15s ease'
   },
   breadcrumbPillActive: {
-    background: 'rgba(240, 185, 11, 0.18)',
+    background: 'rgba(240, 185, 11, 0.14)',
     borderColor: 'var(--accent)',
     color: '#ffffff',
-    boxShadow: '0 0 8px rgba(240, 185, 11, 0.25)'
+    boxShadow: '0 0 10px rgba(240, 185, 11, 0.22)'
   },
   breadcrumbTag: {
     fontFamily: 'JetBrains Mono, monospace',
     fontWeight: '700',
-    color: 'var(--accent)'
+    color: '#38bdf8'
+  },
+  breadcrumbId: {
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: '10px',
+    color: '#fbbf24',
+    fontWeight: '600'
   },
   breadcrumbClass: {
     fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.55)'
+    color: 'rgba(255, 255, 255, 0.55)',
+    fontFamily: 'JetBrains Mono, monospace'
+  },
+  activeDot: {
+    width: '5px',
+    height: '5px',
+    borderRadius: '50%',
+    background: 'var(--accent)',
+    marginLeft: '2px',
+    boxShadow: '0 0 6px var(--accent)'
   },
   scrollArrowBtn: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     width: '20px',
-    height: '22px',
+    height: '20px',
     borderRadius: '4px',
-    background: 'rgba(255, 255, 255, 0.08)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    color: '#ffffff',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.10)',
+    color: 'rgba(255, 255, 255, 0.8)',
     cursor: 'pointer',
     flexShrink: 0,
-    transition: 'all 0.15s ease'
+    transition: 'all 0.15s ease',
+    padding: 0
   },
   treeToggleBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '3px',
-    padding: '2px 6px',
+    gap: '4px',
+    padding: '3px 7px',
     borderRadius: '5px',
     background: 'rgba(255, 255, 255, 0.06)',
     border: '1px solid rgba(255, 255, 255, 0.12)',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(255, 255, 255, 0.85)',
     fontSize: '10.5px',
     fontWeight: '700',
     cursor: 'pointer',
@@ -1927,8 +2039,8 @@ const styles = {
     wordBreak: 'break-word'
   },
   figmaHeroCard: {
-    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.12), rgba(6, 182, 212, 0.08))',
-    border: '1px solid rgba(139, 92, 246, 0.3)',
+    background: '#18181b',
+    border: '1px solid #27272a',
     borderRadius: '12px',
     padding: '14px',
     display: 'flex',
@@ -1944,7 +2056,8 @@ const styles = {
     width: '36px',
     height: '36px',
     borderRadius: '10px',
-    background: 'rgba(139, 92, 246, 0.2)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

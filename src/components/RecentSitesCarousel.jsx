@@ -369,9 +369,9 @@ const AUTOPLAY_INTERVAL_MS = 6000;
 
 const springTransition = {
   type: 'spring',
-  stiffness: 65,
-  damping: 18,
-  mass: 0.7,
+  stiffness: 42,
+  damping: 17,
+  mass: 0.95,
 };
 
 const RADIUS_MIN = 220;
@@ -382,10 +382,10 @@ const PERSPECTIVE_MULTIPLIER = 2.6;
 // Subtle tilt: reduced from 38° down to 12° so cards stand upright and readable!
 const RING_TILT_DEG = 12;
 
-const CROSSFADE_DURATION_S = 0.35;
-const CROSSFADE_EASE = [0.22, 1, 0.36, 1];
+const CROSSFADE_DURATION_S = 0.55;
+const CROSSFADE_EASE = [0.16, 1, 0.3, 1];
 
-export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNavigate }) {
+export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNavigate, isMobile = false }) {
   const containerRef = useRef(null);
   const [rotation, setRotation] = useState(0);
   const [radius, setRadius] = useState(260);
@@ -398,22 +398,62 @@ export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNa
   const centerIndex = ((-steps % numItems) + numItems) % numItems;
   const centerItem = items[centerIndex] || items[0];
 
+  // Touch drag swipe state for mobile & tablet finger interaction (User Request)
+  const touchStartXRef = useRef(0);
+  const touchStartYRef = useRef(0);
+  const touchStartRotationRef = useRef(0);
+  const isSwipingRef = useRef(false);
+
+  const handleTouchStart = (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartRotationRef.current = rotation;
+    isSwipingRef.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    const deltaX = e.touches[0].clientX - touchStartXRef.current;
+    const deltaY = e.touches[0].clientY - touchStartYRef.current;
+
+    // Detect horizontal swipe gesture
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 6) {
+      isSwipingRef.current = true;
+      const angleDelta = deltaX * 0.42;
+      setRotation(touchStartRotationRef.current + angleDelta);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isSwipingRef.current) return;
+    // Snap cleanly to the nearest card angle
+    setRotation((prev) => {
+      const nearestStep = Math.round(prev / angleStep);
+      return nearestStep * angleStep;
+    });
+    isSwipingRef.current = false;
+  };
+
   useEffect(() => {
     const updateRadius = () => {
       if (!containerRef.current) return;
       const width = containerRef.current.offsetWidth;
+      const minR = isMobile ? 180 : RADIUS_MIN;
+      const maxR = isMobile ? 250 : RADIUS_MAX;
       setRadius(
-        Math.max(RADIUS_MIN, Math.min(RADIUS_MAX, width * RADIUS_WIDTH_RATIO))
+        Math.max(minR, Math.min(maxR, width * (isMobile ? 0.38 : RADIUS_WIDTH_RATIO)))
       );
     };
     updateRadius();
     window.addEventListener('resize', updateRadius);
     return () => window.removeEventListener('resize', updateRadius);
-  }, []);
+  }, [isMobile]);
 
-  // Continuous Auto-rotation every 2.8s
+  // Continuous Auto-rotation every 6s
   useEffect(() => {
     const interval = setInterval(() => {
+      if (isSwipingRef.current) return;
       setRotation((prev) => prev + angleStep);
     }, AUTOPLAY_INTERVAL_MS);
     return () => clearInterval(interval);
@@ -449,21 +489,33 @@ export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNa
 
   return (
     <div className="carousel360-wrapper">
-      {/* 3D Cylinder Container */}
-      <div ref={containerRef} className="carousel360-container">
-        {/* Bare Floating Side Navigation Arrow: Left (<) - Zero Container */}
-        <button
-          type="button"
-          aria-label="Pestaña anterior"
-          onClick={(e) => {
-            e.stopPropagation();
-            rotateCarousel('left');
-          }}
-          className="carousel360-side-btn left"
-          title="Anterior"
-        >
-          <ChevronLeft size={28} strokeWidth={2.2} />
-        </button>
+      {/* 3D Cylinder Container with touch swipe handlers for mobile */}
+      <div
+        ref={containerRef}
+        className="carousel360-container"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{
+          height: isMobile ? '260px' : '340px'
+        }}
+      >
+        {/* Bare Floating Side Navigation Arrow: Left (<) */}
+        {!isMobile && (
+          <button
+            type="button"
+            aria-label="Pestaña anterior"
+            onClick={(e) => {
+              e.stopPropagation();
+              rotateCarousel('left');
+            }}
+            className="carousel360-side-btn left"
+            title="Anterior"
+          >
+            <ChevronLeft size={28} strokeWidth={2.2} />
+          </button>
+        )}
 
         {/* 3D Stage Ring */}
         <div
@@ -497,8 +549,8 @@ export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNa
                   className="carousel360-ring-card"
                   style={{
                     transformStyle: 'preserve-3d',
-                    width: '150px',
-                    height: '100px',
+                    width: isMobile ? '110px' : '150px',
+                    height: isMobile ? '75px' : '100px',
                     opacity: isCurrentCenter ? 0.2 : 0.95
                   }}
                   animate={{
@@ -596,8 +648,8 @@ export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNa
               }}
               className="carousel360-center-card"
               style={{
-                width: '350px',
-                height: '230px',
+                width: isMobile ? '280px' : '350px',
+                height: isMobile ? '180px' : '230px',
                 pointerEvents: 'auto'
               }}
               onClick={() => handleItemClick(centerItem)}
@@ -704,18 +756,20 @@ export function RecentSitesCarousel({ tabs = [], history = [], onSelectTab, onNa
         </div>
 
         {/* Bare Floating Side Navigation Arrow: Right (>) - Zero Container */}
-        <button
-          type="button"
-          aria-label="Siguiente pestaña"
-          onClick={(e) => {
-            e.stopPropagation();
-            rotateCarousel('right');
-          }}
-          className="carousel360-side-btn right"
-          title="Siguiente"
-        >
-          <ChevronRight size={28} strokeWidth={2.2} />
-        </button>
+        {!isMobile && (
+          <button
+            type="button"
+            aria-label="Siguiente pestaña"
+            onClick={(e) => {
+              e.stopPropagation();
+              rotateCarousel('right');
+            }}
+            className="carousel360-side-btn right"
+            title="Siguiente"
+          >
+            <ChevronRight size={28} strokeWidth={2.2} />
+          </button>
+        )}
       </div>
     </div>
   );

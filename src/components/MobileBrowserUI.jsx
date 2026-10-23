@@ -52,7 +52,9 @@ export default function MobileBrowserUI({
   theme,
   onToggleTheme,
   isBookmarked,
-  onToggleBookmark
+  onToggleBookmark,
+  isEmbedded = false,
+  hasDynamicIsland = false
 }) {
   const [isTabsOpen, setIsTabsOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -162,14 +164,20 @@ export default function MobileBrowserUI({
   return (
     <>
       {/* 1. Mobile Top Address Bar (Chrome Mobile Layout) */}
-      <div style={styles.mobileTopBar}>
+      <div
+        style={{
+          ...styles.mobileTopBar,
+          ...(isEmbedded ? { position: 'relative', width: '100%', boxSizing: 'border-box' } : {}),
+          ...(hasDynamicIsland ? { height: '72px', paddingTop: '22px' } : {})
+        }}
+      >
         {/* Shield with blocked ads badge */}
         <button
           style={styles.shieldBtn}
           onClick={onToggleShieldModal}
           title="Escudo de Privacidad"
         >
-          <Shield size={16} color="var(--accent)" />
+          <Shield size={16} color="#ffffff" />
           {blockedCount > 0 && <span style={styles.shieldBadge}>{blockedCount}</span>}
         </button>
 
@@ -184,7 +192,7 @@ export default function MobileBrowserUI({
         >
           {isEditingUrl ? (
             <form onSubmit={handleSubmitUrl} style={styles.urlForm}>
-              <Search size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              <Search size={14} color="rgba(255, 255, 255, 0.6)" style={{ flexShrink: 0 }} />
               <input
                 ref={inputRef}
                 type="text"
@@ -195,7 +203,7 @@ export default function MobileBrowserUI({
               />
               <button
                 type="button"
-                style={{ ...styles.clearBtn, color: isVoiceListening ? '#ef4444' : 'var(--text-muted)' }}
+                style={{ ...styles.clearBtn, color: isVoiceListening ? '#ef4444' : 'rgba(255, 255, 255, 0.7)' }}
                 onClick={toggleVoice}
                 title="Búsqueda por voz"
               >
@@ -217,7 +225,7 @@ export default function MobileBrowserUI({
             </form>
           ) : (
             <div style={styles.capsuleContent}>
-              <Lock size={12} color="var(--accent)" style={{ flexShrink: 0 }} />
+              <Lock size={12} color="#ffffff" style={{ flexShrink: 0 }} />
               <span style={styles.domainText}>{getDisplayDomain()}</span>
             </div>
           )}
@@ -247,7 +255,7 @@ export default function MobileBrowserUI({
 
       {/* Quick Search Suggestions when editing URL */}
       {isEditingUrl && (
-        <div style={styles.searchOverlay} onClick={() => setIsEditingUrl(false)}>
+        <div style={{ ...styles.searchOverlay, ...(isEmbedded ? { position: 'absolute', inset: 0 } : {}) }} onClick={() => setIsEditingUrl(false)}>
           <div style={styles.searchSheet} onClick={(e) => e.stopPropagation()}>
             <div style={styles.searchShortcutsTitle}>Accesos Rápidos</div>
             <div style={styles.shortcutsRow}>
@@ -283,7 +291,7 @@ export default function MobileBrowserUI({
       )}
 
       {/* 2. Mobile Fixed Bottom Navigation Bar (Chrome Mobile style) */}
-      <div style={styles.mobileBottomBar}>
+      <div style={{ ...styles.mobileBottomBar, ...(isEmbedded ? { position: 'absolute', bottom: 0, left: 0, right: 0 } : {}) }}>
         {/* Back Button */}
         <button
           style={{ ...styles.navBtn, opacity: canGoBack ? 1 : 0.3 }}
@@ -331,13 +339,13 @@ export default function MobileBrowserUI({
           onClick={onToggleBookmark}
           title={isBookmarked ? 'Eliminar de favoritos' : 'Añadir a favoritos'}
         >
-          <Star size={20} fill={isBookmarked ? 'var(--accent)' : 'none'} color={isBookmarked ? 'var(--accent)' : 'var(--text-primary)'} />
+          <Star size={20} fill={isBookmarked ? '#ffffff' : 'none'} color="#ffffff" />
         </button>
       </div>
 
       {/* 3. Mobile Native Tabs Grid Sheet (Full-Screen Switcher) */}
       {isTabsOpen && (
-        <div style={styles.tabsModalOverlay} className="animate-fade-in">
+        <div style={{ ...styles.tabsModalOverlay, ...(isEmbedded ? { position: 'absolute', inset: 0 } : {}) }} className="animate-fade-in">
           <div style={styles.tabsModalHeader}>
             <button
               style={styles.tabsHeaderBtn}
@@ -353,7 +361,7 @@ export default function MobileBrowserUI({
             <span style={styles.tabsHeaderTitle}>Pestañas ({tabs.length})</span>
 
             <button
-              style={{ ...styles.tabsHeaderBtn, fontWeight: '700', color: 'var(--accent)' }}
+              style={{ ...styles.tabsHeaderBtn, fontWeight: '700', color: '#ffffff' }}
               onClick={() => setIsTabsOpen(false)}
             >
               Listo
@@ -369,8 +377,8 @@ export default function MobileBrowserUI({
                   key={tab.id}
                   style={{
                     ...styles.tabCard,
-                    borderColor: isActive ? 'var(--accent)' : 'var(--border-subtle)',
-                    boxShadow: isActive ? '0 0 16px var(--accent-glow)' : '0 4px 12px rgba(0,0,0,0.4)'
+                    borderColor: isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.12)',
+                    boxShadow: isActive ? '0 0 16px rgba(255, 255, 255, 0.22)' : '0 4px 12px rgba(0,0,0,0.5)'
                   }}
                   onClick={() => {
                     onSelectTab(tab.id);
@@ -382,7 +390,7 @@ export default function MobileBrowserUI({
                       {tab.favicon ? (
                         <img src={tab.favicon} alt="" style={{ width: 14, height: 14, borderRadius: '50%' }} />
                       ) : (
-                        <Globe size={13} color="var(--accent)" />
+                        <Globe size={13} color="#ffffff" />
                       )}
                     </div>
                     <span style={styles.tabCardTitle}>{tab.title || (tab.isNewTab ? 'Nueva Pestaña' : 'Página')}</span>
@@ -431,7 +439,7 @@ export default function MobileBrowserUI({
 
       {/* 4. Mobile Action Bottom Sheet */}
       {isMenuOpen && (
-        <div style={styles.sheetBackdrop} onClick={() => setIsMenuOpen(false)}>
+        <div style={{ ...styles.sheetBackdrop, ...(isEmbedded ? { position: 'absolute', inset: 0 } : {}) }} onClick={() => setIsMenuOpen(false)}>
           <div style={styles.sheetPanel} className="animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div style={styles.dragHandle} />
 
@@ -547,8 +555,8 @@ const styles = {
     height: '50px',
     display: 'flex',
     alignItems: 'center',
-    background: 'var(--bg-secondary)',
-    borderBottom: '1px solid var(--border-subtle)',
+    background: '#07080b',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
     padding: '0 10px',
     gap: '8px',
     zIndex: 90,
@@ -563,15 +571,15 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     background: 'rgba(255, 255, 255, 0.05)',
-    border: '1px solid var(--border-subtle)',
+    border: '1px solid rgba(255, 255, 255, 0.14)',
     flexShrink: 0
   },
   shieldBadge: {
     position: 'absolute',
     top: '-3px',
     right: '-3px',
-    background: 'var(--accent)',
-    color: '#000',
+    background: '#ffffff',
+    color: '#000000',
     fontSize: '9px',
     fontWeight: '800',
     padding: '1px 4px',
@@ -581,8 +589,9 @@ const styles = {
     flex: 1,
     height: '34px',
     borderRadius: '9999px',
-    background: 'rgba(255, 255, 255, 0.06)',
-    border: '1px solid var(--border-subtle)',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.14)',
+    boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     padding: '0 12px',
@@ -599,7 +608,7 @@ const styles = {
   domainText: {
     fontSize: '12.5px',
     fontWeight: '600',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
@@ -614,13 +623,13 @@ const styles = {
     flex: 1,
     background: 'transparent',
     border: 'none',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     fontSize: '13px',
     outline: 'none',
     width: '100%'
   },
   clearBtn: {
-    color: 'var(--text-muted)',
+    color: 'rgba(255, 255, 255, 0.5)',
     display: 'flex',
     alignItems: 'center',
     padding: '2px'
@@ -632,7 +641,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     flexShrink: 0
   },
   mobileBottomBar: {
@@ -641,14 +650,14 @@ const styles = {
     left: 0,
     right: 0,
     height: '56px',
-    background: 'var(--bg-secondary)',
-    borderTop: '1px solid var(--border-subtle)',
+    background: '#07080b',
+    borderTop: '1px solid rgba(255, 255, 255, 0.12)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-around',
     padding: '0 8px',
     zIndex: 90,
-    boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.4)'
+    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.8)'
   },
   navBtn: {
     width: '44px',
@@ -657,23 +666,23 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     transition: 'all 0.15s ease'
   },
   newTabBtn: {
     width: '38px',
     height: '38px',
     borderRadius: '50%',
-    background: 'var(--accent)',
+    background: '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 10px var(--accent-glow)'
+    boxShadow: '0 0 16px rgba(255, 255, 255, 0.35)'
   },
   tabsBadgeBox: {
     width: '21px',
     height: '21px',
-    border: '2px solid var(--text-primary)',
+    border: '1.8px solid #ffffff',
     borderRadius: '6px',
     display: 'flex',
     alignItems: 'center',
@@ -682,13 +691,13 @@ const styles = {
   tabsBadgeText: {
     fontSize: '11px',
     fontWeight: '800',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     lineHeight: 1
   },
   tabsModalOverlay: {
     position: 'fixed',
     inset: 0,
-    background: 'var(--bg-primary)',
+    background: '#07080b',
     zIndex: 1000,
     display: 'flex',
     flexDirection: 'column',
@@ -700,8 +709,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 16px',
-    borderBottom: '1px solid var(--border-subtle)',
-    background: 'var(--bg-secondary)'
+    borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+    background: '#0c0d12'
   },
   tabsHeaderBtn: {
     display: 'flex',
@@ -709,14 +718,14 @@ const styles = {
     gap: '4px',
     fontSize: '14px',
     fontWeight: '600',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     padding: '6px 10px',
     borderRadius: '6px'
   },
   tabsHeaderTitle: {
     fontSize: '15px',
     fontWeight: '700',
-    color: 'var(--text-primary)'
+    color: '#ffffff'
   },
   tabsGrid: {
     flex: 1,
@@ -728,9 +737,9 @@ const styles = {
   },
   tabCard: {
     height: '140px',
-    borderRadius: '12px',
-    border: '1.5px solid var(--border-subtle)',
-    background: 'var(--bg-secondary)',
+    borderRadius: '14px',
+    border: '1.5px solid rgba(255, 255, 255, 0.12)',
+    background: '#0e1017',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -743,8 +752,8 @@ const styles = {
     alignItems: 'center',
     padding: '0 8px',
     gap: '6px',
-    borderBottom: '1px solid var(--border-subtle)',
-    background: 'rgba(255, 255, 255, 0.03)'
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+    background: 'rgba(255, 255, 255, 0.04)'
   },
   tabCardFavicon: {
     width: '14px',
@@ -758,7 +767,7 @@ const styles = {
     flex: 1,
     fontSize: '11px',
     fontWeight: '600',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
@@ -770,7 +779,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: 'var(--text-muted)'
+    color: 'rgba(255, 255, 255, 0.6)'
   },
   tabCardPreview: {
     flex: 1,
@@ -780,11 +789,11 @@ const styles = {
     justifyContent: 'center',
     gap: '8px',
     padding: '12px',
-    background: 'rgba(0, 0, 0, 0.2)'
+    background: 'rgba(0, 0, 0, 0.35)'
   },
   tabCardDomain: {
     fontSize: '11px',
-    color: 'var(--text-muted)',
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
     wordBreak: 'break-all'
   },
@@ -793,8 +802,8 @@ const styles = {
     fontWeight: '800',
     padding: '2px 6px',
     borderRadius: '4px',
-    background: 'var(--accent)',
-    color: '#000',
+    background: '#ffffff',
+    color: '#000000',
     textTransform: 'uppercase'
   },
   tabsModalFooter: {
@@ -802,8 +811,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderTop: '1px solid var(--border-subtle)',
-    background: 'var(--bg-secondary)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.12)',
+    background: '#0c0d12',
     padding: '0 16px'
   },
   closeAllBtn: {
@@ -828,20 +837,20 @@ const styles = {
   sheetPanel: {
     width: '100%',
     maxHeight: '70vh',
-    background: 'var(--bg-secondary)',
+    background: '#0c0d12',
     borderTopLeftRadius: '20px',
     borderTopRightRadius: '20px',
-    borderTop: '1px solid var(--border-subtle)',
+    borderTop: '1px solid rgba(255, 255, 255, 0.15)',
     padding: '12px 16px 28px',
     display: 'flex',
     flexDirection: 'column',
-    boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.7)'
+    boxShadow: '0 -10px 40px rgba(0, 0, 0, 0.85)'
   },
   dragHandle: {
     width: '36px',
     height: '4px',
     borderRadius: '2px',
-    background: 'rgba(255, 255, 255, 0.2)',
+    background: 'rgba(255, 255, 255, 0.25)',
     margin: '0 auto 12px'
   },
   sheetHeader: {
@@ -850,12 +859,12 @@ const styles = {
     justifyContent: 'space-between',
     marginBottom: '16px',
     paddingBottom: '8px',
-    borderBottom: '1px solid var(--border-subtle)'
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
   },
   sheetTitle: {
     fontSize: '15px',
     fontWeight: '800',
-    color: 'var(--text-primary)',
+    color: '#ffffff',
     letterSpacing: '1px'
   },
   sheetCloseBtn: {

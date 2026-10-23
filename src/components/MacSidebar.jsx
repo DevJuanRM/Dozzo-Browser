@@ -20,7 +20,8 @@ import {
   Globe,
   FileText,
   Bot,
-  Settings
+  Settings,
+  Home
 } from 'lucide-react';
 
 // Official SVG Brand Icons with pixel-perfect vectors (Strictly Monochrome)
@@ -55,6 +56,16 @@ const AppIcons = {
   ),
   Notes: () => <FileText size={18} strokeWidth={2} />,
   AI: () => <Bot size={18} strokeWidth={2} />,
+  Coinbase: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 24C5.373 24 0 18.627 0 12S5.373 0 12 0s12 5.373 12 12-5.373 12-12 12zm0-19.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15zm-2.25 5.25h4.5a2.25 2.25 0 0 1 2.25 2.25v0a2.25 2.25 0 0 1-2.25 2.25h-4.5A2.25 2.25 0 0 1 7.5 12v0a2.25 2.25 0 0 1 2.25-2.25z" />
+    </svg>
+  ),
+  Polymarket: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2L2 7.7v8.6L12 22l10-5.7V7.7L12 2zm0 2.9l7.5 4.3v6.6L12 19.1l-7.5-4.3V9.2L12 4.9zm-4.5 4.8L12 12l4.5-2.3L12 7.4 7.5 9.7zm0 4.6L12 16.6l4.5-2.3L12 12l-4.5 2.3z" />
+    </svg>
+  ),
   Settings: () => <Settings size={18} strokeWidth={2} />
 };
 
@@ -87,7 +98,7 @@ function useVerticalDock() {
  * - Center Y is stable and never fluctuates during spring animation.
  * - Absolutely zero trembling ("sin temblores"), perfectly smooth Apple macOS Dock feel.
  */
-function DockItem({ children, onClick, active = false, className = "", style = {} }) {
+function DockItem({ children, onClick, onContextMenu, active = false, className = "", style = {} }) {
   const slotRef = useRef(null);
   const { mouseY, distance, maxScale, spring } = useVerticalDock();
   const [isHovered, setIsHovered] = useState(false);
@@ -133,6 +144,7 @@ function DockItem({ children, onClick, active = false, className = "", style = {
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onContextMenu={onContextMenu}
     >
       <motion.div
         style={{
@@ -152,41 +164,46 @@ function DockItem({ children, onClick, active = false, className = "", style = {
         }}
         className={className}
         onClick={onClick}
+        onContextMenu={onContextMenu}
       >
         {React.Children.map(children, (child) => {
-          if (!child) return null;
+          if (!child || child.type === DockLabel) return null;
           return React.cloneElement(child, {
             isHovered,
-            isTabActive: active,
-            targetRect: rect
+            isTabActive: active
           });
         })}
       </motion.div>
+
+      {/* Render tooltip label directly beside the icon, immune to parent CSS transform scale bugs */}
+      {React.Children.map(children, (child) => {
+        if (!child || child.type !== DockLabel) return null;
+        return React.cloneElement(child, {
+          isHovered
+        });
+      })}
     </div>
   );
 }
 
 /**
  * DockLabel:
- * Rendered with position: fixed so it can NEVER be clipped by any parent container or overflow!
+ * Rendered alongside the 38x38 icon slot so it is perfectly aligned horizontally and vertically.
  */
-function DockLabel({ children, isHovered, targetRect }) {
+function DockLabel({ children, isHovered }) {
   if (!isHovered) return null;
-
-  const left = targetRect ? Math.round(targetRect.right + 12) : 64;
-  const top = targetRect ? Math.round(targetRect.top + targetRect.height / 2) : 100;
 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, x: -8, scale: 0.94 }}
+        initial={{ opacity: 0, x: -6, scale: 0.94 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
-        exit={{ opacity: 0, x: -6, scale: 0.94 }}
+        exit={{ opacity: 0, x: -4, scale: 0.94 }}
         transition={{ duration: 0.14, ease: "easeOut" }}
         style={{
-          position: 'fixed',
-          left: `${left}px`,
-          top: `${top}px`,
+          position: 'absolute',
+          left: 'calc(100% + 12px)',
+          top: '50%',
           transform: 'translateY(-50%)',
           whiteSpace: 'nowrap',
           borderRadius: '9px',
@@ -219,6 +236,8 @@ export default function MacSidebar({
   onSelectTab,
   onCloseTab,
   onNewTab,
+  onGoHome,
+  onTabContextMenu,
   onSelectSideApp,
   activeSideApp = null,
   onOpenSettings
@@ -239,14 +258,15 @@ export default function MacSidebar({
       onMouseLeave={() => mouseY.set(Infinity)}
     >
       <VerticalDockContext.Provider value={dockValue}>
-        {/* TOP SECTION: TABS & NEW TAB BUTTON */}
+        {/* TOP SECTION: HOME & TAB LIST */}
         <div style={styles.tabsSection}>
+          {/* Home button: click to go home or open a new search */}
           <button
-            style={styles.newTabButton}
-            onClick={() => onNewTab && onNewTab()}
-            title="Nueva Pestaña (Ctrl+T)"
+            style={styles.homeButton}
+            onClick={() => onGoHome && onGoHome()}
+            title="Inicio / Nueva Búsqueda (Home)"
           >
-            <Plus size={16} />
+            <Home size={16} />
           </button>
 
           {/* List of open tabs */}
@@ -264,6 +284,11 @@ export default function MacSidebar({
                   boxShadow: isActive ? '0 4px 12px rgba(0, 0, 0, 0.4)' : 'none'
                 }}
                 onClick={() => onSelectTab && onSelectTab(tab.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onTabContextMenu && onTabContextMenu(e, tab.id);
+                }}
               >
                 {/* Clean Favicon Box - 100% Monochrome */}
                 <TabIconBox tab={tab} isActive={isActive} />
@@ -271,7 +296,7 @@ export default function MacSidebar({
                 {/* Active Indicator Bar on Left - Pure Crisp White, ZERO blue */}
                 {isActive && <div style={styles.activeDotPill} />}
 
-                {/* Hover Tooltip: Tab Name with [X] Close button beside the name, NOT over the icon */}
+                {/* Hover Tooltip: Tab Name with [X] Close button beside the name */}
                 <DockLabel>
                   <span style={{ maxWidth: '170px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {title}
@@ -328,9 +353,54 @@ export default function MacSidebar({
           })}
         </div>
 
-        {/* BOTTOM SECTION: SETTINGS ICON PINNED AT THE BOTTOM */}
+        {/* BOTTOM SECTION: COINBASE & POLYMARKET (with margin) + SETTINGS */}
         <div style={styles.settingsSection}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '4px' }}>
+            {/* Coinbase Quick App */}
+            <DockItem
+              active={activeSideApp?.id === 'coinbase'}
+              onClick={() =>
+                onSelectSideApp &&
+                onSelectSideApp({
+                  id: 'coinbase',
+                  name: 'Coinbase',
+                  url: 'https://www.coinbase.com/explore',
+                  icon: AppIcons.Coinbase
+                })
+              }
+            >
+              <AppIconContainer isAppActive={activeSideApp?.id === 'coinbase'}>
+                <AppIcons.Coinbase />
+              </AppIconContainer>
+              <DockLabel>
+                <span>Coinbase</span>
+              </DockLabel>
+            </DockItem>
+
+            {/* Polymarket Quick App */}
+            <DockItem
+              active={activeSideApp?.id === 'polymarket'}
+              onClick={() =>
+                onSelectSideApp &&
+                onSelectSideApp({
+                  id: 'polymarket',
+                  name: 'Polymarket',
+                  url: 'https://polymarket.com',
+                  icon: AppIcons.Polymarket
+                })
+              }
+            >
+              <AppIconContainer isAppActive={activeSideApp?.id === 'polymarket'}>
+                <AppIcons.Polymarket />
+              </AppIconContainer>
+              <DockLabel>
+                <span>Polymarket</span>
+              </DockLabel>
+            </DockItem>
+          </div>
+
           <div style={styles.divider} />
+
           <DockItem
             active={false}
             onClick={() => onOpenSettings && onOpenSettings()}
@@ -431,7 +501,21 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
-    flexShrink: 0
+    flexShrink: 0,
+    paddingTop: '50px'
+  },
+  homeButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '10px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    color: '#ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    transition: 'all 0.18s ease'
   },
   newTabButton: {
     width: '32px',

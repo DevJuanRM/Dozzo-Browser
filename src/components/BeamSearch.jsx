@@ -39,7 +39,7 @@ export function BorderBeam({
   size = "line",
   colorVariant = "colorful",
   duration = 3.1,
-  borderRadius = 20,
+  borderRadius = 26,
   active = false,
   className = "",
   style = {}
@@ -50,12 +50,13 @@ export function BorderBeam({
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: 580,
-        height: 44,
+        maxWidth: 760,
+        height: 52,
         borderRadius: borderRadius,
         padding: '1.5px',
         overflow: 'hidden',
         boxSizing: 'border-box',
+        margin: '0 auto',
         ...style
       }}
     >
@@ -104,6 +105,14 @@ const COMMON_QUICK_SITES = [
   { match: 'sla', title: 'Slack', domain: 'slack.com', url: 'https://slack.com' }
 ];
 
+const TYPEWRITER_PHRASES = [
+  'Buscar en la web o escribir una dirección...',
+  'Cotización de Bitcoin y criptos en vivo...',
+  'Tendencias del S&P 500, NVIDIA y Apple...',
+  'Últimas noticias de tecnología y mercados...',
+  'Escribe cualquier búsqueda o URL para navegar...'
+];
+
 /**
  * BeamSearch with full input functionality, voice search and live autocomplete
  */
@@ -126,10 +135,12 @@ export function BeamSearch({
   const [isOpen, setIsOpen] = useState(false);
   const [introActive, setIntroActive] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [typedPlaceholder, setTypedPlaceholder] = useState('');
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const recognitionRef = useRef(null);
+  const phraseIndexRef = useRef(0);
   const current = value !== undefined ? value : inner;
 
   // Active effect runs on entrance (3.8s), focus, typing, or voice listening
@@ -139,6 +150,64 @@ export function BeamSearch({
     }, 3800);
     return () => clearTimeout(timer);
   }, []);
+
+  // Periodic typewriter animation every 60 seconds (Request 5)
+  useEffect(() => {
+    let typeTimer = null;
+    let holdTimer = null;
+    let eraseTimer = null;
+
+    const runTypewriterCycle = () => {
+      // Don't animate if input has value, is focused, or listening
+      if (focused || current || isListening) return;
+
+      const targetPhrase = TYPEWRITER_PHRASES[phraseIndexRef.current % TYPEWRITER_PHRASES.length];
+      phraseIndexRef.current += 1;
+
+      let charIndex = 0;
+      setTypedPlaceholder('');
+
+      // Type forward character by character
+      const typeChar = () => {
+        if (charIndex <= targetPhrase.length) {
+          setTypedPlaceholder(targetPhrase.slice(0, charIndex));
+          charIndex++;
+          typeTimer = setTimeout(typeChar, 42);
+        } else {
+          // Hold full phrase for 3.5 seconds
+          holdTimer = setTimeout(() => {
+            let eraseIndex = targetPhrase.length;
+            const eraseChar = () => {
+              if (eraseIndex >= 0) {
+                setTypedPlaceholder(targetPhrase.slice(0, eraseIndex));
+                eraseIndex--;
+                eraseTimer = setTimeout(eraseChar, 22);
+              } else {
+                setTypedPlaceholder('');
+              }
+            };
+            eraseChar();
+          }, 3500);
+        }
+      };
+
+      typeChar();
+    };
+
+    // Run first cycle shortly after arrival (4 seconds)
+    const initialTimer = setTimeout(runTypewriterCycle, 4000);
+
+    // Repeat every 60 seconds (1 minute)
+    const interval = setInterval(runTypewriterCycle, 60000);
+
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      if (typeTimer) clearTimeout(typeTimer);
+      if (holdTimer) clearTimeout(holdTimer);
+      if (eraseTimer) clearTimeout(eraseTimer);
+    };
+  }, [focused, current, isListening]);
 
   const isBeamActive = introActive || focused || isListening || Boolean(current && current.length > 0);
 
@@ -328,35 +397,59 @@ export function BeamSearch({
       style={{
         position: 'relative',
         width: '100%',
-        maxWidth: 580,
+        maxWidth: 760,
         margin: '0 auto',
         fontFamily: "'Lato', sans-serif",
         ...style
       }}
     >
       <BorderBeam size="line" colorVariant={colorVariant} duration={duration} borderRadius={22} active={isBeamActive}>
-        <div
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (isOpen && selectedIndex >= 0 && suggestions[selectedIndex]) {
+              handleSelect(suggestions[selectedIndex]);
+            } else {
+              const text = (current || '').trim();
+              if (text) onSubmit?.(text);
+            }
+            setIsOpen(false);
+          }}
           style={{
             position: 'absolute',
             inset: 0,
-            borderRadius: 22,
+            borderRadius: 25,
             background: '#090a0e',
             boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 2px 14px rgba(0, 0, 0, 0.95)',
             display: 'flex',
             alignItems: 'center',
-            padding: '0 14px',
-            gap: 10,
+            padding: '0 18px',
+            gap: 12,
             color: '#6e7079',
             boxSizing: 'border-box'
           }}
         >
-          <SearchIcon />
+          <button
+            type="submit"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              color: 'inherit'
+            }}
+            title="Buscar"
+          >
+            <SearchIcon />
+          </button>
           <input
             ref={inputRef}
             type="text"
             value={current}
             autoFocus={autoFocus}
-            placeholder={isListening ? 'Escuchando tu voz...' : placeholder}
+            placeholder={isListening ? 'Escuchando tu voz...' : (typedPlaceholder || placeholder)}
             onChange={(e) => update(e.target.value)}
             onFocus={() => {
               setFocused(true);
@@ -372,8 +465,8 @@ export function BeamSearch({
               background: 'transparent',
               border: 'none',
               outline: 'none',
-              fontSize: 15,
-              lineHeight: '18px',
+              fontSize: 16,
+              lineHeight: '20px',
               color: '#ffffff',
               caretColor: '#ffffff',
               fontFamily: "'Lato', sans-serif"
@@ -433,7 +526,7 @@ export function BeamSearch({
               <X size={13} />
             </button>
           ) : null}
-        </div>
+        </form>
       </BorderBeam>
 
       {/* Autocomplete Dropdown */}
