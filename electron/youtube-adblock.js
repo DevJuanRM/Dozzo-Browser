@@ -154,7 +154,7 @@
         } catch (e) {}
       }
 
-      // Accelerate ad and instantly seek to the end so it never hangs for 20 seconds
+      // Fast-forward ad cleanly without corrupting video state machine
       videos.forEach((video) => {
         if (!video) return;
         try {
@@ -165,19 +165,14 @@
           video.playbackRate = 16.0;
         } catch (e) {}
 
-        if (isFinite(video.duration) && video.duration > 0) {
+        if (isFinite(video.duration) && video.duration > 0.5 && video.currentTime < video.duration - 0.2) {
           try {
-            video.currentTime = video.duration;
-            video.dispatchEvent(new Event('ended'));
-          } catch (e) {}
-        } else {
-          try {
-            video.currentTime = 999999;
+            video.currentTime = video.duration - 0.1;
           } catch (e) {}
         }
       });
     } else if (adWasActive) {
-      // Ad has ended! Cleanly restore normal state and ensure main video continues playing
+      // Ad has ended! Cleanly restore normal playback speed and unmute
       adWasActive = false;
       videos.forEach((video) => {
         if (!video) return;
@@ -187,7 +182,7 @@
           } catch (e) {}
         }
         try {
-          if (video.muted) video.muted = false;
+          video.muted = false;
         } catch (e) {}
         if (video.paused && isFinite(video.duration) && video.currentTime < video.duration - 0.5) {
           try {

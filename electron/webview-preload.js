@@ -250,18 +250,85 @@
     const isYouTube = Boolean(window.location && window.location.hostname.includes('youtube.com'));
 
     if (isYouTube) {
-      // 1. High-Performance CSS: Hide ad overlays, banners, and promoted tiles cleanly without tampering with JSON or network streams
+      // 1. JSON & Network Response Pruning: Strip adPlacements before player initializes
+      try {
+        const pruneAdPayload = (obj) => {
+          if (!obj || typeof obj !== 'object') return obj;
+          try {
+            if (obj.adPlacements) obj.adPlacements = [];
+            if (obj.adSlots) obj.adSlots = [];
+            if (obj.playerAds) obj.playerAds = [];
+            if (obj.adBreakHeartbeatParams) delete obj.adBreakHeartbeatParams;
+            if (obj.playerResponse) {
+              if (obj.playerResponse.adPlacements) obj.playerResponse.adPlacements = [];
+              if (obj.playerResponse.adSlots) obj.playerResponse.adSlots = [];
+              if (obj.playerResponse.playerAds) obj.playerResponse.playerAds = [];
+            }
+          } catch (_) {}
+          return obj;
+        };
+
+        // Intercept global ytInitialPlayerResponse
+        let _ytInitialPlayerResponse = window.ytInitialPlayerResponse;
+        Object.defineProperty(window, 'ytInitialPlayerResponse', {
+          get: () => _ytInitialPlayerResponse,
+          set: (val) => {
+            _ytInitialPlayerResponse = pruneAdPayload(val);
+          },
+          configurable: true
+        });
+
+        // Intercept fetch responses for /youtubei/v1/player
+        const origFetch = window.fetch;
+        if (origFetch) {
+          window.fetch = async function (...args) {
+            const response = await origFetch.apply(this, args);
+            const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+            if (url && (url.includes('/youtubei/v1/player') || url.includes('/youtubei/v1/next'))) {
+              try {
+                const clone = response.clone();
+                const json = await clone.json();
+                pruneAdPayload(json);
+                return new Response(JSON.stringify(json), {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: response.headers
+                });
+              } catch (_) {}
+            }
+            return response;
+          };
+        }
+
+        // Intercept XMLHttpRequest responses
+        const origOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+          this._dozzoUrl = url;
+          return origOpen.apply(this, [method, url, ...rest]);
+        };
+
+        const origSend = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function (...sendArgs) {
+          if (this._dozzoUrl && typeof this._dozzoUrl === 'string' && this._dozzoUrl.includes('/youtubei/v1/player')) {
+            this.addEventListener('readystatechange', function () {
+              if (this.readyState === 4 && this.status === 200) {
+                try {
+                  const data = JSON.parse(this.responseText);
+                  pruneAdPayload(data);
+                  Object.defineProperty(this, 'responseText', { value: JSON.stringify(data) });
+                  Object.defineProperty(this, 'response', { value: JSON.stringify(data) });
+                } catch (_) {}
+              }
+            });
+          }
+          return origSend.apply(this, sendArgs);
+        };
+      } catch (err) {}
+
+      // 2. High-Performance CSS: Cleanly hide ad overlays, banners, and promoted tiles
       const style = document.createElement('style');
       style.id = '__dozzo_early_adblock_css';
       style.textContent = `
-        /* Hide ad video frames so no ad screenshots or flashes ever appear */
-        #movie_player.ad-showing video,
-        #movie_player.ad-interrupting video,
-        .video-ads video {
-          visibility: hidden !important;
-          opacity: 0 !important;
-        }
-
         /* Hide all YouTube ad modules, badges, overlays, and promoted elements */
         ytd-promoted-sparkles-web-renderer,
         ytd-compact-promoted-video-renderer,
@@ -287,7 +354,6 @@
         #masthead-ad,
         #player-ads,
         #companion,
-        .video-ads,
         .ytp-ad-module,
         .ytp-ad-player-overlay,
         .ytp-ad-player-overlay-layout,
@@ -338,9 +404,8 @@
         });
       }
 
-      // 3. Fast auto-skipper fallback (Without continuous seeking thrash)
+      // 3. Clean Fast Skipper: Accelerates ad & clicks skip WITHOUT corrupting video.currentTime
       let adWasActive = false;
-      let adSkipLocked = false;
 
       function quickSkip() {
         const player = document.querySelector('#movie_player, .html5-video-player');
@@ -349,58 +414,46 @@
         const isAd =
           player.classList.contains('ad-showing') ||
           player.classList.contains('ad-interrupting') ||
-          Boolean(player.querySelector('.ytp-ad-player-overlay, .ytp-ad-showing, .ad-showing, .ytp-ad-text, .ytp-ad-module:not(:empty)')) ||
+          Boolean(player.querySelector('.ytp-ad-player-overlay, .ytp-ad-showing, .ad-showing, .ytp-ad-text')) ||
           Boolean(document.querySelector('.video-ads > *'));
 
-        const videos = player.querySelectorAll('video');
+        const video = player.querySelector('video');
 
         if (isAd) {
           adWasActive = true;
 
-          // Mute and speed up immediately
-          videos.forEach((v) => {
-            if (!v) return;
-            try { v.muted = true; } catch (e) {}
-            try { v.playbackRate = 16.0; } catch (e) {}
-
-            if (isFinite(v.duration) && v.duration > 0) {
-              try {
-                v.currentTime = v.duration;
-                v.dispatchEvent(new Event('ended'));
-              } catch (e) {}
-            } else {
-              try {
-                v.currentTime = 999999;
-              } catch (e) {}
+          // 1. Mute and fast-forward cleanly
+          if (video) {
+            try { video.muted = true; } catch (_) {}
+            try { video.playbackRate = 16.0; } catch (_) {}
+            // Only set time near end if duration is valid and safe, never 999999
+            if (isFinite(video.duration) && video.duration > 0.5 && video.currentTime < video.duration - 0.2) {
+              try { video.currentTime = video.duration - 0.1; } catch (_) {}
             }
-          });
+          }
 
-          // Click native skip buttons
+          // 2. Click native skip buttons immediately
           const skipBtns = document.querySelectorAll(
             '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, .ytp-ad-skip-button-slot button, button.ytp-ad-skip-button-modern, .ytp-ad-skip-button-container button, [id^="skip-button"] button, .ytp-ad-overlay-close-button'
           );
           skipBtns.forEach((btn) => {
-            try { btn.click(); } catch (e) {}
+            try { btn.click(); } catch (_) {}
           });
 
-          // Call YouTube player skip API if available
+          // 3. Call YouTube player skip API if available
           if (typeof player.skipAd === 'function') {
-            try { player.skipAd(true); } catch (e) {}
+            try { player.skipAd(true); } catch (_) {}
           }
-        } else {
-          if (adWasActive) {
-            adWasActive = false;
-            videos.forEach((v) => {
-              if (!v) return;
-              if (v.playbackRate > 2) {
-                try { v.playbackRate = 1.0; } catch (e) {}
-              }
-              try { v.muted = false; } catch (e) {}
-              // Resume the main video once if paused
-              if (v.paused && isFinite(v.duration) && v.currentTime < v.duration - 0.5) {
-                v.play().catch(() => {});
-              }
-            });
+        } else if (adWasActive) {
+          adWasActive = false;
+          if (video) {
+            if (video.playbackRate > 2) {
+              try { video.playbackRate = 1.0; } catch (_) {}
+            }
+            try { video.muted = false; } catch (_) {}
+            if (video.paused && isFinite(video.duration) && video.currentTime < video.duration - 0.5) {
+              video.play().catch(() => {});
+            }
           }
         }
       }
