@@ -328,7 +328,7 @@ export default function SettingsModal({
                     </div>
                     <button
                       style={{ ...styles.downloadButton, marginTop: 12 }}
-                      onClick={() => handleOpenExternal(releasesBaseUrl)}
+                      onClick={() => handleOpenExternal(updateData?.windowsDownloadUrl || `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser.Setup.${CURRENT_VERSION}.exe`)}
                     >
                       <Download size={13} />
                       <span>Descargar para Windows</span>
@@ -347,7 +347,7 @@ export default function SettingsModal({
                     </div>
                     <button
                       style={{ ...styles.downloadButton, marginTop: 12 }}
-                      onClick={() => handleOpenExternal(releasesBaseUrl)}
+                      onClick={() => handleOpenExternal(updateData?.macDownloadUrl || `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser-${CURRENT_VERSION}-arm64.dmg`)}
                     >
                       <Download size={13} />
                       <span>Descargar para Mac</span>

@@ -58,14 +58,25 @@ export async function checkForLatestRelease(force = false) {
     const latestVersion = (data.tag_name || '').replace(/^v/i, '').trim();
     const hasUpdate = compareVersions(latestVersion, CURRENT_VERSION) > 0;
 
-    // Find Windows exe download asset if available
+    // Find Windows exe and Mac dmg direct download assets
     let downloadUrl = data.html_url;
+    let windowsDownloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Dozzo.Browser.Setup.${latestVersion}.exe`;
+    let macDownloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${latestVersion}/Dozzo.Browser-${latestVersion}-arm64.dmg`;
+
     if (Array.isArray(data.assets)) {
       const exeAsset = data.assets.find(
-        (a) => a.name && (a.name.endsWith('.exe') || a.name.includes('Setup'))
-      );
+        (a) => a.name && a.name.endsWith('.exe') && a.name.includes('Setup')
+      ) || data.assets.find((a) => a.name && a.name.endsWith('.exe'));
       if (exeAsset && exeAsset.browser_download_url) {
+        windowsDownloadUrl = exeAsset.browser_download_url;
         downloadUrl = exeAsset.browser_download_url;
+      }
+
+      const dmgAsset = data.assets.find(
+        (a) => a.name && a.name.endsWith('.dmg')
+      );
+      if (dmgAsset && dmgAsset.browser_download_url) {
+        macDownloadUrl = dmgAsset.browser_download_url;
       }
     }
 
@@ -77,6 +88,8 @@ export async function checkForLatestRelease(force = false) {
       releaseNotes: data.body || 'Mejoras continuas de rendimiento, seguridad y experiencia de navegación.',
       releaseDate: data.published_at ? new Date(data.published_at).toLocaleDateString() : '',
       downloadUrl,
+      windowsDownloadUrl,
+      macDownloadUrl,
       releaseUrl: data.html_url || `https://github.com/${GITHUB_REPO}/releases`
     };
 
@@ -94,7 +107,9 @@ export async function checkForLatestRelease(force = false) {
       latestVersion: CURRENT_VERSION,
       releaseName: `Dozzo Browser v${CURRENT_VERSION}`,
       releaseNotes: '',
-      downloadUrl: `https://github.com/${GITHUB_REPO}/releases`,
+      downloadUrl: `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser.Setup.${CURRENT_VERSION}.exe`,
+      windowsDownloadUrl: `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser.Setup.${CURRENT_VERSION}.exe`,
+      macDownloadUrl: `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser-${CURRENT_VERSION}-arm64.dmg`,
       releaseUrl: `https://github.com/${GITHUB_REPO}/releases`
     };
   }

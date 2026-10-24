@@ -19,14 +19,15 @@ Diseñado especialmente para navegación sin anuncios, máxima privacidad, segui
 
 Siempre se descarga automáticamente la versión más reciente y actualizada de Dozzo Browser:
 
-| Plataforma | Tipo | Enlace de Descarga |
+| Plataforma | Tipo | Enlace de Descarga Directa (1-Click) |
 | :--- | :--- | :--- |
-| 💻 **Windows** (Recomendado) | `.exe` (Instalador con auto-actualizador) | [⬇️ **Descargar Dozzo Setup Oficial (Última Versión)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
-| 💻 **Windows Portable** | `.exe` (Ejecutable sin instalación) | [⬇️ **Descargar Dozzo Portable (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
-| 🍏 **macOS** (Mac Silicon & Intel) | `.dmg` / Código Fuente compilable | [⬇️ **Descargar Dozzo para Mac**](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest) |
+| 💻 **Windows** (Recomendado) | `.exe` (Instalador con auto-actualizador) | [⬇️ **Descargar Dozzo Setup (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v4.5.0/Dozzo.Browser.Setup.4.5.0.exe) |
+| 💻 **Windows Portable** | `.exe` (Ejecutable sin instalación) | [⬇️ **Descargar Dozzo Portable (.exe)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v4.5.0/Dozzo.Browser.4.5.0.exe) |
+| 🍏 **macOS** (Mac Silicon M1/M2/M3/M4) | `.dmg` (Instalador Apple oficial) | [⬇️ **Descargar Dozzo para Mac (.dmg)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v4.5.0/Dozzo.Browser-4.5.0-arm64.dmg) |
+| 🍏 **macOS ZIP** (Alternativo) | `.zip` (Comprimido para Mac) | [⬇️ **Descargar Dozzo Mac (.zip)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v4.5.0/Dozzo.Browser-4.5.0-arm64-mac.zip) |
 | 📱 **Android & iPhone** | PWA (Web App Nativa Móvil) | [📲 **Abrir Dozzo Mobile App**](https://devjuanrm.github.io/Dozzo-Browser/) |
 
-> 📌 **Historial y Notas de Versión:** Puedes consultar todas las novedades en [GitHub Releases](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
+> 📌 **Historial y Notas de Versión:** Puedes consultar todas las novedades y archivos en [GitHub Releases](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
 
 </div>
 
@@ -36,10 +37,10 @@ Siempre se descarga automáticamente la versión más reciente y actualizada de 
 
 Para usuarios de Mac (MacBook Air, MacBook Pro, Mac mini, Mac Studio, iMac):
 
-### Opción 1: Descargar desde Releases
-1. Entra a [GitHub Releases (Última Versión)](https://github.com/DevJuanRM/Dozzo-Browser/releases/latest).
-2. Descarga el paquete para macOS (`.dmg` o `.zip`).
-3. Abre el archivo y arrastra **Dozzo Browser** a tu carpeta de **Aplicaciones**.
+### Opción 1: Descarga Directa (1-Click)
+1. Haz clic aquí para descargar el instalador directo:  
+   👉 [⬇️ **Descargar Dozzo Browser para Mac (.dmg)**](https://github.com/DevJuanRM/Dozzo-Browser/releases/download/v4.5.0/Dozzo.Browser-4.5.0-arm64.dmg)
+2. Abre el archivo `.dmg` descargado y arrastra **Dozzo Browser** a tu carpeta de **Aplicaciones**.
 
 ### Opción 2: Compilar y Ejecutar en Mac en 2 pasos
 Si tienes Node.js en tu Mac:

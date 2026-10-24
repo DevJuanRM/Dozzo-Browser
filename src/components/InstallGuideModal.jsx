@@ -5,7 +5,7 @@ import { GITHUB_REPO, CURRENT_VERSION } from '../utils/updateChecker';
 export default function InstallGuideModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
-  const downloadUrl = `https://github.com/${GITHUB_REPO}/releases/latest`;
+  const downloadUrl = `https://github.com/${GITHUB_REPO}/releases/download/v${CURRENT_VERSION}/Dozzo.Browser.Setup.${CURRENT_VERSION}.exe`;
 
   return (
     <div style={styles.overlay} onClick={onClose} className="animate-fade-in">
