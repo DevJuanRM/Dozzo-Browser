@@ -623,10 +623,10 @@ export default function App() {
         handleSplitModeChange('grid-4');
         return;
       }
-      // 31. Alt + S: Desacoplar Pestaña (Pop Out en ventana separada)
-      if (isAlt && !isCmdOrCtrl && lowerKey === 's') {
+      // 31. Alt + P / Alt + S: Ventana Flotante / Picture-in-Picture (PiP)
+      if (isAlt && !isCmdOrCtrl && (lowerKey === 'p' || lowerKey === 's')) {
         e.preventDefault();
-        handlePopOutTab(activeTabId);
+        handleTogglePiP();
         return;
       }
 
@@ -679,8 +679,8 @@ export default function App() {
         setActiveSideApp((prev) => (prev === 'whatsapp' ? null : 'whatsapp'));
         return;
       }
-      // 40. Alt + P: Dozzo Shield (Bloqueador de Anuncios)
-      if (isAlt && !isCmdOrCtrl && lowerKey === 'p') {
+      // 40. Alt + Shift + S: Dozzo Shield (Bloqueador de Anuncios)
+      if (isAlt && isShift && lowerKey === 's') {
         e.preventDefault();
         setIsShieldOpen((prev) => !prev);
         return;
@@ -986,6 +986,34 @@ export default function App() {
     setIsViewingHome(true);
   };
 
+  // Native Picture-in-Picture (Ventana Flotante de Video)
+  const handleTogglePiP = async () => {
+    const curWv = webviewRefs.current.get(activeTabId);
+    if (!curWv || typeof curWv.executeJavaScript !== 'function') return;
+
+    try {
+      await curWv.executeJavaScript(`
+        (async function() {
+          try {
+            const video = document.querySelector('video');
+            if (!video) return false;
+            if (document.pictureInPictureElement) {
+              await document.exitPictureInPicture();
+              return false;
+            } else if (document.pictureInPictureEnabled) {
+              await video.requestPictureInPicture();
+              return true;
+            }
+            return false;
+          } catch (e) {
+            console.warn('PiP error:', e);
+            return false;
+          }
+        })();
+      `);
+    } catch (_) {}
+  };
+
   const handlePopOutTab = async (tabIdToPop) => {
     const tabToPop = tabs.find((t) => t.id === tabIdToPop);
     if (!tabToPop || tabToPop.isNewTab || !tabToPop.url) return;
@@ -1260,6 +1288,7 @@ export default function App() {
               onFocusChange={(focused) => setIsOmniFocused(focused)}
               isHeaderPinned={isHeaderPinned}
               onTogglePinHeader={handleTogglePinHeader}
+              onTogglePiP={handleTogglePiP}
             />
 
             {/* Optional Bookmarks Bar */}

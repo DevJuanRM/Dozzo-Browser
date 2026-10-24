@@ -160,8 +160,7 @@ Dozzo Browser cuenta con una suite completa de más de 50 atajos de teclado prof
 | `Alt + 1` | `Option + 1` | Activar **Vista Simple** (1 Pantalla completa) |
 | `Alt + 2` | `Option + 2` | Activar **Doble Pantalla Horizontal** (Split Screen 50/50) |
 | `Alt + 3` | `Option + 3` | Activar **Doble Pantalla Vertical** |
-| `Alt + 4` | `Option + 4` | Activar **Cuadrícula Multitarea** (4 Pestañas simultáneas) |
-| `Alt + S` | `Option + S` | **Desacoplar Pestaña** (Pop Out a ventana independiente) |
+| `Alt + P` / `Alt + S` | `Option + P` / `Option + S` | **Ventana Flotante / Picture-in-Picture (PiP)** del video |
 
 ### 📂 4. Paneles, Historial y Dozzo Apps (11 Atajos)
 | Windows / Linux | macOS | Acción |
@@ -174,7 +173,7 @@ Dozzo Browser cuenta con una suite completa de más de 50 atajos de teclado prof
 | `Alt + B` | `Option + B` | Desplegar **Binance Watchlist & Cripto Tracker** |
 | `Alt + C` | `Option + C` | Abrir / Cerrar Drawer lateral de **ChatGPT IA** |
 | `Alt + W` | `Option + W` | Abrir / Cerrar Drawer lateral de **WhatsApp Web** |
-| `Alt + P` | `Option + P` | Abrir monitor de **Dozzo Shield** (Bloqueador de Anuncios) |
+| `Alt + Shift + S` | `Option + Shift + S` | Abrir monitor de **Dozzo Shield** (Bloqueador de Anuncios) |
 | `Alt + N` | `Option + N` | Abrir Drawer de **Notas Rápidas** |
 | `Alt + T` | `Option + T` | Alternar al instante entre **Modo Oscuro / Modo Claro** |
 

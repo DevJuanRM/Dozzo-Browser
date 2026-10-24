@@ -223,7 +223,40 @@
       attributes: true,
       attributeFilter: ['class']
     });
-  }
+  // Auto-upgrade YouTube Miniplayer to Native Floating Picture-in-Picture (PiP)
+  // When user clicks "Miniplayer" in YouTube's context menu or bottom bar, trigger native PiP floating window
+  document.addEventListener(
+    'click',
+    (e) => {
+      try {
+        const miniplayerBtn = e.target && typeof e.target.closest === 'function'
+          ? e.target.closest('.ytp-miniplayer-button, .ytp-menuitem, button[data-tooltip-target-id="ytp-miniplayer-button"]')
+          : null;
+
+        if (miniplayerBtn) {
+          const text = (miniplayerBtn.textContent || '').toLowerCase();
+          const isMini =
+            miniplayerBtn.classList.contains('ytp-miniplayer-button') ||
+            text.includes('miniplayer') ||
+            text.includes('miniatura');
+
+          if (isMini) {
+            const video = document.querySelector('video');
+            if (video && document.pictureInPictureEnabled) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (document.pictureInPictureElement) {
+                document.exitPictureInPicture().catch(() => {});
+              } else {
+                video.requestPictureInPicture().catch(() => {});
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    },
+    true
+  );
 
   // Universal scroll detection for auto-hiding top bar
   try {

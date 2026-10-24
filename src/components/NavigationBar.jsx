@@ -12,7 +12,8 @@ import {
   Code2,
   Clock,
   Pin,
-  PinOff
+  PinOff,
+  PictureInPicture2
 } from 'lucide-react';
 import { getSearchUrl, getEngine } from '../utils/searchEngines';
 
@@ -37,7 +38,8 @@ export default function NavigationBar({
   onMaximizeWindow,
   onFocusChange,
   isHeaderPinned = false,
-  onTogglePinHeader
+  onTogglePinHeader,
+  onTogglePiP
 }) {
   const [inputValue, setInputValue] = useState(currentUrl || '');
   const [copied, setCopied] = useState(false);
@@ -296,6 +298,17 @@ export default function NavigationBar({
             }
           >
             {isHeaderPinned ? <Pin size={15} fill="currentColor" /> : <PinOff size={15} />}
+          </button>
+        )}
+
+        {/* Ventana Flotante / Picture-in-Picture (PiP) */}
+        {onTogglePiP && (
+          <button
+            style={styles.iconBtn}
+            onClick={onTogglePiP}
+            title="Ventana flotante / Picture-in-Picture (Alt + P)"
+          >
+            <PictureInPicture2 size={16} />
           </button>
         )}
 

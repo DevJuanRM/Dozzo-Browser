@@ -84,7 +84,7 @@ app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
-app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm,SharedArrayBuffer,DnsOverHttps');
+app.commandLine.appendSwitch('enable-features', 'PlatformEncryptedDolbyVision,AudioServiceOutOfProcess,EncryptedMediaExtensions,WidevineCdm,SharedArrayBuffer,DnsOverHttps,PictureInPicture');
 
 // Modern Chrome User-Agent to avoid Google/Spotify/Cloudflare blocking
 const CHROME_USER_AGENT =
