@@ -7,6 +7,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag de versión (opcional, ej. v4.5.0 - por defecto toma la versión de package.json)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -68,6 +73,20 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Determine Release Tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="v$VERSION"
+          fi
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
       - name: Build and Package with Electron Builder
         run: npm run dist
         env:
@@ -76,6 +95,8 @@ jobs:
       - name: Publish Windows Assets to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Dozzo Browser ${{ env.TAG_NAME }}
           files: |
             release/*.exe
             release/*.blockmap
@@ -101,6 +122,20 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Determine Release Tag
+        id: release_tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="v$VERSION"
+          fi
+          echo "TAG_NAME=$TAG" >> $GITHUB_ENV
+
       - name: Build macOS DMG and ZIP
         run: npm run dist:mac
         env:
@@ -110,6 +145,8 @@ jobs:
       - name: Publish macOS Assets to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Dozzo Browser ${{ env.TAG_NAME }}
           files: |
             release/*.dmg
             release/*.zip
