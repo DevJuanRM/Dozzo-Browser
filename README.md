@@ -116,16 +116,92 @@ Dozzo Browser incluye soporte **PWA (Progressive Web App)** nativo con ícono de
 
 ---
 
-## ⌨️ Atajos de Teclado
+## ⌨️ Atajos de Teclado (55+ Shortcuts de Navegación Pro)
 
-| Atajo | Acción |
-| :--- | :--- |
-| `Ctrl + T` | Abrir nueva pestaña |
-| `Ctrl + W` | Cerrar pestaña actual |
-| `Ctrl + R` / `F5` | Recargar página |
-| `Ctrl + Shift + R` | Recargar interfaz de Dozzo |
-| `Alt + ←` | Ir atrás en el historial |
-| `Alt + →` | Ir adelante |
+Dozzo Browser cuenta con una suite completa de más de 50 atajos de teclado profesionales organizados por categorías para máxima productividad (compatibles tanto con **Windows** como con **macOS**):
+
+### 📑 1. Pestañas y Ventanas (18 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Ctrl + T` | `Cmd + T` | **Nueva Pestaña** limpia con barra láser y accesos rápidos |
+| `Ctrl + Shift + T` | `Cmd + Shift + T` | **Restaurar Pestaña Cerrada** recientemente (historial de sesión) |
+| `Ctrl + W` | `Cmd + W` | **Cerrar Pestaña Actual** |
+| `Ctrl + Shift + W` | `Cmd + Shift + W` | **Cerrar Todas las Pestañas** y volver al inicio |
+| `Ctrl + Tab` | `Cmd + Option + →` | **Pestaña Siguiente** (cíclico continuo) |
+| `Ctrl + Shift + Tab` | `Cmd + Option + ←` | **Pestaña Anterior** |
+| `Ctrl + 1` | `Cmd + 1` | Saltar directo a la **1ª Pestaña** |
+| `Ctrl + 2` | `Cmd + 2` | Saltar directo a la **2ª Pestaña** |
+| `Ctrl + 3` | `Cmd + 3` | Saltar directo a la **3ª Pestaña** |
+| `Ctrl + 4` | `Cmd + 4` | Saltar directo a la **4ª Pestaña** |
+| `Ctrl + 5` | `Cmd + 5` | Saltar directo a la **5ª Pestaña** |
+| `Ctrl + 6` | `Cmd + 6` | Saltar directo a la **6ª Pestaña** |
+| `Ctrl + 7` | `Cmd + 7` | Saltar directo a la **7ª Pestaña** |
+| `Ctrl + 8` | `Cmd + 8` | Saltar directo a la **8ª Pestaña** |
+| `Ctrl + 9` | `Cmd + 9` | Saltar directo a la **Última Pestaña** abierta |
+| `Ctrl + N` | `Cmd + N` | **Nueva Ventana** independiente de Dozzo Browser |
+| `Ctrl + Shift + N` | `Cmd + Shift + N` | **Nueva Ventana Privada / Incógnito** |
+| `Ctrl + M` | `Cmd + M` | **Minimizar Ventana** al dock o barra de tareas |
+
+### 🧭 2. Navegación Web y Búsqueda (8 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Alt + ←` / `Backspace` | `Cmd + [ ` / `Delete` | **Ir Atrás** en el historial de navegación |
+| `Alt + →` / `Shift + Backspace` | `Cmd + ] ` | **Ir Adelante** |
+| `Ctrl + R` / `F5` | `Cmd + R` | **Recargar Página** web actual |
+| `Ctrl + Shift + R` / `Ctrl + F5` | `Cmd + Shift + R` | **Recarga Forzada** (Hard Reload ignorando caché) |
+| `Escape` | `Escape` | **Detener Carga** o cerrar modales y paneles abiertos |
+| `Alt + Home` | `Option + Home` | **Ir a la Página de Inicio** / Dashboard de Dozzo |
+| `Ctrl + L` / `Alt + D` / `F6` | `Cmd + L` | **Enfocar y Seleccionar** la barra de direcciones Omnibar |
+| `Ctrl + K` / `Ctrl + E` | `Cmd + K` | **Búsqueda Rápida** en el buscador por defecto |
+
+### 🪟 3. Vista Dividida y Multitarea (5 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Alt + 1` | `Option + 1` | Activar **Vista Simple** (1 Pantalla completa) |
+| `Alt + 2` | `Option + 2` | Activar **Doble Pantalla Horizontal** (Split Screen 50/50) |
+| `Alt + 3` | `Option + 3` | Activar **Doble Pantalla Vertical** |
+| `Alt + 4` | `Option + 4` | Activar **Cuadrícula Multitarea** (4 Pestañas simultáneas) |
+| `Alt + S` | `Option + S` | **Desacoplar Pestaña** (Pop Out a ventana independiente) |
+
+### 📂 4. Paneles, Historial y Dozzo Apps (11 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Ctrl + J` | `Cmd + Option + L` | Abrir / Cerrar **Panel de Descargas** |
+| `Ctrl + H` / `Ctrl + Y` | `Cmd + Y` | Abrir / Cerrar **Historial de Navegación** |
+| `Ctrl + D` | `Cmd + D` | **Guardar o Quitar Marcador** de la página actual |
+| `Ctrl + B` | `Cmd + Shift + B` | Abrir / Cerrar **Gestor de Marcadores** |
+| `Ctrl + ,` (Coma) | `Cmd + ,` | Abrir **Panel de Configuración** general de Dozzo |
+| `Alt + B` | `Option + B` | Desplegar **Binance Watchlist & Cripto Tracker** |
+| `Alt + C` | `Option + C` | Abrir / Cerrar Drawer lateral de **ChatGPT IA** |
+| `Alt + W` | `Option + W` | Abrir / Cerrar Drawer lateral de **WhatsApp Web** |
+| `Alt + P` | `Option + P` | Abrir monitor de **Dozzo Shield** (Bloqueador de Anuncios) |
+| `Alt + N` | `Option + N` | Abrir Drawer de **Notas Rápidas** |
+| `Alt + T` | `Option + T` | Alternar al instante entre **Modo Oscuro / Modo Claro** |
+
+### 🔍 5. Zoom, Pantalla y Desplazamiento (6 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Ctrl + +` / `Ctrl + =` | `Cmd + +` | **Aumentar Zoom** (+10%) |
+| `Ctrl + -` | `Cmd + -` | **Reducir Zoom** (-10%) |
+| `Ctrl + 0` | `Cmd + 0` | **Restablecer Zoom** al 100% original |
+| `F11` | `Cmd + Ctrl + F` | Alternar **Modo Pantalla Completa** |
+| `Alt + ↑` | `Option + ↑` | **Scroll Rápido Hacia Arriba** |
+| `Alt + ↓` | `Option + ↓` | **Scroll Rápido Hacia Abajo** |
+
+### 🛠️ 6. Dev Studio & Responsive Mode (4 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `F12` / `Ctrl + Shift + I` | `Cmd + Option + I` | Abrir / Cerrar **Herramientas de Desarrollador (DevTools)** |
+| `Ctrl + Shift + M` | `Cmd + Shift + M` | Alternar **Simulador de Dispositivos Móviles (DevMode)** |
+| `Ctrl + Shift + C` | `Cmd + Option + C` | Activar **Inspector de Elementos DOM** |
+| `Ctrl + U` | `Cmd + Option + U` | Ver el **Código Fuente** de la página actual |
+
+### 📄 7. Gestión de Página y Limpieza (3 Atajos)
+| Windows / Linux | macOS | Acción |
+| :--- | :--- | :--- |
+| `Ctrl + P` | `Cmd + P` | **Imprimir** página o exportar como PDF |
+| `Ctrl + Shift + Supr` | `Cmd + Shift + Backspace` | **Borrar Historial** y datos de navegación de la sesión |
+| `Espacio` / `Shift + Espacio` | `Espacio` / `Shift + Espacio` | **Avanzar / Retroceder una Pantalla Completa** de lectura |
 
 ---
 

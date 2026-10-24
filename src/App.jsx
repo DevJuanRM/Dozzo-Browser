@@ -218,6 +218,9 @@ export default function App() {
     }
   });
 
+  // Closed tabs history for Ctrl+Shift+T restoration
+  const [closedTabsHistory, setClosedTabsHistory] = useState([]);
+
   // Live Binance top ticker for navbar chip
   const [binanceTicker, setBinanceTicker] = useState({ symbol: 'BTC', price: '68,420' });
 
@@ -413,35 +416,430 @@ export default function App() {
     }
   };
 
-  // Keyboard Shortcuts (Ctrl+T, Ctrl+W, Ctrl+R, Ctrl+J)
+  // ==========================================
+  // Comprehensive Keyboard Shortcuts Suite (50+ Shortcuts)
+  // ==========================================
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+      const isAlt = e.altKey;
+      const isShift = e.shiftKey;
+      const key = e.key;
+      const lowerKey = key.toLowerCase();
+      const code = e.code;
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.isContentEditable
+      );
+
+      const curWv = webviewRefs.current.get(activeTabId);
+
+      // --- GRUPO 1: PESTAÑAS Y VENTANAS ---
+      // 1. Ctrl + T: Nueva Pestaña
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 't') {
         e.preventDefault();
         handleNewTab();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        return;
+      }
+      // 2. Ctrl + Shift + T: Restaurar Pestaña Cerrada
+      if (isCmdOrCtrl && isShift && !isAlt && (lowerKey === 't' || key === 'T')) {
+        e.preventDefault();
+        handleRestoreClosedTab();
+        return;
+      }
+      // 3. Ctrl + W: Cerrar Pestaña Actual
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 'w') {
         e.preventDefault();
         handleCloseTab(activeTabId);
-      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'r' || e.key === 'R')) {
+        return;
+      }
+      // 4. Ctrl + Shift + W: Cerrar Todas las Pestañas
+      if (isCmdOrCtrl && isShift && !isAlt && (lowerKey === 'w' || key === 'W')) {
         e.preventDefault();
-        window.location.reload();
-      } else if (e.key === 'F5') {
+        handleCloseAllTabs();
+        return;
+      }
+      // 5. Ctrl + Tab: Pestaña Siguiente
+      if (isCmdOrCtrl && !isShift && !isAlt && (key === 'Tab' || code === 'Tab')) {
         e.preventDefault();
-        window.location.reload();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+        if (tabs.length > 1) {
+          const idx = tabs.findIndex((t) => t.id === activeTabId);
+          const nextIdx = (idx + 1) % tabs.length;
+          handleSelectTab(tabs[nextIdx].id);
+        }
+        return;
+      }
+      // 6. Ctrl + Shift + Tab: Pestaña Anterior
+      if (isCmdOrCtrl && isShift && !isAlt && (key === 'Tab' || code === 'Tab')) {
+        e.preventDefault();
+        if (tabs.length > 1) {
+          const idx = tabs.findIndex((t) => t.id === activeTabId);
+          const prevIdx = (idx - 1 + tabs.length) % tabs.length;
+          handleSelectTab(tabs[prevIdx].id);
+        }
+        return;
+      }
+      // 7-14. Ctrl + 1..8: Ir directamente a pestaña 1 a 8
+      if (isCmdOrCtrl && !isShift && !isAlt && /^[1-8]$/.test(key)) {
+        e.preventDefault();
+        const targetIndex = parseInt(key, 10) - 1;
+        if (tabs[targetIndex]) {
+          handleSelectTab(tabs[targetIndex].id);
+        }
+        return;
+      }
+      // 15. Ctrl + 9: Ir a la última pestaña
+      if (isCmdOrCtrl && !isShift && !isAlt && key === '9') {
+        e.preventDefault();
+        if (tabs.length > 0) {
+          handleSelectTab(tabs[tabs.length - 1].id);
+        }
+        return;
+      }
+      // 16. Ctrl + N: Nueva Ventana
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 'n') {
+        e.preventDefault();
+        if (window.browserAPI?.openNewWindow) {
+          window.browserAPI.openNewWindow();
+        } else {
+          window.open(window.location.origin, '_blank');
+        }
+        return;
+      }
+      // 17. Ctrl + Shift + N: Ventana Privada / Incógnito
+      if (isCmdOrCtrl && isShift && !isAlt && (lowerKey === 'n' || key === 'N')) {
+        e.preventDefault();
+        if (window.browserAPI?.openIncognitoWindow) {
+          window.browserAPI.openIncognitoWindow();
+        } else {
+          handleNewTab('https://duckduckgo.com');
+        }
+        return;
+      }
+      // 18. Ctrl + M: Minimizar Ventana
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 'm') {
+        e.preventDefault();
+        if (window.browserAPI?.minimizeWindow) {
+          window.browserAPI.minimizeWindow();
+        }
+        return;
+      }
+
+      // --- GRUPO 2: NAVEGACIÓN Y RECARGA ---
+      // 19. Alt + Left / Backspace: Retroceder
+      if ((isAlt && key === 'ArrowLeft') || (!isInput && key === 'Backspace' && !isCmdOrCtrl && !isAlt)) {
+        e.preventDefault();
+        handleGoBack();
+        return;
+      }
+      // 20. Alt + Right / Shift + Backspace: Avanzar
+      if ((isAlt && key === 'ArrowRight') || (!isInput && isShift && key === 'Backspace')) {
+        e.preventDefault();
+        handleGoForward();
+        return;
+      }
+      // 21. Ctrl + R / F5: Recargar Página Web
+      if ((isCmdOrCtrl && !isShift && lowerKey === 'r') || (key === 'F5' && !isShift && !isCmdOrCtrl)) {
         e.preventDefault();
         handleReload();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+        return;
+      }
+      // 22. Ctrl + Shift + R / Ctrl + F5: Recarga Forzada (Hard Reload)
+      if ((isCmdOrCtrl && isShift && (lowerKey === 'r' || key === 'R')) || (isCmdOrCtrl && key === 'F5')) {
+        e.preventDefault();
+        if (curWv && typeof curWv.reloadIgnoringCache === 'function') {
+          curWv.reloadIgnoringCache();
+        } else {
+          window.location.reload();
+        }
+        return;
+      }
+      // 23. Escape: Detener Carga o Cerrar Modales Activos
+      if (key === 'Escape') {
+        e.preventDefault();
+        if (isUpdateModalOpen) setIsUpdateModalOpen(false);
+        else if (isInstallGuideOpen) setIsInstallGuideOpen(false);
+        else if (isSettingsOpen) setIsSettingsOpen(false);
+        else if (isDownloadsOpen) setIsDownloadsOpen(false);
+        else if (isHistoryOpen) setIsHistoryOpen(false);
+        else if (isShieldOpen) setIsShieldOpen(false);
+        else if (isBinanceOpen) setIsBinanceOpen(false);
+        else if (activeSideApp) setActiveSideApp(null);
+        else if (isInspectorActive) setIsInspectorActive(false);
+        else handleStop();
+        return;
+      }
+      // 24. Alt + Home: Ir a Inicio / Nueva Pestaña Dozzo
+      if (isAlt && key === 'Home') {
+        e.preventDefault();
+        handleGoHome();
+        return;
+      }
+      // 25. Ctrl + L / Alt + D / F6: Enfocar Barra de Direcciones
+      if ((isCmdOrCtrl && !isShift && lowerKey === 'l') || (isAlt && lowerKey === 'd') || key === 'F6') {
+        e.preventDefault();
+        const omni = document.querySelector('.omni-input, .dozzo-omni-input, input[placeholder*="Buscar"], input[placeholder*="Search"]');
+        if (omni) {
+          omni.focus();
+          omni.select?.();
+        }
+        return;
+      }
+      // 26. Ctrl + K / Ctrl + E: Búsqueda Rápida
+      if (isCmdOrCtrl && (lowerKey === 'k' || lowerKey === 'e')) {
+        e.preventDefault();
+        const omni = document.querySelector('.omni-input, .dozzo-omni-input, input[placeholder*="Buscar"]');
+        if (omni) {
+          omni.focus();
+          omni.select?.();
+        }
+        return;
+      }
+
+      // --- GRUPO 3: VISTA DIVIDIDA Y MULTITAREA (SPLIT VIEW) ---
+      // 27. Alt + 1: Vista Individual (1 Pantalla)
+      if (isAlt && !isCmdOrCtrl && key === '1') {
+        e.preventDefault();
+        handleSplitModeChange('single');
+        return;
+      }
+      // 28. Alt + 2: Vista Dividida Horizontal (2 Pantallas)
+      if (isAlt && !isCmdOrCtrl && key === '2') {
+        e.preventDefault();
+        handleSplitModeChange('dual-horizontal');
+        return;
+      }
+      // 29. Alt + 3: Vista Dividida Vertical (2 Pantallas)
+      if (isAlt && !isCmdOrCtrl && key === '3') {
+        e.preventDefault();
+        handleSplitModeChange('dual-vertical');
+        return;
+      }
+      // 30. Alt + 4: Vista Cuadrícula (4 Pantallas)
+      if (isAlt && !isCmdOrCtrl && key === '4') {
+        e.preventDefault();
+        handleSplitModeChange('grid-4');
+        return;
+      }
+      // 31. Alt + S: Desacoplar Pestaña (Pop Out en ventana separada)
+      if (isAlt && !isCmdOrCtrl && lowerKey === 's') {
+        e.preventDefault();
+        handlePopOutTab(activeTabId);
+        return;
+      }
+
+      // --- GRUPO 4: PANELES LATERALES, HISTORIAL Y MODALES ---
+      // 32. Ctrl + J: Panel de Descargas
+      if (isCmdOrCtrl && !isShift && lowerKey === 'j') {
         e.preventDefault();
         setIsDownloadsOpen((prev) => !prev);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        return;
+      }
+      // 33. Ctrl + H / Ctrl + Y: Historial de Navegación
+      if (isCmdOrCtrl && !isShift && (lowerKey === 'h' || lowerKey === 'y')) {
         e.preventDefault();
         setIsHistoryOpen((prev) => !prev);
+        return;
+      }
+      // 34. Ctrl + D: Guardar / Quitar Marcador (Bookmark)
+      if (isCmdOrCtrl && !isShift && lowerKey === 'd') {
+        e.preventDefault();
+        handleToggleBookmark();
+        return;
+      }
+      // 35. Ctrl + B / Ctrl + Shift + B: Barra / Gestor de Marcadores
+      if (isCmdOrCtrl && lowerKey === 'b') {
+        e.preventDefault();
+        setIsHistoryOpen((prev) => !prev);
+        return;
+      }
+      // 36. Ctrl + , (Coma): Configuración de Dozzo
+      if (isCmdOrCtrl && (key === ',' || code === 'Comma')) {
+        e.preventDefault();
+        setIsSettingsOpen((prev) => !prev);
+        return;
+      }
+      // 37. Alt + B: Panel Cripto & Binance Watchlist
+      if (isAlt && !isCmdOrCtrl && lowerKey === 'b') {
+        e.preventDefault();
+        setIsBinanceOpen((prev) => !prev);
+        return;
+      }
+      // 38. Alt + C: SideApp ChatGPT IA
+      if (isAlt && !isCmdOrCtrl && lowerKey === 'c') {
+        e.preventDefault();
+        setActiveSideApp((prev) => (prev === 'chatgpt' ? null : 'chatgpt'));
+        return;
+      }
+      // 39. Alt + W: SideApp WhatsApp
+      if (isAlt && !isCmdOrCtrl && lowerKey === 'w') {
+        e.preventDefault();
+        setActiveSideApp((prev) => (prev === 'whatsapp' ? null : 'whatsapp'));
+        return;
+      }
+      // 40. Alt + P: Dozzo Shield (Bloqueador de Anuncios)
+      if (isAlt && !isCmdOrCtrl && lowerKey === 'p') {
+        e.preventDefault();
+        setIsShieldOpen((prev) => !prev);
+        return;
+      }
+      // 41. Alt + N: SideApp Notas Rápidas
+      if (isAlt && !isCmdOrCtrl && lowerKey === 'n') {
+        e.preventDefault();
+        setActiveSideApp((prev) => (prev === 'notes' ? null : 'notes'));
+        return;
+      }
+      // 42. Alt + T: Alternar Tema Claro / Oscuro
+      if (isAlt && !isCmdOrCtrl && lowerKey === 't') {
+        e.preventDefault();
+        setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+        return;
+      }
+
+      // --- GRUPO 5: ZOOM, PANTALLA Y VISUALIZACIÓN ---
+      // 43. Ctrl + + / Ctrl + = / Ctrl + NumpadAdd: Aumentar Zoom
+      if (isCmdOrCtrl && (key === '+' || key === '=' || code === 'NumpadAdd')) {
+        e.preventDefault();
+        if (curWv && typeof curWv.getZoomLevel === 'function') {
+          curWv.getZoomLevel((lvl) => curWv.setZoomLevel(lvl + 0.5));
+        }
+        return;
+      }
+      // 44. Ctrl + - / Ctrl + _ / Ctrl + NumpadSubtract: Reducir Zoom
+      if (isCmdOrCtrl && (key === '-' || key === '_' || code === 'NumpadSubtract')) {
+        e.preventDefault();
+        if (curWv && typeof curWv.getZoomLevel === 'function') {
+          curWv.getZoomLevel((lvl) => curWv.setZoomLevel(lvl - 0.5));
+        }
+        return;
+      }
+      // 45. Ctrl + 0 / Ctrl + Numpad0: Restablecer Zoom al 100%
+      if (isCmdOrCtrl && (key === '0' || code === 'Numpad0')) {
+        e.preventDefault();
+        if (curWv && typeof curWv.setZoomLevel === 'function') {
+          curWv.setZoomLevel(0);
+        }
+        return;
+      }
+      // 46. F11: Pantalla Completa
+      if (key === 'F11') {
+        e.preventDefault();
+        if (window.browserAPI?.toggleFullScreen) {
+          window.browserAPI.toggleFullScreen();
+        } else if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.();
+        } else {
+          document.exitFullscreen?.();
+        }
+        return;
+      }
+      // 47. Alt + Up: Scroll Hacia Arriba Rápido
+      if (isAlt && key === 'ArrowUp' && !isInput) {
+        e.preventDefault();
+        if (curWv && typeof curWv.executeJavaScript === 'function') {
+          curWv.executeJavaScript('window.scrollBy({ top: -450, behavior: "smooth" })');
+        } else {
+          window.scrollBy({ top: -450, behavior: 'smooth' });
+        }
+        return;
+      }
+      // 48. Alt + Down: Scroll Hacia Abajo Rápido
+      if (isAlt && key === 'ArrowDown' && !isInput) {
+        e.preventDefault();
+        if (curWv && typeof curWv.executeJavaScript === 'function') {
+          curWv.executeJavaScript('window.scrollBy({ top: 450, behavior: "smooth" })');
+        } else {
+          window.scrollBy({ top: 450, behavior: 'smooth' });
+        }
+        return;
+      }
+
+      // --- GRUPO 6: HERRAMIENTAS DE DESARROLLADOR Y DEV STUDIO ---
+      // 49. F12 / Ctrl + Shift + I: Inspeccionar / Alternar DevTools
+      if (key === 'F12' || (isCmdOrCtrl && isShift && (lowerKey === 'i' || key === 'I'))) {
+        e.preventDefault();
+        if (curWv && typeof curWv.openDevTools === 'function') {
+          if (curWv.isDevToolsOpened && curWv.isDevToolsOpened()) {
+            curWv.closeDevTools();
+          } else {
+            curWv.openDevTools();
+          }
+        }
+        return;
+      }
+      // 50. Ctrl + Shift + M: Modo Dispositivo Responsive (Mobile DevMode)
+      if (isCmdOrCtrl && isShift && (lowerKey === 'm' || key === 'M')) {
+        e.preventDefault();
+        setResponsiveMode((prev) => ({ ...prev, enabled: !prev.enabled }));
+        return;
+      }
+      // 51. Ctrl + Shift + C: Selector de Elemento Inspector
+      if (isCmdOrCtrl && isShift && (lowerKey === 'c' || key === 'C')) {
+        e.preventDefault();
+        setIsInspectorActive((prev) => !prev);
+        return;
+      }
+      // 52. Ctrl + U: Ver Código Fuente de la Página
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 'u') {
+        e.preventDefault();
+        const tab = tabs.find((t) => t.id === activeTabId);
+        if (tab && tab.url && !tab.isNewTab) {
+          handleNewTab(`view-source:${tab.url}`);
+        }
+        return;
+      }
+
+      // --- GRUPO 7: ACCIONES DE PÁGINA Y PORTAPAPELES ---
+      // 53. Ctrl + P: Imprimir Página Web
+      if (isCmdOrCtrl && !isShift && !isAlt && lowerKey === 'p') {
+        e.preventDefault();
+        if (curWv && typeof curWv.print === 'function') {
+          curWv.print();
+        } else {
+          window.print();
+        }
+        return;
+      }
+      // 54. Ctrl + Shift + Delete: Limpiar Historial y Datos de Navegación
+      if (isCmdOrCtrl && isShift && (key === 'Delete' || code === 'Delete')) {
+        e.preventDefault();
+        setHistory([]);
+        localStorage.removeItem('dozzo_browser_history');
+        setIsHistoryOpen(true);
+        return;
+      }
+      // 55. Space / Shift + Space: Scroll Por Pantalla
+      if (key === ' ' && !isInput && !isCmdOrCtrl && !isAlt) {
+        e.preventDefault();
+        const scrollDelta = isShift ? -window.innerHeight * 0.8 : window.innerHeight * 0.8;
+        if (curWv && typeof curWv.executeJavaScript === 'function') {
+          curWv.executeJavaScript(`window.scrollBy({ top: ${scrollDelta}, behavior: "smooth" })`);
+        } else {
+          window.scrollBy({ top: scrollDelta, behavior: 'smooth' });
+        }
+        return;
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTabId, tabs]);
+  }, [
+    activeTabId,
+    tabs,
+    closedTabsHistory,
+    isUpdateModalOpen,
+    isInstallGuideOpen,
+    isSettingsOpen,
+    isDownloadsOpen,
+    isHistoryOpen,
+    isShieldOpen,
+    isBinanceOpen,
+    activeSideApp,
+    isInspectorActive,
+    responsiveMode
+  ]);
 
   // History tracking
   const addToHistory = (entry) => {
@@ -514,6 +912,11 @@ export default function App() {
   };
 
   const handleCloseTab = (tabIdToClose) => {
+    const tabClosing = tabs.find((t) => t.id === tabIdToClose);
+    if (tabClosing && tabClosing.url && !tabClosing.isNewTab) {
+      setClosedTabsHistory((prev) => [tabClosing, ...prev].slice(0, 30));
+    }
+
     const newTabs = tabs.filter((t) => t.id !== tabIdToClose);
 
     // If no tabs remain, create a fresh New Tab and immediately update activeTabId and isViewingHome
@@ -544,6 +947,15 @@ export default function App() {
       setIsViewingHome(Boolean(!nextTab.url || nextTab.isNewTab));
     }
     setTabs(newTabs);
+  };
+
+  const handleRestoreClosedTab = () => {
+    if (!closedTabsHistory || closedTabsHistory.length === 0) return;
+    const [tabToRestore, ...rest] = closedTabsHistory;
+    setClosedTabsHistory(rest);
+    if (tabToRestore && tabToRestore.url) {
+      handleNewTab(tabToRestore.url);
+    }
   };
 
   const handleGoHome = () => {
